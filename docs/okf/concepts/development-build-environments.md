@@ -4,10 +4,10 @@ title: "Build Environments & PlatformIO Setup"
 description: "How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/"
 path: /development/build-environments/
-updated: 2026-08-31
+updated: 2026-09-10
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-08-31T22:19:13.727Z"
+  generated_at: "2026-09-10T00:15:39.524Z"
 ---
 ---
 title: "Build Environments & PlatformIO Setup"

@@ -4,10 +4,10 @@ title: "Scripting Example: E-Ink Drawing"
 description: "A PocketMage script demonstrating drawing shapes and text on the E-Ink display."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/ink-c/"
 path: /scripting/ink-c/
-updated: 2026-08-31
+updated: 2026-09-10
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-08-31T22:19:13.738Z"
+  generated_at: "2026-09-10T00:15:39.535Z"
 ---
 ---
 title: "Scripting Example: E-Ink Drawing"

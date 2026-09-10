@@ -4,10 +4,10 @@ title: "App API Reference"
 description: "Entry points and helper functions for PocketMage apps."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api/"
 path: /reference/app-api/
-updated: 2026-08-31
+updated: 2026-09-10
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-08-31T22:19:13.734Z"
+  generated_at: "2026-09-10T00:15:39.531Z"
 ---
 ---
 title: "App API Reference"

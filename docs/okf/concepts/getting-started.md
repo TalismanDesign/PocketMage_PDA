@@ -4,10 +4,10 @@ title: "Getting Started"
 description: "PocketMage overview, setup, and first steps."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/"
 path: /getting-started/
-updated: 2026-08-31
+updated: 2026-09-10
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-08-31T22:19:13.730Z"
+  generated_at: "2026-09-10T00:15:39.526Z"
 ---
 ---
 title: "Getting Started"
