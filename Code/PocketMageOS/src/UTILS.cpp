@@ -63,11 +63,15 @@ void checkTimeout() {
   if (PWR_BTN_event && CurrentHOMEState != NOWLATER) {
     PWR_BTN_event = false;
     ESP_LOGE(TAG, "Power Button Event: Sleeping now");
+    while (KB().updateKeypress() != 0) {}
+    delay(50);
     pocketmage::deepSleep();
 
   } else if (PWR_BTN_event && CurrentHOMEState == NOWLATER) {
     ESP_LOGE(TAG, "Power Button Event: powering off from NOWLATER");
     PWR_BTN_event = false;
+    while (KB().updateKeypress() != 0) {}
+    delay(50);
     pocketmage::deepSleep();
   }
 }
@@ -153,6 +157,8 @@ void checkTimeout() {
 
     } else {
       ESP_LOGD(TAG, "Not charging");
+      while (KB().updateKeypress() != 0) {}
+      delay(50);
       switch (CurrentAppState) {
         case TXT:
           if (SLEEPMODE == "TEXT" && PM_SDAUTO().getEditingFile() != "") {
@@ -184,6 +190,8 @@ void checkTimeout() {
   } else if (PWR_BTN_event && CurrentHOMEState == NOWLATER) {
     ESP_LOGE(TAG, "Power Button Event: powering off from NOWLATER");
     PWR_BTN_event = false;
+    while (KB().updateKeypress() != 0) {}
+    delay(50);
     pocketmage::deepSleep();
   }
 }
