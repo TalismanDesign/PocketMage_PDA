@@ -3,6 +3,7 @@
 #if !OTA_APP // POCKETMAGE_OS
 #include <WiFi.h>
 #include <esp_wifi.h>
+#include <esp_mac.h>
 #include <vector>
 
 extern "C" {
