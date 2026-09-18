@@ -1,0 +1,3 @@
+[submodule "Code/PocketMageOS/lib/PocketMage_SDK"]
+	path = Code/PocketMageOS/lib/PocketMage_SDK
+	url = https://github.com/TalismanDesign/PocketMage_SDK.git

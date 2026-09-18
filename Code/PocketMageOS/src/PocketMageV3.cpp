@@ -200,14 +200,3 @@ void loop() {
   vTaskDelay(50 / portTICK_PERIOD_MS);
   yield();
 }
-
-// E-Ink Loop
-void einkHandler(void* parameter) {
-  vTaskDelay(pdMS_TO_TICKS(250)); 
-  for (;;) {
-    applicationEinkHandler();
-
-    vTaskDelay(pdMS_TO_TICKS(50));
-    yield();
-  }
-}

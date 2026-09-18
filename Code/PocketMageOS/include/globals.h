@@ -11,15 +11,11 @@
 #include <pocketmage.h>
 // OTA_APP: remove assets.h + assets.cpp, and OS_APPS/, follow OTA_APP: tag instructions in codebase
 #include <assets.h> // OTA_APP: remove
-
-// ===================== SPI BUSSES =====================
-extern SPIClass *vspi;
-extern SPIClass *hspi;
-extern fs::FS* global_fs;
+// Shared state (vspi/hspi/global_fs/prefs, settings, AppState/KBState,
+// getBatteryVoltage) is owned by the SDK.
+#include <pocketmage_globals.h>
 
 // ===================== SYSTEM STATE =====================
-extern Preferences prefs;                       // NVS preferencesv
-extern TaskHandle_t einkHandlerTaskHandle;      // E-Ink handler task
 extern int OLEDFPSMillis;                       // Last OLED FPS update time
 extern int KBBounceMillis;                      // Last keyboard debounce time
 extern volatile bool newState;                  // App state changed
@@ -32,13 +28,8 @@ extern String OTA2_APP;
 extern String OTA3_APP;
 extern String OTA4_APP;
 
-// ===================== KEYBOARD STATE =====================
-enum KBState { NORMAL, SHIFT, FUNC, FN_SHIFT };    // Keyboard state
-
 // ===================== APP STATES =====================
-enum AppState { HOME, TXT, FILEWIZ, USB_APP, COMM, SETTINGS, TASKS, CALENDAR, JOURNAL, LEXICON, APPLOADER, TERMINAL, ONBOARDING };
 extern const unsigned char *appIcons[11];       // App icons
-extern AppState CurrentAppState;                // Current app state
 
 // ===================== TASKS APP =====================
 extern std::vector<std::vector<String>> tasks;  // Task list
@@ -56,16 +47,13 @@ void einkHandler_APP();
 //utils.cpp
 void printDebug();
 void checkTimeout();
-void loadState(bool changeState = true, char bootKey = 0);
 void wakeFromNowlater(char bootKey = 0);
 void updateBattState();
 String textPrompt(String promptText = "", String prefix = "", bool mask = false, bool lockGlyph = false);
 int boolPrompt(String promptText = "Are you sure?");
 void waitForKeypress(String message = "Press any button to continue...");
-void checkCrashState();
 String datePrompt(String defaultYYYYMMDD = "");
 int timePrompt(int defaultTime = -1);
-void checkRTCPowerLoss();
 bool applyDateFromPrompt();
 bool applyTimeFromPrompt();
 void runClockSetupFlow(bool ask);
@@ -74,8 +62,6 @@ void saveEditingFile(); // OTA_APP: Remove saveEditingFile
 #endif
 // <PocketMage>
 void einkHandler(void *parameter);
-void applicationEinkHandler();
-void processKB();
 
 
 // OTA_APP: Remove all pocketmage v3 prototypes below this line
@@ -98,13 +84,11 @@ void lockEnsureUnlocked();
 void einkHandler_LOCK();
 
 // <FILEWIZ.cpp>
-void FILEWIZ_INIT();
 void processKB_FILEWIZ();
 void einkHandler_FILEWIZ();
 String fileWizardMini(bool allowRecentSelect = false, String rootDir = "/", char inchar_ = 0);
 
 // <TXT.cpp>
-void TXT_INIT(String inPath = "");
 void TXT_INIT_JournalMode();
 void processKB_TXT_NEW();
 void einkHandler_TXT_NEW();
@@ -119,14 +103,12 @@ void mageIdle(bool internalRefresh = true);
 void resetIdle();
 
 // <TASKS.cpp>
-void TASKS_INIT();
 void sortTasksByDueDate(std::vector<std::vector<String>> &tasks);
 void updateTaskArray();
 void einkHandler_TASKS();
 void processKB_TASKS();
 
 // <settings.cpp>
-void SETTINGS_INIT();
 void processKB_SETTINGS();
 void einkHandler_SETTINGS();
 String settingCommandSelect(String command);
@@ -137,35 +119,29 @@ void processKB_ONBOARDING();
 void einkHandler_ONBOARDING();
 
 // <USB.cpp>
-void USB_INIT();
 void processKB_USB();
 void einkHandler_USB();
 
 // <CALENDAR.cpp>
-void CALENDAR_INIT();
 void processKB_CALENDAR();
 void einkHandler_CALENDAR();
 
 // <LEXICON.cpp>
-void LEXICON_INIT();
 void processKB_LEXICON();
 void einkHandler_LEXICON();
 
 // <JOURNAL.cpp>
-void JOURNAL_INIT();
 void processKB_JOURNAL();
 void einkHandler_JOURNAL();
 String getCurrentJournal();
 
 // <APPLOADER.cpp>
-void APPLOADER_INIT();
 void processKB_APPLOADER();
 void einkHandler_APPLOADER();
 void rebootToAppSlot(int otaIndex);
 void loadAndDrawAppIcon(int x, int y, int otaIndex, bool showName = true, int maxNameWidth = kGridLabelMaxW);
 
 // <TERMINAL.cpp>
-void TERMINAL_INIT();
 void processKB_TERMINAL();
 void einkHandler_TERMINAL();
 void termPrint(const String& line);
@@ -191,15 +167,9 @@ void sshEinkHandler();
 bool sshCommand(const String& command);
 
 // <COMM.cpp>
-void COMM_INIT();
 void processKB_COMM();
 void einkHandler_COMM();
 
 #endif // POCKETMAGE_OS
-
-// Battery Voltage Helper
-inline float getBatteryVoltage() {
-  return (analogRead(BAT_SENS) * (3.3 / 4095.0) * 2) + 0.2;
-}
 
 #endif // GLOBALS_H
