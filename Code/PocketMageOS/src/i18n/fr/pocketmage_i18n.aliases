@@ -1,0 +1,44 @@
+# PocketMage OS French Aliases.
+# Format: native phrase -> canonical command.  The left side is folded
+# (lowercased, diacritics stripped) so both "réglages" and "reglages" work.
+# Aliases only ever resolve to English canonical commands; they never
+# hijack English input.
+
+# Home app shortcuts (match the STR_GRID_* / STR_KB_APP_* labels)
+accueil -> home
+réglages -> settings
+tâches -> tasks
+calendrier -> calendar
+lexique -> lexicon
+dictionnaire -> lexicon
+chargeur -> app loader
+applications -> app loader
+fichiers -> filewiz
+texte -> txt
+tchat -> chat
+discussion -> chat
+
+# Settings verbs (shared settingCommandSelect in HOME and SETTINGS)
+heure -> timeset
+date -> dateset
+luminosité -> lumina
+brillance -> lumina
+temps -> timeout
+fps -> oledfps
+horloge -> clock
+année -> showyear
+économie -> savepower
+sd -> allownosd
+langue -> lang
+réinitialiser -> reset
+dormir -> sleep
+veille -> sleep
+sommeil -> sleep
+
+# Easter eggs
+bonjour -> hello
+coucou -> hi
+j'ai pété -> i farted
+caca -> poop
+je t'aime -> i love you
+que sais-tu faire -> what can you do

@@ -1,0 +1,46 @@
+# PocketMage OS Spanish Aliases.
+# Format: native phrase -> canonical command.  The left side is folded
+# (lowercased, diacritics stripped) so both "qué sabes hacer" and
+# "que sabes hacer" work.  Aliases only ever resolve to English canonical
+# commands; they never hijack English input.
+
+# Home app shortcuts (match the STR_GRID_* / STR_KB_APP_* labels)
+inicio -> home
+ajustes -> settings
+configuración -> settings
+tareas -> tasks
+calendario -> calendar
+léxico -> lexicon
+diccionario -> lexicon
+cargador -> app loader
+aplicaciones -> app loader
+archivos -> filewiz
+ficheros -> filewiz
+texto -> note
+charla -> chat
+diario -> journal
+
+# Settings verbs (shared settingCommandSelect in HOME and SETTINGS)
+hora -> timeset
+fecha -> dateset
+brillo -> lumina
+luminosidad -> lumina
+tiempo -> timeout
+fps -> oledfps
+reloj -> clock
+año -> showyear
+ahorro -> savepower
+sd -> allownosd
+idioma -> lang
+reiniciar -> reset
+dormir -> sleep
+suspender -> sleep
+
+# Easter eggs
+hola -> hello
+ey -> hi
+te quiero -> i love you
+te amo -> i love you
+me tiré un pedo -> i farted
+caca -> poop
+qué sabes hacer -> what can you do

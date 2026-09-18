@@ -1,0 +1,51 @@
+# PocketMage OS German Aliases.
+# Format: native phrase -> canonical command.  The left side is folded
+# (lowercased, diacritics stripped) so both "zurücksetzen" and
+# "zurucksetzen" work.  Keys with ß are avoided on purpose: the device-side
+# fold maps ß to a single 's' while the generator keeps the ligature, so a
+# key containing ß would never match typed input.  Aliases only ever resolve
+# to English canonical commands; they never hijack English input.
+
+# Home app shortcuts (match the STR_GRID_* / STR_KB_APP_* labels)
+startseite -> home
+einstellungen -> settings
+aufgaben -> tasks
+kalender -> calendar
+lexikon -> lexicon
+wörterbuch -> lexicon
+lader -> app loader
+applader -> app loader
+dateien -> filewiz
+text -> txt
+notiz -> txt
+notizen -> txt
+chat -> chat
+tagebuch -> journal
+
+# Settings verbs (shared settingCommandSelect in HOME and SETTINGS)
+zeit -> timeset
+uhrzeit -> timeset
+datum -> dateset
+helligkeit -> lumina
+beleuchtung -> lumina
+fps -> oledfps
+uhr -> clock
+jahr -> showyear
+sparen -> savepower
+akku -> savepower
+energie -> savepower
+sd -> allownosd
+sprache -> lang
+zurücksetzen -> reset
+schlafen -> sleep
+schlaf -> sleep
+
+# Easter eggs
+hallo -> hello
+hey -> hi
+ich liebe dich -> i love you
+ich hab dich lieb -> i love you
+pups -> i farted
+pupst -> i farted
+kacka -> poop
+was kannst du -> what can you do
