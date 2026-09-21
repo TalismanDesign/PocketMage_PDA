@@ -1,7 +1,7 @@
 // AUDIT 1
 
 #include <globals.h>
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 static constexpr const char* TAG = "CALENDAR"; // Tag for all calls to ESP_LOG
 
 // Layout constants

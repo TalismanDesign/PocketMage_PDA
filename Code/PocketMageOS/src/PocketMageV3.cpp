@@ -16,11 +16,11 @@ static constexpr const char* TAG = "MAIN"; // TODO: Come up with a better tag
 
 // ADD E-INK HANDLER APP SCRIPTS HERE
 void applicationEinkHandler() {
-  #if OTA_APP
-    einkHandler_APP(); // OTA_APP: entry point
+  #if PM_TARGET_APP
+    einkHandler_APP(); // PM_TARGET_APP: entry point
   #endif
-  // OTA_APP: Remove switch statement
-  #if !OTA_APP // POCKETMAGE_OS
+  // PM_TARGET_APP: Remove switch statement
+  #if PM_TARGET_HOST // POCKETMAGE_OS
   // While a lock is required (loop() is blocked on lockEnsureUnlocked) the
   // e-ink must not repaint: keep the sleep screensaver/boot frame on the panel.
   // The NOWLATER shutdown screen is exempt so the clock face can render.
@@ -85,7 +85,7 @@ void processKB() {
   // Example OTA APP 
   // Displays a progress bar and then reboots to PocketMage OS
   // Remove this when making a real OTA APP + uncomment processKB_APP();
-  #if OTA_APP
+  #if PM_TARGET_APP
     static int x = 0;
     ESP_LOGD(TAG, "OTA APP MODE - PROGRESS: %d\n", x);
     // Draw a progress bar across the screen and then return to PocketMage OS
@@ -97,8 +97,8 @@ void processKB() {
     if (x > u8g2.getDisplayWidth()) {
       // Return to pocketMage OS
       rebootToPocketMage();
-      // OTA_APP: reboot method that sets reboot flag instead of direct reboot
-      // pocketmage::checkRebootOTA();   // alternative method for testing OTA_APP rebooting
+      // PM_TARGET_APP: reboot method that sets reboot flag instead of direct reboot
+      // pocketmage::checkRebootOTA();   // alternative method for testing PM_TARGET_APP rebooting
       // prefs.begin("PocketMage", false);
       // prefs.putBool("OTA_Reboot", true);
       // prefs.end();
@@ -107,13 +107,13 @@ void processKB() {
 
     u8g2.sendBuffer();
     delay(10);
-    #if OTA_APP
-    processKB_APP(); // OTA_APP: entry point
+    #if PM_TARGET_APP
+    processKB_APP(); // PM_TARGET_APP: entry point
     #endif
     return;
   #endif
-  // OTA_APP: Remove switch statement
-  #if !OTA_APP // POCKETMAGE_OS
+  // PM_TARGET_APP: Remove switch statement
+  #if PM_TARGET_HOST // POCKETMAGE_OS
   switch (CurrentAppState) {
     case HOME:
       processKB_HOME();
@@ -179,7 +179,7 @@ void setup() {
 // Keyboard / OLED Loop
 void loop() {
   // Run background tasks
-  #if !OTA_APP // POCKETMAGE_OS
+  #if PM_TARGET_HOST // POCKETMAGE_OS
     if (resetRequested) {
       resetRequested = false;
       HOME_INIT();

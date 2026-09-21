@@ -10,7 +10,7 @@
 #include <globals.h>
 #include "esp_log.h"
 
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 static String currentLine = "";
 static bool resetIdleAnim = false; 
 static int prevTime = 0;

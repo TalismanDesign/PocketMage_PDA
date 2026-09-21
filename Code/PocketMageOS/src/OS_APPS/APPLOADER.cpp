@@ -8,7 +8,7 @@
 #define APP_DIRECTORY   "/apps"
 #define TEMP_DIR        "/apps/temp"
 #define PREFS_NAMESPACE "AppLoader"
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 static String currentLine = "";
 
 enum AppLoaderState {MENU, SWAP_OR_EDIT, INSTALLING, SWAP};

@@ -5,7 +5,7 @@
 // buffer is shared with the eink handler under a mutex.
 #include <globals.h>
 
-#if !OTA_APP // PocketMage OS Only
+#if PM_TARGET_HOST // PocketMage OS Only
 
 #include <libssh_esp32.h>
 #include <libssh/libssh.h>
@@ -1186,4 +1186,4 @@ bool sshCommand(const String& command) {
   return false;
 }
 
-#endif // !OTA_APP
+#endif // PM_TARGET_HOST

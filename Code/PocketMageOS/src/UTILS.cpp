@@ -21,7 +21,7 @@ void printDebug() {
   }
 }
 
-#if OTA_APP
+#if PM_TARGET_APP
 void checkTimeout() {
   int randomScreenSaver = 0;
   CLOCK().setTimeoutMillis(millis());
@@ -259,7 +259,7 @@ void loadState(bool changeState, char bootKey) {
   OTA4_APP = prefs.getString("OTA4", "-");
 
   // Every boot/wake starts locked when a PIN is configured
-  #if !OTA_APP  // POCKETMAGE_OS
+  #if PM_TARGET_HOST  // POCKETMAGE_OS
   deviceLocked = prefs.getBool("LOCK_ENABLED", false);
   #endif  // POCKETMAGE_OS
 
@@ -270,7 +270,7 @@ void loadState(bool changeState, char bootKey) {
 
   u8g2.setContrast(OLED_BRIGHTNESS);
 
-#if !OTA_APP  // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
   if (!prefs.getBool("Onboarded", false)) {
     // First boot (or NVS wipe): the setup wizard takes priority over any
     // saved app, boot shortcut, or HOME_ON_BOOT preference.
@@ -341,7 +341,7 @@ void updateBattState() {
       if (low) {
         OLED().sysMessage(TR(STR_UTILS_BATT_CRITICAL),1000);
 
-#if !OTA_APP
+#if PM_TARGET_HOST
         saveEditingFile();
 #endif
         pocketmage::deepSleep(false);
@@ -372,7 +372,7 @@ void updateBattState() {
 
 #pragma region Basic Inputs
 // Prompt the user for text input, return the text
-#if !OTA_APP // PocketMage OS Only
+#if PM_TARGET_HOST // PocketMage OS Only
 String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
   String currentLine = "";
   int cursor_pos = 0;
@@ -380,7 +380,7 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
   bool redraw = true; 
 
   for (;;) {
-    #if !OTA_APP 
+    #if PM_TARGET_HOST 
       if (!noTimeout)  checkTimeout();
       if (DEBUG_VERBOSE) printDebug();
       if (CurrentHOMEState == NOWLATER) return "_RETURN_";
@@ -630,7 +630,7 @@ int boolPrompt(String promptText) {
   int retVal = -1;
 
   for (;;) {
-    #if !OTA_APP 
+    #if PM_TARGET_HOST 
       if (!noTimeout)  checkTimeout();
       if (DEBUG_VERBOSE) printDebug();
     #endif
@@ -703,7 +703,7 @@ int timePrompt(int defaultTime) {
   const int tX[4] = {93, 110, 131, 148};
 
   for (;;) {
-    #if !OTA_APP 
+    #if PM_TARGET_HOST 
       if (!noTimeout)  checkTimeout();
       if (DEBUG_VERBOSE) printDebug();
     #endif
@@ -883,7 +883,7 @@ static int getDaysInMonth(int month, int year) {
   return 31;
 }
 
-#if !OTA_APP // PocketMage OS Only
+#if PM_TARGET_HOST // PocketMage OS Only
 String datePrompt(String defaultYYYYMMDD) {
   uint8_t digits[8] = {0,0,0,0,0,0,0,0};
   ulong currentIndex = 0;
@@ -913,7 +913,7 @@ String datePrompt(String defaultYYYYMMDD) {
   const int dX[8] = {57, 74, 96, 113, 135, 152, 168, 185};
 
   for (;;) {
-    #if !OTA_APP 
+    #if PM_TARGET_HOST 
       if (!noTimeout)  checkTimeout();
       if (DEBUG_VERBOSE) printDebug();
     #endif
@@ -1154,7 +1154,7 @@ void waitForKeypress(String message) {
   unsigned long lastSystemTime = CLOCK().getPrevTimeMillis();
 
   for (;;) {
-    #if !OTA_APP 
+    #if PM_TARGET_HOST 
       if (!noTimeout)  checkTimeout();
       if (DEBUG_VERBOSE) printDebug();
     #endif
@@ -1272,7 +1272,7 @@ bool applyTimeFromPrompt() {
 // date and time prompts with current values prefilled. Used by the boot RTC
 // power-loss path and by the onboarding wizard's Date & Time step.
 void runClockSetupFlow(bool ask) {
-#if !OTA_APP
+#if PM_TARGET_HOST
   // Temporarily disable the sleep timeout so the setup prompts don't force a sleep loop
   bool previousTimeoutState = noTimeout;
   noTimeout = true;
@@ -1312,7 +1312,7 @@ void checkRTCPowerLoss() {
     runClockSetupFlow(true);
 }
 
-#if !OTA_APP
+#if PM_TARGET_HOST
 void saveEditingFile() {
     OLED().oledWord(TR(STR_UTILS_SAVING_WORK));
     String savePath = PM_SDAUTO().getEditingFile();
