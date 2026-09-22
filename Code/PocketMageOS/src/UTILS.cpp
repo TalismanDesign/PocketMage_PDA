@@ -253,11 +253,6 @@ void loadState(bool changeState, char bootKey) {
   MUTE_BUZZER = prefs.getBool("MUTE_BUZZER", false);
   I18n::setLanguage(static_cast<Lang>(prefs.getInt("Language", static_cast<int>(Lang::English))));
 
-  OTA1_APP = prefs.getString("OTA1", "-");
-  OTA2_APP = prefs.getString("OTA2", "-");
-  OTA3_APP = prefs.getString("OTA3", "-");
-  OTA4_APP = prefs.getString("OTA4", "-");
-
   // Every boot/wake starts locked when a PIN is configured
   #if PM_TARGET_HOST  // POCKETMAGE_OS
   deviceLocked = prefs.getBool("LOCK_ENABLED", false);

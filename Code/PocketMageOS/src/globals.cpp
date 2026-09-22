@@ -20,11 +20,6 @@ volatile bool disableTimeout = PM_TARGET_APP ? true: false;    // Disable timeou
 bool fileLoaded = false;    
 unsigned int flashMillis = 0;            // Flash timing
 
-String OTA1_APP;
-String OTA2_APP;
-String OTA3_APP;
-String OTA4_APP;
-
 // ===================== APP STATES =====================
 #if PM_TARGET_HOST // POCKETMAGE_OS
 const unsigned char *appIcons[11] = { _homeIcons2, _homeIcons3, _homeIcons4, _homeIcons5, _homeIcons6, taskIconTasks0, _homeIcons7, _homeIcons8, _homeIcons9, _homeIcons11, _homeIcons10}; // App icons

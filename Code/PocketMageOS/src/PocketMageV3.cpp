@@ -2,6 +2,7 @@
 // @Ashtf 2025
 
 #include <globals.h>
+#include <elf_runner.h>
 
 static constexpr const char* TAG = "MAIN"; // TODO: Come up with a better tag
 
@@ -21,6 +22,8 @@ void applicationEinkHandler() {
   #endif
   // PM_TARGET_APP: Remove switch statement
   #if PM_TARGET_HOST // POCKETMAGE_OS
+  // While a loaded .elf owns the UI, the OS must not repaint behind it.
+  if (elfAppRunning()) return;
   // While a lock is required (loop() is blocked on lockEnsureUnlocked) the
   // e-ink must not repaint: keep the sleep screensaver/boot frame on the panel.
   // The NOWLATER shutdown screen is exempt so the clock face can render.
@@ -69,6 +72,8 @@ void applicationEinkHandler() {
     case ONBOARDING:
       einkHandler_ONBOARDING();
       break;
+    case ELFAPP:
+      break; // loaded .elf owns the panel; OS stands down
     // ADD APP CASES HERE
     default:
       einkHandler_HOME();
@@ -154,6 +159,8 @@ void processKB() {
     case ONBOARDING:
       processKB_ONBOARDING();
       break;
+    case ELFAPP:
+      break; // loaded .elf owns input; OS stands down
     // ADD APP CASES HERE
     default:
       processKB_HOME();
@@ -180,6 +187,10 @@ void setup() {
 void loop() {
   // Run background tasks
   #if PM_TARGET_HOST // POCKETMAGE_OS
+  // While a loaded .elf owns the UI, the OS must not drive input, repaint,
+  // time out, or yank state behind it. Battery sampling and the yield below
+  // keep running.
+  if (!elfAppRunning()) {
     if (resetRequested) {
       resetRequested = false;
       HOME_INIT();
@@ -191,10 +202,11 @@ void loop() {
     if (deviceLocked && CurrentHOMEState != NOWLATER) lockEnsureUnlocked();
     if (!noTimeout)  checkTimeout();
     if (DEBUG_VERBOSE) printDebug();
+  }
   #endif
   updateBattState();
-  
-  processKB();
+
+  if (!elfAppRunning()) processKB();
 
   // Yield to watchdog
   vTaskDelay(50 / portTICK_PERIOD_MS);

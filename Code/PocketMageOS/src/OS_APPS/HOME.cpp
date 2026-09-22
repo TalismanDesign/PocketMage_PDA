@@ -8,6 +8,7 @@
 // AUDIT 1
 
 #include <globals.h>
+#include <elf_runner.h>
 #include "esp_log.h"
 
 #if PM_TARGET_HOST // POCKETMAGE_OS
@@ -99,10 +100,10 @@ String commandSelect(String command) {
   }
 
   // Boot to other apps
-  else if (command == "a") rebootToAppSlot(1);
-  else if (command == "b") rebootToAppSlot(2);
-  else if (command == "c") rebootToAppSlot(3);
-  else if (command == "d") rebootToAppSlot(4);
+  else if (command == "a") runElfApp(1);
+  else if (command == "b") runElfApp(2);
+  else if (command == "c") runElfApp(3);
+  else if (command == "d") runElfApp(4);
   
   /////////////////////////////
   else if (command == "reset") {

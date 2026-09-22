@@ -9,8 +9,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <pocketmage.h>
-// OTA_APP: remove assets.h + assets.cpp, and OS_APPS/, follow OTA_APP: tag instructions in codebase
-#include <assets.h> // OTA_APP: remove
+// PM_TARGET_APP: remove assets.h + assets.cpp, and OS_APPS/, follow PM_TARGET_APP: tag instructions in codebase
+#include <assets.h> // PM_TARGET_APP: remove
 // Shared state (vspi/hspi/global_fs/prefs, settings, AppState/KBState,
 // getBatteryVoltage) is owned by the SDK.
 #include <pocketmage_globals.h>
@@ -22,11 +22,6 @@ extern volatile bool newState;                  // App state changed
 extern volatile bool disableTimeout;            // Disable timeout globally
 extern bool fileLoaded;     
 extern unsigned int flashMillis;                // Flash timing
-
-extern String OTA1_APP;
-extern String OTA2_APP;
-extern String OTA3_APP;
-extern String OTA4_APP;
 
 // ===================== APP STATES =====================
 extern const unsigned char *appIcons[11];       // App icons
@@ -57,15 +52,15 @@ int timePrompt(int defaultTime = -1);
 bool applyDateFromPrompt();
 bool applyTimeFromPrompt();
 void runClockSetupFlow(bool ask);
-#if !OTA_APP
-void saveEditingFile(); // OTA_APP: Remove saveEditingFile
+#if PM_TARGET_HOST
+void saveEditingFile(); // PM_TARGET_APP: Remove saveEditingFile
 #endif
 // <PocketMage>
 void einkHandler(void *parameter);
 
 
-// OTA_APP: Remove all pocketmage v3 prototypes below this line
-#if !OTA_APP // POCKETMAGE_OS
+// PM_TARGET_APP: Remove all pocketmage v3 prototypes below this line
+#if PM_TARGET_HOST // POCKETMAGE_OS
 
 // <UTILS.cpp>
 // Maps a boot shortcut letter (pressed while the device is off / on NOWLATER)
@@ -138,8 +133,7 @@ String getCurrentJournal();
 // <APPLOADER.cpp>
 void processKB_APPLOADER();
 void einkHandler_APPLOADER();
-void rebootToAppSlot(int otaIndex);
-void loadAndDrawAppIcon(int x, int y, int otaIndex, bool showName = true, int maxNameWidth = kGridLabelMaxW);
+void loadAndDrawAppIcon(int x, int y, int slot, bool showName = true, int maxNameWidth = kGridLabelMaxW);
 
 // <TERMINAL.cpp>
 void processKB_TERMINAL();

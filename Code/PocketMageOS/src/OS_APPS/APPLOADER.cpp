@@ -1,8 +1,7 @@
 // AUDIT 1
 #include <globals.h>
+#include <elf_runner.h>
 #include <ESP32-targz.h>
-#include <Update.h>
-#include "esp_ota_ops.h"
 
 
 #define APP_DIRECTORY   "/apps"
@@ -168,39 +167,16 @@ static String pathJoin(const String &a, const String &b) {
 }
 
 // ---------- Saving/Loading appInfo ----------
-#define APP_ICON_BYTES 200  // 40x40 monochrome = 200 bytes
 
 // Layout constants, app icon geometry
 constexpr int APPLOADER_ICON_S   = kIconCellSize;  // app icon cell size
 constexpr int APPLOADER_NAME_GAP = kIconNameGap;   // icon-to-name baseline gap
 
-struct AppInfo {
-  char name[32];       // App name
-  char tarPath[64];    // Path to .tar file
-  char iconPath[64];   // Path to extracted icon.bmp (in /apps/temp or similar)
-};
-
-bool saveAppInfo(int otaIndex, const AppInfo &info) {
-  String key = "OTAINFO" + String(otaIndex);
-  prefs.begin("PocketMage", false);
-  bool ok = prefs.putBytes(key.c_str(), &info, sizeof(info)) == sizeof(info);
-  prefs.end();
-  return ok;
-}
-
-bool loadAppInfo(int otaIndex, AppInfo &info) {
-  String key = "OTAINFO" + String(otaIndex);
-  prefs.begin("PocketMage", true);
-  size_t n = prefs.getBytes(key.c_str(), &info, sizeof(info));
-  prefs.end();
-  return n == sizeof(info);
-}
-
-void loadAndDrawAppIcon(int x, int y, int otaIndex, bool showName, int maxNameWidth) {
+void loadAndDrawAppIcon(int x, int y, int slot, bool showName, int maxNameWidth) {
   pocketmage::setCpuSpeed(240);
 
-  AppInfo app;
-  if (!loadAppInfo(otaIndex, app)) {
+  ElfAppInfo app;
+  if (!loadElfAppInfo(slot, app)) {
     // Ensure CPU speed is reset if we abort early
     if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     return;
@@ -296,7 +272,7 @@ bool cleanupAppsTempRecursive(fs::FS &fs, const String &dirPath) {
 
 struct InstallTaskParams {
     char tarRelName[128];
-    int otaIndex; // 1..4
+    int slot; // 1..4
 };
 
 static void installTask(void *param) {
@@ -356,10 +332,9 @@ static void installTask(void *param) {
   g_installProgress = 50; // halfway
 
 // --- Determine main .bin and base name ---
-String binPath = "";
+String elfPath = "";
 String base = "";
 String iconPath = "";
-String expectedIcon = "";
 
 File tempRoot = global_fs->open(TEMP_DIR);
 if (tempRoot && tempRoot.isDirectory()) {
@@ -375,24 +350,18 @@ if (tempRoot && tempRoot.isDirectory()) {
             continue;
         }
 
-        // --- Main .bin ---
-        if (binPath.length() == 0 && name.endsWith(".bin") && !name.endsWith("_ICON.bin")) {
-            binPath = pathJoin(TEMP_DIR, name);
+        // --- Main .app.elf ---
+        if (elfPath.length() == 0 && name.endsWith(".app.elf")) {
+            elfPath = pathJoin(TEMP_DIR, name);
 
-            // Derive base from main .bin
-            int dot = name.lastIndexOf('.');
-            if (dot > 0) base = name.substring(0, dot);
+            // Derive base by stripping ".app.elf" (icon is <base>_ICON.bin)
+            if (name.endsWith(".app.elf") && name.length() > 8) {
+                base = name.substring(0, name.length() - 8);
+            } else {
+                int dot = name.lastIndexOf('.');
+                base = (dot > 0) ? name.substring(0, dot) : name;
+            }
 
-            // Expected icon for later
-            expectedIcon = base + "_ICON.bin";
-
-            entry.close();
-            continue; // continue to check icon in same loop
-        }
-
-        // --- Icon file ---
-        if (iconPath.length() == 0 && expectedIcon.length() > 0 && name.equalsIgnoreCase(expectedIcon)) {
-            iconPath = pathJoin(TEMP_DIR, name);
             entry.close();
             continue;
         }
@@ -401,8 +370,8 @@ if (tempRoot && tempRoot.isDirectory()) {
     tempRoot.close();
 }
 
-if (binPath.length() == 0 || base.length() == 0) {
-    Serial.printf("Bin not found after extraction in %s\n", TEMP_DIR);
+if (elfPath.length() == 0 || base.length() == 0) {
+    Serial.printf("ELF not found after extraction in %s\n", TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -410,6 +379,32 @@ if (binPath.length() == 0 || base.length() == 0) {
 }
 
 Serial.printf("App base name determined: '%s'\n", base.c_str());
+
+// --- Icon scan (order-independent): <base>_ICON.bin anywhere in TEMP_DIR ---
+{
+    String want = base + "_ICON.bin";
+    File scan = global_fs->open(TEMP_DIR);
+    if (scan && scan.isDirectory()) {
+        File entry;
+        while ((entry = scan.openNextFile())) {
+            String name = entry.name();
+            int sep = name.lastIndexOf('/');
+            if (sep >= 0) name = name.substring(sep + 1);
+            if (!name.startsWith("._") && name.equalsIgnoreCase(want)) {
+                iconPath = pathJoin(TEMP_DIR, name);
+                entry.close();
+                break;
+            }
+            entry.close();
+        }
+        scan.close();
+    }
+    if (iconPath.length() == 0) {
+        Serial.printf("Icon not found for app '%s' (non-fatal)\n", base.c_str());
+    } else {
+        Serial.printf("Icon found: %s\n", iconPath.c_str());
+    }
+}
 
 
 // Wait up to ~200 ms for SD_MMC to see the files
@@ -428,8 +423,8 @@ while (waitMs < 200) {
                 continue;
             }
 
-            if (name.endsWith(".bin") && !name.endsWith("_ICON.bin")) {
-                binPath = pathJoin(TEMP_DIR, name);
+            if (name.endsWith(".app.elf")) {
+                elfPath = pathJoin(TEMP_DIR, name);
                 found = true;
             }
             entry.close();
@@ -437,7 +432,7 @@ while (waitMs < 200) {
         }
         tempRoot.close();
     }
-    if (found && global_fs->exists(binPath.c_str())) break;
+    if (found && global_fs->exists(elfPath.c_str())) break;
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
     waitMs += 10;
@@ -454,8 +449,8 @@ if (tempRoot && tempRoot.isDirectory()) {
     tempRoot.close();
 }
 
-if (binPath.length() == 0 || !global_fs->exists(binPath.c_str())) {
-    Serial.printf("Bin not found after extraction: %s\n", binPath.c_str());
+if (elfPath.length() == 0 || !global_fs->exists(elfPath.c_str())) {
+    Serial.printf("ELF not found after extraction: %s\n", elfPath.c_str());
     cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
     if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     g_installFailed = true;
@@ -485,104 +480,67 @@ if (global_fs->exists(assetsSrc.c_str())) {
 }
 
 
-  // --- OTA flashing ---
-  const esp_partition_t *partition = esp_partition_find_first(
-    ESP_PARTITION_TYPE_APP,
-    (esp_partition_subtype_t)(ESP_PARTITION_SUBTYPE_APP_OTA_MIN + p->otaIndex),
-    nullptr);
-
-  if (!partition) {
-    Serial.printf("OTA_%d partition not found\n", p->otaIndex);
-
+  // --- Install into the slot directory (no flashing: .elf runs in-process) ---
+  char slotDir[32];
+  elfAppSlotDir(p->slot, slotDir, sizeof(slotDir));
+  if (!ensureDir(*global_fs, slotDir)) {
+    Serial.printf("Failed to create slot dir %s\n", slotDir);
     cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
     if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
 
-  File f = global_fs->open(binPath, "r");
+  String elfDst = pathJoin(slotDir, base + ".app.elf");
+  String iconDst = iconPath.length() > 0 ? pathJoin(slotDir, base + "_ICON.bin") : String();
+
+  File f = global_fs->open(elfPath.c_str(), "r");
   if (!f) {
-    Serial.printf("Failed to open: %s\n", binPath.c_str());
-
+    Serial.printf("Failed to open: %s\n", elfPath.c_str());
     cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
     if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
-
   uint32_t sz = f.size();
-  Serial.printf("Flashing %s (%u bytes) -> OTA_%d @ 0x%08x\n",
-          binPath.c_str(), sz, p->otaIndex, partition->address);
+  f.close();
+  Serial.printf("Installing %s (%u bytes) -> %s\n", elfPath.c_str(), sz, elfDst.c_str());
 
-  esp_ota_handle_t ota_handle;
-  esp_err_t err = esp_ota_begin(partition, sz, &ota_handle);
-  if (err != ESP_OK) {
-    Serial.printf("esp_ota_begin failed: %s\n", esp_err_to_name(err));
-    f.close();
-    
+  if (!copyFile(*global_fs, elfPath.c_str(), elfDst.c_str())) {
+    Serial.println("ELF copy failed");
     cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
     if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
+  g_installProgress = 75;
 
-  uint8_t buf[4096];
-  uint32_t written = 0;
-  while (f.available()) {
-    size_t rd = f.read(buf, sizeof(buf));
-    err = esp_ota_write(ota_handle, buf, rd);
-    if (err != ESP_OK) {
-      Serial.printf("esp_ota_write failed: %s\n", esp_err_to_name(err));
-      esp_ota_abort(ota_handle);
-      f.close();
-
-      cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-        if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
-      g_installFailed = true;
-      g_installDone = true;
-      delete p;
-      vTaskDelete(NULL);
+  if (iconDst.length() > 0) {
+    if (!copyFile(*global_fs, iconPath.c_str(), iconDst.c_str())) {
+      Serial.println("Icon copy failed (non-fatal)");
+      iconDst = "";
     }
-    written += rd;
-    g_installProgress = 50 + (written * 50 / sz); // 50-100% flashing
   }
+  g_installProgress = 90;
 
-  f.close();
-  err = esp_ota_end(ota_handle);
-  if (err != ESP_OK) {
-    Serial.printf("esp_ota_end failed: %s\n", esp_err_to_name(err));
+  // --- Save ElfAppInfo (also clears legacy bin-era keys for this slot) ---
+  ElfAppInfo info = {};
+  strncpy(info.name, base.c_str(), sizeof(info.name) - 1);
+  strncpy(info.elfPath, elfDst.c_str(), sizeof(info.elfPath) - 1);
+  strncpy(info.iconPath, iconDst.c_str(), sizeof(info.iconPath) - 1);
+
+  clearElfAppInfo(p->slot);
+  if (!saveElfAppInfo(p->slot, info)) {
+    Serial.printf("Failed to save ElfAppInfo for slot %d\n", p->slot);
     g_installFailed = true;
   } else {
-    Serial.println("Flash OK");
-
-
-if (iconPath.length() == 0) {
-    Serial.printf("Icon not found for app '%s'\n", base.c_str());
-} else {
-    Serial.printf("Icon found: %s\n", iconPath.c_str());
-}
-
-
-
-    // --- Save AppInfo ---
-    AppInfo info = {};
-    strncpy(info.name, base.c_str(), sizeof(info.name)-1);
-    strncpy(info.tarPath, tarPath.c_str(), sizeof(info.tarPath)-1);
-    strncpy(info.iconPath, iconPath.c_str(), sizeof(info.iconPath)-1);
-
-    if (!saveAppInfo(p->otaIndex, info)) {
-      Serial.printf("Failed to save AppInfo for OTA_%d\n", p->otaIndex);
-    }
+    Serial.println("Install OK");
   }
 
   cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
@@ -596,11 +554,11 @@ if (iconPath.length() == 0) {
 }
 
 // ---------- Async API ----------
-bool installAppTarToOtaAsync(const char *tarRelName, int otaIndex) {
+bool installAppTarToSlotAsync(const char *tarRelName, int slot) {
     auto *params = new InstallTaskParams;
     strncpy(params->tarRelName, tarRelName, sizeof(params->tarRelName) - 1);
     params->tarRelName[sizeof(params->tarRelName) - 1] = '\0';
-    params->otaIndex = otaIndex;
+    params->slot = slot;
 
     BaseType_t res = xTaskCreate(
         installTask,
@@ -620,38 +578,6 @@ bool installAppTarToOtaAsync(const char *tarRelName, int otaIndex) {
 }
 
 // ---------- Helpers ----------
-bool setBootToOtaSlot(int otaIndex /*1..4*/) {
-  if (otaIndex < 1 || otaIndex > 4) return false;
-  const esp_partition_t *partition =
-      esp_partition_find_first(ESP_PARTITION_TYPE_APP,
-                                (esp_partition_subtype_t)(ESP_PARTITION_SUBTYPE_APP_OTA_MIN + otaIndex),
-                                nullptr);
-  if (!partition) return false;
-  esp_err_t err = esp_ota_set_boot_partition(partition);
-  if (err != ESP_OK) {
-    Serial.printf("esp_ota_set_boot_partition failed: %d\n", (int)err);
-    return false;
-  }
-  return true;
-}
-
-void rebootToAppSlot(int otaIndex) {
-  if (!setBootToOtaSlot(otaIndex)) {
-    Serial.printf("Failed to set OTA_%d as boot partition\n", otaIndex);
-    return;
-  }
-  Serial.printf("Rebooting to OTA_%d...\n", otaIndex);
-  delay(100); // allow Serial to flush
-  esp_restart(); // immediate reboot
-}
-
-String getInstalledAppForOta(int otaIndex) {
-  if (otaIndex < 1 || otaIndex > 4) return String();
-  prefs.begin("PocketMage", true); // read-only
-  String app = prefs.getString((String("OTA") + otaIndex).c_str(), "");
-  prefs.end();
-  return app;
-}
 
 void drawProgressBar(uint8_t progress) {
   uint progressPx = map(progress, 0, 100, 1, 216);
@@ -753,21 +679,13 @@ void processKB_APPLOADER() {
             CurrentAppLoaderState = SWAP;
           }
           else if (inchar == 'D' || inchar == 'd' || inchar == '$') {
-            // Clear the slot
-            prefs.begin("PocketMage", false);
-            prefs.remove(("OTA" + String(selectedSlot)).c_str());
-            prefs.end();
+            // Clear the slot: drop metadata and remove the slot directory
+            clearElfAppInfo(selectedSlot);
 
-            const esp_partition_t *partition =
-              esp_partition_find_first(ESP_PARTITION_TYPE_APP,
-              (esp_partition_subtype_t)(ESP_PARTITION_SUBTYPE_APP_OTA_MIN + selectedSlot),
-              nullptr);
-
-            if (partition) {
-              esp_err_t err = esp_partition_erase_range(partition, 0, partition->size);
-              if (err == ESP_OK) {
-                Serial.printf("OTA_%d erased\n", selectedSlot);
-              }
+            char slotDir[32];
+            elfAppSlotDir(selectedSlot, slotDir, sizeof(slotDir));
+            if (rmRF(*global_fs, slotDir)) {
+              Serial.printf("Slot %d cleared\n", selectedSlot);
             }
 
             OLED().sysMessage(TR(STR_APPLOADER_APP_REMOVED), 2000);
@@ -813,10 +731,10 @@ void processKB_APPLOADER() {
             relName = relName.substring(strlen(APP_DIRECTORY) + 1);
           }
 
-          Serial.printf("Installing app from %s (rel=%s) into OTA_%d\n",
+          Serial.printf("Installing app from %s (rel=%s) into slot %d\n",
                         outPath.c_str(), relName.c_str(), selectedSlot);
 
-          installAppTarToOtaAsync(relName.c_str(), selectedSlot);
+          installAppTarToSlotAsync(relName.c_str(), selectedSlot);
           CurrentAppLoaderState = INSTALLING;
         } else {
           OLED().sysMessage(TR(STR_APPLOADER_NOT_TAR), 2000);
@@ -853,10 +771,10 @@ void einkHandler_APPLOADER() {
         beginEinkScreen(true);
         display.drawBitmap(0, 0, _appLoader, 320, 218, GxEPD_BLACK);
 
-        loadAndDrawAppIcon(42 , 146, 1, true, kGridLabelMaxW);  // OTA1
-        loadAndDrawAppIcon(106, 146, 2, true, kGridLabelMaxW);  // OTA2
-        loadAndDrawAppIcon(174, 146, 3, true, kGridLabelMaxW);  // OTA3
-        loadAndDrawAppIcon(238, 146, 4, true, kGridLabelMaxW);  // OTA4
+        loadAndDrawAppIcon(42 , 146, 1, true, kGridLabelMaxW);  // Slot 1
+        loadAndDrawAppIcon(106, 146, 2, true, kGridLabelMaxW);  // Slot 2
+        loadAndDrawAppIcon(174, 146, 3, true, kGridLabelMaxW);  // Slot 3
+        loadAndDrawAppIcon(238, 146, 4, true, kGridLabelMaxW);  // Slot 4
 
         endEinkScreen(TR(STR_APPLOADER_TYPE_LETTER), EinkRefresh::Normal);
       }
