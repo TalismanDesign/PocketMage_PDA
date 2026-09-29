@@ -67,7 +67,7 @@ The app walkthrough video is still useful for a first pass:
 - Tasks app
 - Journal app
 - Dictionary app (Lexicon)
-- App loader for OTA apps
+- App loader for ELF apps
 - Terminal app (Wrench scripting)
 - SSH
 - Commands supported through the home menu:

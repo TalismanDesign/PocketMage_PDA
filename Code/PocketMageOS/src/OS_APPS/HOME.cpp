@@ -247,10 +247,10 @@ void drawHome() {
   //display.drawRoundRect(startX-15, (3*spacingY) - iconSize, (1*spacingX)+10, spacingY + 10, 15, GxEPD_BLACK);
 
   // Draw sideload apps
-  loadAndDrawAppIcon(80 , 150, 1, true, kGridLabelMaxW);  // OTA1
-  loadAndDrawAppIcon(140, 150, 2, true, kGridLabelMaxW);  // OTA2
-  loadAndDrawAppIcon(200, 150, 3, true, kGridLabelMaxW);  // OTA3
-  loadAndDrawAppIcon(260, 150, 4, true, kGridLabelMaxW);  // OTA4
+  loadAndDrawAppIcon(80 , 150, 1, true, kGridLabelMaxW);  // ELF slot 1
+  loadAndDrawAppIcon(140, 150, 2, true, kGridLabelMaxW);  // ELF slot 2
+  loadAndDrawAppIcon(200, 150, 3, true, kGridLabelMaxW);  // ELF slot 3
+  loadAndDrawAppIcon(260, 150, 4, true, kGridLabelMaxW);  // ELF slot 4
 
   // Draw status bar
   EINK().drawStatusBar(TR(STR_HOME_TYPE_CMD));

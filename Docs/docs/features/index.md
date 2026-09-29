@@ -71,7 +71,7 @@ Search the dictionary loaded on the SD card.
 :::
 ::: grid
 ::: card "Loader" icon:package
-Install, swap, and delete OTA apps in the four app slots.
+Install, swap, and delete ELF apps in the four SD app slots.
 :::
 :::
 ::: grid

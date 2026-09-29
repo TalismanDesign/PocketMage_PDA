@@ -17,6 +17,7 @@
 #include <pocketmage_bz/pocketmage_bz.h>
 #include <pocketmage_clock/pocketmage_clock.h>
 #include <pocketmage_sd/pocketmage_sd.h>
+#include <pocketmage_globals.h>
 
 /* Available ELF symbols table: g_customer_elfsyms */
 /* C linkage: the loader core is C and references this unmangled. */
@@ -32,6 +33,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(BZ),
     ESP_ELFSYM_EXPORT(CLOCK),
     ESP_ELFSYM_EXPORT(PM_SDAUTO),
+    ESP_ELFSYM_EXPORT(pocketmage_sdk_version),
     ESP_ELFSYM_END
 };
 }

@@ -4,8 +4,6 @@
 #include <globals.h>
 #include <elf_runner.h>
 
-static constexpr const char* TAG = "MAIN"; // TODO: Come up with a better tag
-
 //        .o.       ooooooooo.   ooooooooo.    .oooooo..o  //
 //       .888.      `888   `Y88. `888   `Y88. d8P'    `Y8  //
 //      .8"888.      888   .d88'  888   .d88' Y88bo.       //
@@ -87,34 +85,8 @@ void processKB() {
   // Check for USB KB
   KB().checkUSBKB();
 
-  // Example OTA APP 
-  // Displays a progress bar and then reboots to PocketMage OS
-  // Remove this when making a real OTA APP + uncomment processKB_APP();
   #if PM_TARGET_APP
-    static int x = 0;
-    ESP_LOGD(TAG, "OTA APP MODE - PROGRESS: %d\n", x);
-    // Draw a progress bar across the screen and then return to PocketMage OS
-    u8g2.clearBuffer();
-    u8g2.drawBox(0,0,x,u8g2.getDisplayHeight());
-    
-    x+=5;
-    
-    if (x > u8g2.getDisplayWidth()) {
-      // Return to pocketMage OS
-      rebootToPocketMage();
-      // PM_TARGET_APP: reboot method that sets reboot flag instead of direct reboot
-      // pocketmage::checkRebootOTA();   // alternative method for testing PM_TARGET_APP rebooting
-      // prefs.begin("PocketMage", false);
-      // prefs.putBool("OTA_Reboot", true);
-      // prefs.end();
-      // pocketmage::deepSleep();
-    }
-
-    u8g2.sendBuffer();
-    delay(10);
-    #if PM_TARGET_APP
     processKB_APP(); // PM_TARGET_APP: entry point
-    #endif
     return;
   #endif
   // PM_TARGET_APP: Remove switch statement

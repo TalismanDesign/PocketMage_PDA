@@ -48,10 +48,6 @@ void checkTimeout() {
         vTaskDelay(pdMS_TO_TICKS(10)); // Prevent watchdog starvation during this while loop
       }
 
-      // user skipped reboot flag if true, return to OS normally
-      if (!pocketmage::setRebootFlagOTA()) {
-        return;
-      }
       display.setFullWindow();
       pocketmage::deepSleep();
     }

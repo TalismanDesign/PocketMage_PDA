@@ -41,7 +41,7 @@ PlatformIO setup and firmware builds.
 :::
 ::: grid
 ::: card "App Guides" icon:book-open
-How to build native and OTA apps.
+How to build native and ELF apps.
 
 ::: button "Open" ../guides/index.md icon:arrow-right
 :::

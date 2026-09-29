@@ -25,7 +25,7 @@ Coordinates the shared hardware layer, storage, and device helpers.
 :::
 ::: grid
 ::: card "Support apps" icon:box
-Native apps and OTA apps plug into the same runtime model.
+Native apps and ELF apps plug into the same runtime model.
 :::
 :::
 :::
@@ -63,14 +63,14 @@ The timeout system is also part of the OS. After `IDLE_TIME` without input, the 
 
 ## How apps reach the hardware
 
-Apps do not talk to hardware directly. They call the PocketMage Library, which owns the physical devices. `OLED().sysMessage(...)` flashes a message, `EINK().refresh()` pushes the E-Ink buffer, `KB()` handles key state, and `SD()` handles storage. The library is the only layer that knows the pins. This is what lets the same app code build for native, OTA, and future hardware revisions.
+Apps do not talk to hardware directly. They call the PocketMage Library, which owns the physical devices. `OLED().sysMessage(...)` flashes a message, `EINK().refresh()` pushes the E-Ink buffer, `KB()` handles key state, and `SD()` handles storage. The library is the only layer that knows the pins. This is what lets the same app code build for native, ELF, and future hardware revisions.
 
 See [PocketMage Library](../reference/pocketmage-library.md) for the full module map.
 
-## Native vs OTA apps
+## Native vs ELF apps
 
 - **Native apps** live in `src/OS_APPS/`, are compiled into the firmware, and are wired into the dispatch switch.
-- **OTA apps** are compiled separately with the `OTA_APP` environment and loaded into one of four OTA slots at runtime through the app loader.
+- **ELF apps** are compiled separately against the PocketMage SDK and loaded from the SD card at runtime through the app loader.
 
 Both follow the same three-function shape. The difference is only where the code ships. See [Making Apps](../guides/making-apps.md).
 
