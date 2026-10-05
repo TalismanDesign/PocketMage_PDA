@@ -529,7 +529,18 @@ if (global_fs->exists(assetsSrc.c_str())) {
   }
   g_installProgress = 90;
 
-  // --- Save ElfAppInfo (also clears legacy bin-era keys for this slot) ---
+  // Optional, but a stale manifest must not outlive the app it names
+  String propsSrc = pathJoin(TEMP_DIR, "app.properties");
+  String propsDst = pathJoin(slotDir, "app.properties");
+  if (global_fs->exists(propsSrc.c_str())) {
+    if (!copyFile(*global_fs, propsSrc.c_str(), propsDst.c_str())) {
+      Serial.println("app.properties copy failed (non-fatal)");
+    }
+  } else if (global_fs->exists(propsDst.c_str())) {
+    global_fs->remove(propsDst.c_str());
+  }
+
+  // --- Save ElfAppInfo ---
   ElfAppInfo info = {};
   strncpy(info.name, base.c_str(), sizeof(info.name) - 1);
   strncpy(info.elfPath, elfDst.c_str(), sizeof(info.elfPath) - 1);

@@ -13,6 +13,7 @@
 #include <esp_elf.h>
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
+#include <errno.h>
 
 #if PM_TARGET_HOST
 
@@ -31,6 +32,45 @@ bool elfAppRunning() { return s_running; }
 
 void elfAppSlotDir(int slot, char *out, size_t outSize) {
   snprintf(out, outSize, "/apps/slot%d", slot);
+}
+
+bool loadElfAppManifest(int slot, ElfAppManifest &out) {
+  memset(&out, 0, sizeof(out));
+
+  char dir[32];
+  elfAppSlotDir(slot, dir, sizeof(dir));
+  char path[64];
+  snprintf(path, sizeof(path), "%s/app.properties", dir);
+
+  File f = global_fs->open(path, "r");
+  if (!f) return true;
+
+  if (f.size() > ELF_APP_PROPERTIES_MAX_BYTES) {
+    Serial.printf("[ELF] %s too large (%u bytes), ignoring\n",
+                  path, (unsigned)f.size());
+    f.close();
+    return false;
+  }
+
+  char text[ELF_APP_PROPERTIES_MAX_BYTES];
+  size_t got = f.readBytes(text, sizeof(text));
+  f.close();
+  int fields = elfManifestParse(text, got, out);
+  Serial.printf("[ELF] %s fields=%d\n", path, fields);
+  return true;
+}
+
+// Scope state for the resolver below. Only one app runs at a time (guarded by
+// s_running) and relocate happens on the app task, so this needs no lock.
+static ElfAppScope s_scope;
+
+// Resolver installed for the duration of one app load. It hides pm_* symbols
+// outside the app's scope and delegates the rest to the default export table,
+// so libc, libstdc++ and ESP-IDF stay reachable for any scope.
+static uintptr_t scopedSymResolver(const char *sym_name) {
+  if (!sym_name) return 0;
+  if (!elfScopeAllows(s_scope, sym_name)) return 0;
+  return elf_find_sym_default(sym_name);
 }
 
 static String infoKey(int slot) { return "ELFINFO" + String(slot); }
@@ -68,11 +108,24 @@ void clearElfAppInfo(int slot) {
 struct ElfRunParams {
   char elfPath[96];
   char appName[32];
+  char version[16];
+  char author[32];
+  char scope[128];
 };
 
 static void elfAppTask(void *param) {
   ElfRunParams *p = (ElfRunParams *)param;
   bool ok = false;
+
+  // Scope is set before relocate, because relocate is what asks the resolver
+  // for each host symbol. Reset happens on every exit path below.
+  elfScopeFromManifest(p->scope, s_scope);
+  if (!s_scope.all) {
+    Serial.printf("[ELF] scope:");
+    for (int i = 0; i < s_scope.count; i++) Serial.printf(" %s", s_scope.prefix[i]);
+    Serial.println();
+  }
+  elf_set_symbol_resolver(scopedSymResolver);
 
   ensureCpuForSd();
   uint32_t t0 = millis();
@@ -106,14 +159,19 @@ static void elfAppTask(void *param) {
         Serial.printf("[ELF] init=%d relocate=%d entry=%p t=%u\n",
                       ire, rre, (void *)elf.entry, (unsigned)(millis() - t1));
         if (ire == 0 && rre == 0) {
-          char *argv[2] = { p->appName, p->elfPath };
-          Serial.printf("[ELF] %s RUN\n", p->appName);
-          esp_elf_request(&elf, 0, 2, argv);
+          char *argv[4] = { p->appName, p->elfPath, p->version, p->author };
+          Serial.printf("[ELF] %s RUN v%s by %s\n", p->appName, p->version,
+                        p->author);
+          esp_elf_request(&elf, 0, 4, argv);
           esp_elf_deinit(&elf);
           Serial.printf("[ELF] %s EXITED\n", p->appName);
           ok = true;
         } else {
-          Serial.println("ELF relocate failed");
+          // ENOSYS is what the loader returns for a symbol it cannot resolve,
+          // which for a scoped app means the scope is too narrow.
+          Serial.println(rre == -ENOSYS
+                             ? "ELF needs symbols outside its scope"
+                             : "ELF relocate failed");
         }
       } else {
         Serial.println("ELF read failed");
@@ -124,6 +182,8 @@ static void elfAppTask(void *param) {
     Serial.printf("ELF open failed: %s\n", p->elfPath);
   }
   free(buf);
+
+  elf_reset_symbol_resolver();
 
   if (!ok) {
     OLED().sysMessage("App failed to start", 2000);
@@ -155,10 +215,25 @@ bool runElfApp(int slot) {
   ElfRunParams *p = new ElfRunParams;
   strncpy(p->elfPath, info.elfPath, sizeof(p->elfPath) - 1);
   p->elfPath[sizeof(p->elfPath) - 1] = '\0';
-  strncpy(p->appName, info.name, sizeof(p->appName) - 1);
-  p->appName[sizeof(p->appName) - 1] = '\0';
 
-  OLED().sysMessage(String("Loading ") + info.name, 1500);
+  // The manifest is optional and lives on the SD card, so an unreadable one
+  // falls back to the ELF base name rather than blocking the app.
+  ElfAppManifest manifest;
+  bool haveManifest = loadElfAppManifest(slot, manifest);
+  const char *display = (haveManifest && manifest.name[0]) ? manifest.name
+                                                            : info.name;
+  strncpy(p->appName, display, sizeof(p->appName) - 1);
+  p->appName[sizeof(p->appName) - 1] = '\0';
+  if (haveManifest) {
+    strncpy(p->version, manifest.version, sizeof(p->version) - 1);
+    strncpy(p->author, manifest.author, sizeof(p->author) - 1);
+    strncpy(p->scope, manifest.scope, sizeof(p->scope) - 1);
+  }
+  p->version[sizeof(p->version) - 1] = '\0';
+  p->author[sizeof(p->author) - 1] = '\0';
+  p->scope[sizeof(p->scope) - 1] = '\0';
+
+  OLED().sysMessage(String("Loading ") + p->appName, 1500);
   CurrentAppState = ELFAPP;
   s_running = true;
   if (xTaskCreatePinnedToCore(elfAppTask, "elfApp", 16384, p, 1, &s_task, 1) != pdPASS) {

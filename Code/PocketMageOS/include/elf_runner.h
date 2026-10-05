@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <config.h>
+#include <elf_app_manifest.h>
 
 // In-process runner for installed .app.elf files
 
@@ -10,6 +11,14 @@ struct ElfAppInfo {
   char elfPath[96];   // Absolute path of the installed .app.elf
   char iconPath[64];  // Absolute path of the installed *_ICON.bin
 };
+
+// Refuse a manifest larger than this. The parser works line by line, so the
+// cap bounds parse time on a hostile SD card rather than memory.
+constexpr size_t ELF_APP_PROPERTIES_MAX_BYTES = 1024;
+
+// Reads <slot dir>/app.properties into out. Returns false only when the file
+// exists but cannot be read; a missing manifest leaves out zeroed and true.
+bool loadElfAppManifest(int slot, ElfAppManifest &out);
 
 constexpr int ELF_APP_SLOTS = 4;
 
