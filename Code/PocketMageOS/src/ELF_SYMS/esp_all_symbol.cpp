@@ -118,20 +118,6 @@ int __ascii_mbtowc();
 int __ascii_wctomb();
 int __ashldi3();
 int __assert_func();
-int __atomic_compare_exchange_1();
-int __atomic_compare_exchange_4();
-int __atomic_exchange_4();
-int __atomic_fetch_add_2();
-int __atomic_fetch_add_4();
-int __atomic_fetch_and_8();
-int __atomic_fetch_or_8();
-int __atomic_fetch_sub_4();
-int __atomic_s32c1i_compare_exchange_1();
-int __atomic_s32c1i_compare_exchange_4();
-int __atomic_s32c1i_exchange_4();
-int __atomic_s32c1i_fetch_add_2();
-int __atomic_s32c1i_fetch_add_4();
-int __atomic_s32c1i_fetch_sub_4();
 int __b2d();
 int __bswapdi2();
 int __bswapsi2();
@@ -342,6 +328,7 @@ int ceil();
 int cfree();
 int clock_gettime();
 int close();
+int closedir();
 int cosf();
 int div();
 int esp_libc_include_assert_impl();
@@ -416,6 +403,7 @@ int memset();
 int mktime();
 int nan();
 int open();
+int opendir();
 int printf();
 int putchar();
 int puts();
@@ -423,10 +411,13 @@ int pvalloc();
 int qsort();
 int rand();
 int read();
+int readdir();
 int realloc();
 int rename();
+int rewinddir();
 int roundf();
 int scalbnf();
+int seekdir();
 int setjmp();
 int settimeofday();
 int setvbuf();
@@ -484,6 +475,25 @@ int vsnprintf();
 int write();
 }
 #pragma GCC diagnostic pop
+
+/* Builtin-named symbols: a private identifier keeps the address
+ * takeable while the asm label emits the real symbol name. */
+extern "C" {
+int pm_elfsym___atomic_compare_exchange_1() asm("__atomic_compare_exchange_1");
+int pm_elfsym___atomic_compare_exchange_4() asm("__atomic_compare_exchange_4");
+int pm_elfsym___atomic_exchange_4() asm("__atomic_exchange_4");
+int pm_elfsym___atomic_fetch_add_2() asm("__atomic_fetch_add_2");
+int pm_elfsym___atomic_fetch_add_4() asm("__atomic_fetch_add_4");
+int pm_elfsym___atomic_fetch_and_8() asm("__atomic_fetch_and_8");
+int pm_elfsym___atomic_fetch_or_8() asm("__atomic_fetch_or_8");
+int pm_elfsym___atomic_fetch_sub_4() asm("__atomic_fetch_sub_4");
+int pm_elfsym___atomic_s32c1i_compare_exchange_1() asm("__atomic_s32c1i_compare_exchange_1");
+int pm_elfsym___atomic_s32c1i_compare_exchange_4() asm("__atomic_s32c1i_compare_exchange_4");
+int pm_elfsym___atomic_s32c1i_exchange_4() asm("__atomic_s32c1i_exchange_4");
+int pm_elfsym___atomic_s32c1i_fetch_add_2() asm("__atomic_s32c1i_fetch_add_2");
+int pm_elfsym___atomic_s32c1i_fetch_add_4() asm("__atomic_s32c1i_fetch_add_4");
+int pm_elfsym___atomic_s32c1i_fetch_sub_4() asm("__atomic_s32c1i_fetch_sub_4");
+}
 
 /* Available ELF symbols table: g_customer_elfsyms */
 /* C linkage: the loader core is C and references this unmangled. */
@@ -590,20 +600,20 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__ascii_wctomb),
     ESP_ELFSYM_EXPORT(__ashldi3),
     ESP_ELFSYM_EXPORT(__assert_func),
-    ESP_ELFSYM_EXPORT(__atomic_compare_exchange_1),
-    ESP_ELFSYM_EXPORT(__atomic_compare_exchange_4),
-    ESP_ELFSYM_EXPORT(__atomic_exchange_4),
-    ESP_ELFSYM_EXPORT(__atomic_fetch_add_2),
-    ESP_ELFSYM_EXPORT(__atomic_fetch_add_4),
-    ESP_ELFSYM_EXPORT(__atomic_fetch_and_8),
-    ESP_ELFSYM_EXPORT(__atomic_fetch_or_8),
-    ESP_ELFSYM_EXPORT(__atomic_fetch_sub_4),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_compare_exchange_1),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_compare_exchange_4),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_exchange_4),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_fetch_add_2),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_fetch_add_4),
-    ESP_ELFSYM_EXPORT(__atomic_s32c1i_fetch_sub_4),
+    { "__atomic_compare_exchange_1", (void*)&pm_elfsym___atomic_compare_exchange_1 },
+    { "__atomic_compare_exchange_4", (void*)&pm_elfsym___atomic_compare_exchange_4 },
+    { "__atomic_exchange_4", (void*)&pm_elfsym___atomic_exchange_4 },
+    { "__atomic_fetch_add_2", (void*)&pm_elfsym___atomic_fetch_add_2 },
+    { "__atomic_fetch_add_4", (void*)&pm_elfsym___atomic_fetch_add_4 },
+    { "__atomic_fetch_and_8", (void*)&pm_elfsym___atomic_fetch_and_8 },
+    { "__atomic_fetch_or_8", (void*)&pm_elfsym___atomic_fetch_or_8 },
+    { "__atomic_fetch_sub_4", (void*)&pm_elfsym___atomic_fetch_sub_4 },
+    { "__atomic_s32c1i_compare_exchange_1", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_1 },
+    { "__atomic_s32c1i_compare_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_4 },
+    { "__atomic_s32c1i_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_exchange_4 },
+    { "__atomic_s32c1i_fetch_add_2", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_2 },
+    { "__atomic_s32c1i_fetch_add_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_4 },
+    { "__atomic_s32c1i_fetch_sub_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_sub_4 },
     ESP_ELFSYM_EXPORT(__b2d),
     ESP_ELFSYM_EXPORT(__bswapdi2),
     ESP_ELFSYM_EXPORT(__bswapsi2),
@@ -814,6 +824,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(cfree),
     ESP_ELFSYM_EXPORT(clock_gettime),
     ESP_ELFSYM_EXPORT(close),
+    ESP_ELFSYM_EXPORT(closedir),
     ESP_ELFSYM_EXPORT(cosf),
     ESP_ELFSYM_EXPORT(delay),
     ESP_ELFSYM_EXPORT(div),
@@ -889,6 +900,8 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(mktime),
     ESP_ELFSYM_EXPORT(nan),
     ESP_ELFSYM_EXPORT(open),
+    ESP_ELFSYM_EXPORT(opendir),
+    ESP_ELFSYM_EXPORT(pm_app_abi),
     ESP_ELFSYM_EXPORT(pm_bz_begin),
     ESP_ELFSYM_EXPORT(pm_bz_end),
     ESP_ELFSYM_EXPORT(pm_bz_play_jingle),
@@ -918,6 +931,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_font_engine_font_descent),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_height_txt),
     ESP_ELFSYM_EXPORT(pm_font_height),
+    ESP_ELFSYM_EXPORT(pm_host_sdk_version),
     ESP_ELFSYM_EXPORT(pm_i18n_app_name),
     ESP_ELFSYM_EXPORT(pm_i18n_code),
     ESP_ELFSYM_EXPORT(pm_i18n_code_at),
@@ -973,6 +987,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_sd_get_working_file),
     ESP_ELFSYM_EXPORT(pm_sd_list_dir),
     ESP_ELFSYM_EXPORT(pm_sd_load_file),
+    ESP_ELFSYM_EXPORT(pm_sd_mkdir),
     ESP_ELFSYM_EXPORT(pm_sd_read_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_read_file),
     ESP_ELFSYM_EXPORT(pm_sd_read_file_to_string),
@@ -980,6 +995,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_sd_ren_metadata),
     ESP_ELFSYM_EXPORT(pm_sd_rename_file),
     ESP_ELFSYM_EXPORT(pm_sd_save_file),
+    ESP_ELFSYM_EXPORT(pm_sd_write_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_write_file),
     ESP_ELFSYM_EXPORT(pm_sd_write_metadata),
     ESP_ELFSYM_EXPORT(pm_text),
@@ -1027,10 +1043,13 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(qsort),
     ESP_ELFSYM_EXPORT(rand),
     ESP_ELFSYM_EXPORT(read),
+    ESP_ELFSYM_EXPORT(readdir),
     ESP_ELFSYM_EXPORT(realloc),
     ESP_ELFSYM_EXPORT(rename),
+    ESP_ELFSYM_EXPORT(rewinddir),
     ESP_ELFSYM_EXPORT(roundf),
     ESP_ELFSYM_EXPORT(scalbnf),
+    ESP_ELFSYM_EXPORT(seekdir),
     ESP_ELFSYM_EXPORT(setjmp),
     ESP_ELFSYM_EXPORT(settimeofday),
     ESP_ELFSYM_EXPORT(setvbuf),

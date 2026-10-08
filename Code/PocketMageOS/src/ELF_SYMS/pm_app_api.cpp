@@ -129,3 +129,26 @@ const char* pm_clock_timestamp(void) {
            static_cast<unsigned>(dt.minute()), static_cast<unsigned>(dt.second()));
   return buf;
 }
+
+bool pm_sd_write_binary_file(const char* path, const uint8_t* buf, size_t len) {
+  if (!global_fs || !path || (!buf && len > 0)) {
+    return false;
+  }
+  File file = global_fs->open(path, FILE_WRITE);
+  if (!file) {
+    return false;
+  }
+  const size_t written = file.write(buf, len);
+  file.close();
+  return written == len;
+}
+
+bool pm_sd_mkdir(const char* path) {
+  if (!global_fs || !path || !path[0]) {
+    return false;
+  }
+  if (global_fs->exists(path)) {
+    return true;
+  }
+  return global_fs->mkdir(path);
+}

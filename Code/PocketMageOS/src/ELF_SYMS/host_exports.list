@@ -130,6 +130,7 @@ pm_wifi_load_saved_credentials
 pm_wifi_clear_saved_credentials
 pm_wifi_dispatch_events
 delay
+pm_app_abi
 pm_clock_epoch
 pm_clock_timestamp
 pm_eink_clear
@@ -137,5 +138,8 @@ pm_eink_height
 pm_eink_pixel
 pm_eink_rect
 pm_eink_width
+pm_host_sdk_version
 pm_oled_send
+pm_sd_mkdir
+pm_sd_write_binary_file
 pm_text
