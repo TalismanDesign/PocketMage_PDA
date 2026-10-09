@@ -12,8 +12,8 @@ static const char *fieldValue(const char *line, const char *key) {
   return p + 1;
 }
 
-// Copies a value into dst, stopping at the first byte in stops. Short fields
-// stop at any space; scope keeps internal spaces so "eink, text" survives.
+// Copies a value into dst, stopping at the first byte in stops. Name and
+// version stop at any space
 static bool setField(char *dst, size_t dstSize, const char *value,
                      const char *stops) {
   if (!value) return false;
@@ -54,7 +54,7 @@ int elfManifestParse(const char *text, size_t len, ElfAppManifest &out) {
       fields++;
     }
     if (setField(out.author, sizeof(out.author), fieldValue(p, "author"),
-                 " \t\r\n")) {
+                 "\r\n")) {
       fields++;
     }
     if (setField(out.scope, sizeof(out.scope), fieldValue(p, "scope"),

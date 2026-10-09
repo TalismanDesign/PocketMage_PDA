@@ -162,7 +162,10 @@ static void elfAppTask(void *param) {
           char *argv[4] = { p->appName, p->elfPath, p->version, p->author };
           Serial.printf("[ELF] %s RUN v%s by %s\n", p->appName, p->version,
                         p->author);
+          const bool prevFastRefresh = FAST_REFRESH;
+          FAST_REFRESH = true;
           esp_elf_request(&elf, 0, 4, argv);
+          FAST_REFRESH = prevFastRefresh;
           esp_elf_deinit(&elf);
           Serial.printf("[ELF] %s EXITED\n", p->appName);
           ok = true;
