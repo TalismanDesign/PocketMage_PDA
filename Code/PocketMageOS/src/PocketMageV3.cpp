@@ -2,8 +2,7 @@
 // @Ashtf 2025
 
 #include <globals.h>
-
-static constexpr const char* TAG = "MAIN"; // TODO: Come up with a better tag
+#include <elf_runner.h>
 
 //        .o.       ooooooooo.   ooooooooo.    .oooooo..o  //
 //       .888.      `888   `Y88. `888   `Y88. d8P'    `Y8  //
@@ -16,11 +15,13 @@ static constexpr const char* TAG = "MAIN"; // TODO: Come up with a better tag
 
 // ADD E-INK HANDLER APP SCRIPTS HERE
 void applicationEinkHandler() {
-  #if OTA_APP
-    einkHandler_APP(); // OTA_APP: entry point
+  #if PM_TARGET_APP
+    einkHandler_APP(); // PM_TARGET_APP: entry point
   #endif
-  // OTA_APP: Remove switch statement
-  #if !OTA_APP // POCKETMAGE_OS
+  // PM_TARGET_APP: Remove switch statement
+  #if PM_TARGET_HOST // POCKETMAGE_OS
+  // While a loaded .elf owns the UI, the OS must not repaint behind it.
+  if (elfAppRunning()) return;
   // While a lock is required (loop() is blocked on lockEnsureUnlocked) the
   // e-ink must not repaint: keep the sleep screensaver/boot frame on the panel.
   // The NOWLATER shutdown screen is exempt so the clock face can render.
@@ -69,6 +70,8 @@ void applicationEinkHandler() {
     case ONBOARDING:
       einkHandler_ONBOARDING();
       break;
+    case ELFAPP:
+      break; // loaded .elf owns the panel; OS stands down
     // ADD APP CASES HERE
     default:
       einkHandler_HOME();
@@ -82,38 +85,12 @@ void processKB() {
   // Check for USB KB
   KB().checkUSBKB();
 
-  // Example OTA APP 
-  // Displays a progress bar and then reboots to PocketMage OS
-  // Remove this when making a real OTA APP + uncomment processKB_APP();
-  #if OTA_APP
-    static int x = 0;
-    ESP_LOGD(TAG, "OTA APP MODE - PROGRESS: %d\n", x);
-    // Draw a progress bar across the screen and then return to PocketMage OS
-    u8g2.clearBuffer();
-    u8g2.drawBox(0,0,x,u8g2.getDisplayHeight());
-    
-    x+=5;
-    
-    if (x > u8g2.getDisplayWidth()) {
-      // Return to pocketMage OS
-      rebootToPocketMage();
-      // OTA_APP: reboot method that sets reboot flag instead of direct reboot
-      // pocketmage::checkRebootOTA();   // alternative method for testing OTA_APP rebooting
-      // prefs.begin("PocketMage", false);
-      // prefs.putBool("OTA_Reboot", true);
-      // prefs.end();
-      // pocketmage::deepSleep();
-    }
-
-    u8g2.sendBuffer();
-    delay(10);
-    #if OTA_APP
-    processKB_APP(); // OTA_APP: entry point
-    #endif
+  #if PM_TARGET_APP
+    processKB_APP(); // PM_TARGET_APP: entry point
     return;
   #endif
-  // OTA_APP: Remove switch statement
-  #if !OTA_APP // POCKETMAGE_OS
+  // PM_TARGET_APP: Remove switch statement
+  #if PM_TARGET_HOST // POCKETMAGE_OS
   switch (CurrentAppState) {
     case HOME:
       processKB_HOME();
@@ -154,6 +131,8 @@ void processKB() {
     case ONBOARDING:
       processKB_ONBOARDING();
       break;
+    case ELFAPP:
+      break; // loaded .elf owns input; OS stands down
     // ADD APP CASES HERE
     default:
       processKB_HOME();
@@ -179,7 +158,11 @@ void setup() {
 // Keyboard / OLED Loop
 void loop() {
   // Run background tasks
-  #if !OTA_APP // POCKETMAGE_OS
+  #if PM_TARGET_HOST // POCKETMAGE_OS
+  // While a loaded .elf owns the UI, the OS must not drive input, repaint,
+  // time out, or yank state behind it. Battery sampling and the yield below
+  // keep running.
+  if (!elfAppRunning()) {
     if (resetRequested) {
       resetRequested = false;
       HOME_INIT();
@@ -191,23 +174,13 @@ void loop() {
     if (deviceLocked && CurrentHOMEState != NOWLATER) lockEnsureUnlocked();
     if (!noTimeout)  checkTimeout();
     if (DEBUG_VERBOSE) printDebug();
+  }
   #endif
   updateBattState();
-  
-  processKB();
+
+  if (!elfAppRunning()) processKB();
 
   // Yield to watchdog
   vTaskDelay(50 / portTICK_PERIOD_MS);
   yield();
-}
-
-// E-Ink Loop
-void einkHandler(void* parameter) {
-  vTaskDelay(pdMS_TO_TICKS(250)); 
-  for (;;) {
-    applicationEinkHandler();
-
-    vTaskDelay(pdMS_TO_TICKS(50));
-    yield();
-  }
 }

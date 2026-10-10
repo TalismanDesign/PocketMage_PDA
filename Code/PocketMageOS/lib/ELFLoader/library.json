@@ -1,0 +1,23 @@
+{
+  "name": "elf_loader",
+  "version": "1.3.3",
+  "description": "Espressif ELF Loader. Vendored from esp-iot-solution components/elf_loader (Apache-2.0)",
+  "keywords": ["elf", "loader", "pocketmage", "app-store"],
+  "license": "Apache-2.0",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "build": {
+    "srcFilter": "+<*> -<dlso> -<soc> -<arch/esp_elf_riscv.c> +<arch/esp_elf_xtensa.c>",
+    "flags": [
+      "-DCONFIG_ELF_LOADER=1",
+      "-DCONFIG_ELF_LOADER_BUS_ADDRESS_MIRROR=1",
+      "-DCONFIG_ELF_LOADER_LIBC_SYMBOLS=1",
+      "-DCONFIG_ELF_LOADER_ESPIDF_SYMBOLS=1",
+      "-DCONFIG_ELF_LOADER_CUSTOMER_SYMBOLS=1",
+      "-DCONFIG_ELF_LOADER_NUMBER_SYMBOLS=32",
+      "-DELF_LOADER_VER_MAJOR=1",
+      "-DELF_LOADER_VER_MINOR=3",
+      "-DELF_LOADER_VER_PATCH=3"
+    ]
+  }
+}

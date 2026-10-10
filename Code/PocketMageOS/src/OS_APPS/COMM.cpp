@@ -1,8 +1,9 @@
 #include <globals.h>
 
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 #include <WiFi.h>
 #include <esp_wifi.h>
+#include <esp_mac.h>
 #include <vector>
 
 extern "C" {

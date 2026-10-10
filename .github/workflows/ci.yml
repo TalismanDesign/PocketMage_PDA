@@ -37,7 +37,6 @@ jobs:
         env:
           - PM_PRODUCTION
           - PM_BETA
-          - OTA_APP
 
     defaults:
       run:
@@ -63,14 +62,6 @@ jobs:
           set -euo pipefail
           pio run -e ${{ matrix.env }}
 
-      - name: Package OTA App Tar
-        if: matrix.env == 'OTA_APP'
-        run: |
-          set -euo pipefail
-          mkdir -p .pio/build/OTA_APP/package
-          cp .pio/build/OTA_APP/firmware.bin .pio/build/OTA_APP/package/app.bin
-          tar -cf .pio/build/OTA_APP/package/app.tar -C .pio/build/OTA_APP/package app.bin
-
       - name: Upload Firmware Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -78,7 +69,59 @@ jobs:
           path: |
             Code/PocketMageOS/.pio/build/${{ matrix.env }}/*.bin
             Code/PocketMageOS/.pio/build/${{ matrix.env }}/*.elf
-            Code/PocketMageOS/.pio/build/${{ matrix.env }}/package/app.tar
+          if-no-files-found: error
+          retention-days: 14
+
+  example-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Prepare the Python Cauldron
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The SDK build rules resolve the Xtensa compiler by probing this exact
+      # directory layout, so the toolchain is installed where app.mk looks.
+      - name: Install Little-Endian Xtensa Toolchain
+        run: |
+          set -euo pipefail
+          VER=esp-15.2.0_20251204
+          SHA=3d50f5cd5f173acfd524e07c1cd69bc99585731a415ca2e5bce879997fe602b8
+          TGT="$HOME/.espressif/tools/xtensa-esp-elf/$VER"
+          URL="https://github.com/espressif/crosstool-NG/releases/download/$VER/xtensa-esp-elf-15.2.0_20251204-x86_64-linux-gnu.tar.xz"
+          mkdir -p "$TGT"
+          curl -fsSL -o /tmp/xtensa-esp-elf.tar.xz "$URL"
+          echo "$SHA  /tmp/xtensa-esp-elf.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/xtensa-esp-elf.tar.xz -C "$TGT"
+          test -x "$TGT/xtensa-esp-elf/bin/xtensa-esp32s3-elf-g++"
+          echo "toolchain installed at $TGT/xtensa-esp-elf"
+
+      - name: Build Example App
+        working-directory: Code/PocketMageOS
+        run: |
+          set -euo pipefail
+          make -C lib/PocketMage_SDK/examples/hello_app clean all check pack
+
+      - name: Assert artifact little-endian
+        working-directory: Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build
+        run: |
+          set -euo pipefail
+          xtensa-esp-elf-readelf -h hello_app.app.elf | grep -q 'little endian'
+          tar -tf hello_app.tar | grep -q -- 'hello_app.app.elf'
+          tar -tf hello_app.tar | grep -q -- 'hello_app_ICON.bin'
+
+      - name: Upload App Tar Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello_app-${{ github.sha }}
+          path: |
+            Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build/hello_app.tar
+            Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build/hello_app.app.elf
           if-no-files-found: error
           retention-days: 14
 
@@ -91,18 +134,33 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Prepare the Python Cauldron
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Regenerate i18n tables
+      - name: Regenerate i18n tables from stored catalogs
         run: |
           set -euo pipefail
-          python scripts/gen_i18n.py
+          mkdir -p /tmp/pm-i18n/base /tmp/pm-i18n/merged
+          python lib/PocketMage_SDK/pocketmage_i18n/tools/gen_i18n.py --force \
+            --catalog lib/PocketMage_SDK/pocketmage_i18n/languages \
+            --out-dir /tmp/pm-i18n/base
+          python lib/PocketMage_SDK/pocketmage_i18n/tools/gen_i18n.py --force \
+            --catalog lib/PocketMage_SDK/pocketmage_i18n/languages \
+            --catalog src/i18n \
+            --out-dir /tmp/pm-i18n/merged
 
-      - name: Check i18n drift
+      - name: Assert app catalog merged in
         run: |
           set -euo pipefail
-          git diff --exit-code -- lib/PocketMage/pocketmage_i18n
+          python3 - <<'PY'
+          import re
+          base = set(re.findall(r"STR_[A-Z0-9_]*", open("/tmp/pm-i18n/base/pocketmage_i18n_gen.h").read()))
+          merged = set(re.findall(r"STR_[A-Z0-9_]*", open("/tmp/pm-i18n/merged/pocketmage_i18n_gen.h").read()))
+          assert merged > base, f"app catalog did not merge into tables (base {len(base)}, merged {len(merged)})"
+          print(f"i18n OK: {len(base)} SDK base + {len(merged - base)} app strings = {len(merged)} total")
+          PY

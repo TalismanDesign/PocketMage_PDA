@@ -31,7 +31,7 @@ The operating system, app runtime, and navigation flow.
 :::
 ::: grid
 ::: card "Guides" icon:book-open
-How to make apps, native apps, OTA apps, and scripts.
+How to make apps, native apps, ELF apps, and scripts.
 
 ::: button "Open" ./guides/index.md icon:arrow-right
 :::

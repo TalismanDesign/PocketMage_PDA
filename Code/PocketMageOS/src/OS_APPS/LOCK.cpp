@@ -4,7 +4,7 @@
 // is already on the panel, and unlocking should be OLED-fast
 
 #include <globals.h>
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 
 #include <mbedtls/sha256.h>
 

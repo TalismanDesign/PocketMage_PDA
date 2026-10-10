@@ -5,7 +5,7 @@
 #include <sdmmc_cmd.h>
 #include <driver/sdmmc_host.h>
 #include <driver/sdmmc_defs.h>
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 static String currentLine = "";
 static constexpr const char* TAG = "USB";
 static USBMSC msc;

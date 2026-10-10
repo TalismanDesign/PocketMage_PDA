@@ -9,7 +9,7 @@
 #include <globals.h>
 #include "esp32-hal-log.h"
 #include "esp_log.h"
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 enum TasksState { TASKS0, TASKS0_NEWTASK, TASKS1, TASKS1_EDITTASK };
 TasksState CurrentTasksState = TASKS0;
 

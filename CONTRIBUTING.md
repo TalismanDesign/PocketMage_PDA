@@ -34,8 +34,9 @@ PocketMage uses [PlatformIO](https://platformio.org/). From `Code/PocketMageOS/`
 ```bash
 pio run -e PM_PRODUCTION   # Production hardware (N16R2, Quad PSRAM)
 pio run -e PM_BETA         # Beta hardware (N16R8, PSRAM disabled)
-pio run -e OTA_APP         # Universal OTA app build (hardware-agnostic)
 ```
+
+Third-party apps are built against the PocketMage SDK into a `.app.elf` (see `Docs/docs/guides/elf-apps.md`).
 
 CI (`build-firmware.yml`) builds `PM_PRODUCTION` and `PM_BETA` on every push — run the same commands locally before opening a PR.
 

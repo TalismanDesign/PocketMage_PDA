@@ -5,22 +5,22 @@ description: "Entry points and helper functions for PocketMage apps."
 
 # App API Reference
 
-Every PocketMage app, native or OTA, is built from the same entry points and shared helpers. This page documents the exact names and what each one is for. Declarations live in `Code/PocketMageOS/include/globals.h`.
+Every PocketMage app, native or ELF, calls the same shared helpers. This page documents the exact names and what each one is for. Declarations live in `Code/PocketMageOS/include/globals.h`.
 
 ## The two app styles
 
 - **Native OS apps** live in `Code/PocketMageOS/src/OS_APPS/` and are wired into the dispatch switch.
-- **OTA apps** use `Code/PocketMageOS/src/APP_TEMPLATE.cpp` and build standalone.
+- **ELF apps** are built against the PocketMage SDK into a `.app.elf` and loaded by `elf_runner` at runtime. The `APP_TEMPLATE.cpp` scaffold shows the `PM_TARGET_APP` entry hooks.
 
 Both call the same shared helpers below.
 
-## OTA app entry points
+## Compiled-in app entry points
 
-A third-party app implements three functions:
+A compiled-in third-party app implements three functions:
 
 ```cpp
 #include <globals.h>
-#if OTA_APP
+#if PM_TARGET_APP
 void APP_INIT() {
   // set up state; runs once when the app is entered
 }
@@ -35,7 +35,7 @@ void einkHandler_APP() {
 #endif
 ```
 
-The `OTA_APP` build path defines `OTA_APP_FLAG=1` in `platformio.ini`, which sets `OTA_APP` and excludes the native OS app set.
+The `PM_TARGET_APP` build path is set by the SDK's `config.h`, which selects the app entry hooks and excludes the OS app set. Standalone `.app.elf` apps enter through their own `main` instead.
 
 ## Native OS app entry points
 
@@ -83,7 +83,6 @@ To add a native app, extend the `AppState` enum and add cases to the `switch (Cu
 
 - `saveEditingFile()` - save the current native text editing file
 - `fileWizardMini(bool allowRecentSelect = false, String rootDir = "/", char inchar_ = 0)` - file selection dialog, returns the chosen path
-- `rebootToAppSlot(int otaIndex)` - reboot straight into an OTA app slot
 
 ## Terminal (Wrench)
 
@@ -104,7 +103,7 @@ Common state is declared in `globals.h` and `config.h`.
 - `global_fs` - the active filesystem
 - `newState` - set to re-run the target app's `*_INIT()`
 - `disableTimeout` - global timeout lockout
-- `OTA1_APP` through `OTA4_APP` - installed OTA app names
+- `ELFINFO1` through `ELFINFO4` - NVS records for installed ELF apps (see `elf_runner.cpp`)
 
 If you are unsure where a function belongs, start with the existing app in `src/OS_APPS/` that already does the same job.
 

@@ -1,7 +1,7 @@
 // AUDIT 1
 #include <globals.h>
 
-#if !OTA_APP // PocketMage OS Only
+#if PM_TARGET_HOST // PocketMage OS Only
 #include "wrench.h"
 
 // --- UTF-8 Helpers ---

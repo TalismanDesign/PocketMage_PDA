@@ -8,9 +8,10 @@
 // AUDIT 1
 
 #include <globals.h>
+#include <elf_runner.h>
 #include "esp_log.h"
 
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 static String currentLine = "";
 static bool resetIdleAnim = false; 
 static int prevTime = 0;
@@ -99,10 +100,10 @@ String commandSelect(String command) {
   }
 
   // Boot to other apps
-  else if (command == "a") rebootToAppSlot(1);
-  else if (command == "b") rebootToAppSlot(2);
-  else if (command == "c") rebootToAppSlot(3);
-  else if (command == "d") rebootToAppSlot(4);
+  else if (command == "a") runElfApp(1);
+  else if (command == "b") runElfApp(2);
+  else if (command == "c") runElfApp(3);
+  else if (command == "d") runElfApp(4);
   
   /////////////////////////////
   else if (command == "reset") {
@@ -246,10 +247,10 @@ void drawHome() {
   //display.drawRoundRect(startX-15, (3*spacingY) - iconSize, (1*spacingX)+10, spacingY + 10, 15, GxEPD_BLACK);
 
   // Draw sideload apps
-  loadAndDrawAppIcon(80 , 150, 1, true, kGridLabelMaxW);  // OTA1
-  loadAndDrawAppIcon(140, 150, 2, true, kGridLabelMaxW);  // OTA2
-  loadAndDrawAppIcon(200, 150, 3, true, kGridLabelMaxW);  // OTA3
-  loadAndDrawAppIcon(260, 150, 4, true, kGridLabelMaxW);  // OTA4
+  loadAndDrawAppIcon(80 , 150, 1, true, kGridLabelMaxW);  // ELF slot 1
+  loadAndDrawAppIcon(140, 150, 2, true, kGridLabelMaxW);  // ELF slot 2
+  loadAndDrawAppIcon(200, 150, 3, true, kGridLabelMaxW);  // ELF slot 3
+  loadAndDrawAppIcon(260, 150, 4, true, kGridLabelMaxW);  // ELF slot 4
 
   // Draw status bar
   EINK().drawStatusBar(TR(STR_HOME_TYPE_CMD));
