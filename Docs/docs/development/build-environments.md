@@ -5,23 +5,18 @@ description: "How to set up PlatformIO and build PocketMage firmware on Linux, m
 
 # Build Environments & PlatformIO Setup
 
-PocketMage firmware is built with [PlatformIO](https://platformio.org/). The build configuration lives in `Code/PocketMageOS/platformio.ini` and defines three environments that produce different firmware images from the same source.
+PocketMage firmware is built with [PlatformIO](https://platformio.org/). The build configuration lives in `Code/PocketMageOS/platformio.ini` and defines two environments that produce the firmware variants. Third-party apps are not built in this tree; they are compiled against the PocketMage SDK (see [ELF Apps](../guides/elf-apps.md)).
 
-## The three build environments
+## The two build environments
 
 | Environment | Target | Purpose |
 | --- | --- | --- |
 | `PM_PRODUCTION` | Production hardware (N16R2, Quad PSRAM enabled) | The stable OS image flashed to production devices |
 | `PM_BETA` | Beta hardware (N16R8, PSRAM forced disabled) | A test build with the latest changes |
-| `OTA_APP` | Hardware-agnostic | A single third-party app built to be sideloaded |
 
-The three environments share a common `[common]` section and differ only in build flags. The flags set three things: which hardware revision to target, whether the build is an OS or an OTA app, and the version string.
+The two environments share a common `[common]` section and differ in hardware target and version string.
 
-Running `pio run` with no arguments builds all three. Build one explicitly with `pio run -e <name>`.
-
-### What the OTA_APP flag does
-
-The `OTA_APP` environment defines `OTA_APP_FLAG=1`. In `config.h` this becomes `OTA_APP == true`, which excludes the native OS app set from the build. The three entry points from [APP_TEMPLATE.cpp](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp) - `APP_INIT()`, `processKB_APP()`, `einkHandler_APP()` - become the program. The same source tree therefore builds either a full OS or a standalone app depending on the environment you choose.
+Running `pio run` with no arguments builds both defaults (`PM_PRODUCTION` and `PM_BETA`). Build one explicitly with `pio run -e <name>`.
 
 ## Prerequisites
 
@@ -64,14 +59,11 @@ From `Code/PocketMageOS/`:
 ```bash
 pio run -e PM_PRODUCTION   # production firmware
 pio run -e PM_BETA         # beta firmware
-pio run -e OTA_APP         # a third-party OTA app
 ```
 
-## OTA apps
+## ELF apps
 
-OTA apps use the `OTA_APP` environment, which switches the build into app mode as described above. The app is packaged as a `.tar` file and installed on the device through the app loader. See [OTA Apps](../guides/ota-apps.md) and the [app loader section](../command-manual/index.md) of the command manual.
-
-For a full walkthrough, watch the [OTA app development video](https://www.youtube.com/watch?v=3Ytc-3-BbMM).
+Third-party apps are not built with this environment set. They are compiled against the PocketMage SDK into `.app.elf` files, packaged with an icon as a `.tar`, and installed through the app loader. See [ELF Apps](../guides/elf-apps.md) and the [app loader section](../command-manual/index.md) of the command manual.
 
 ## Testing
 
@@ -87,7 +79,7 @@ There is no automated test suite for the firmware. Verify changes against real h
 ::: button "Making Apps" ../guides/making-apps.md icon:code
 :::
 ::: grid
-::: button "OTA Apps" ../guides/ota-apps.md icon:package
+::: button "ELF Apps" ../guides/elf-apps.md icon:package
 :::
 ::: grid
 ::: button "Firmware FAQ" ../faq/index.md icon:help-circle

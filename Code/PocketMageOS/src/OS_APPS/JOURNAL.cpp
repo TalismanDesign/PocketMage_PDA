@@ -1,7 +1,7 @@
 // AUDIT 1
 
 #include <globals.h>
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 enum JournalState {J_MENU, J_TXT};
 JournalState CurrentJournalState = J_MENU;
 

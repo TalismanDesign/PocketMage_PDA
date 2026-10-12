@@ -8,7 +8,7 @@
 // AUDIT 1
 
 #include <globals.h>
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 
 enum FileWizState { WIZ0_, WIZ1_ };
 FileWizState CurrentFileWizState = WIZ0_;

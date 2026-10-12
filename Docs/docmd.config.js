@@ -96,7 +96,7 @@ export default {
       children: [
         { title: "Making Apps", path: "/guides/making-apps", icon: "code" },
         { title: "Native Apps", path: "/guides/native-apps", icon: "terminal" },
-        { title: "OTA Apps", path: "/guides/ota-apps", icon: "package" },
+        { title: "ELF Apps", path: "/guides/elf-apps", icon: "package" },
       ],
     },
     {
