@@ -1,3 +1,8 @@
 [submodule "Code/PocketMageOS/lib/PocketMage_SDK"]
 	path = Code/PocketMageOS/lib/PocketMage_SDK
 	url = https://github.com/TalismanDesign/PocketMage_SDK.git
+[submodule "Code/PocketMageOS/lib/elf_loader/esp-iot-solution"]
+	path = Code/PocketMageOS/lib/elf_loader/esp-iot-solution
+	url = https://github.com/TalismanDesign/esp-iot-solution.git
+	branch = pocketmage-pin-1.3.3
+	shallow = true
