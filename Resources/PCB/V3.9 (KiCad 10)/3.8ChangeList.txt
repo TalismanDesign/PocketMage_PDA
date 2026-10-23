@@ -1,0 +1,64 @@
+3.8 Change List/Feedback:
+
+> Manufacturing Points:
+1. Removed R1, U5 designators. Moved power button symbol. Choosing to omit designators across the board for a cleaner aesthetic. The plastic case is clear, so the PCB is on display.
+2. All missing 3D components have been added.
+3. THT buttons are preferred. There were issues with mechanical failure on the SMT buttons used int the beta production devices and this change was made to mend that. The dedicated RST and BOOT switches are a design decision, auto boot circuit not needed.
+4. Noted.
+5. Good to know, changed drill/pos origin to bottom left corner of board, resulting in all positive positions.
+6. Noted, this is a design decision necessitated by the fact that I wanted only one PNP component layer. OK to proceed with this layout.
+7. Added first pin indicators to both FFC connectors. Added "-" indicators to all diode cathodes.
+8. Added Fabrication Details and overall board dimensions to front fab layer.
+
+9. Added test points to all major power rails and I2C bus. Added fiducial marks to 3 corners of the board.
+10. Extra Findings:
+Keyboard:
+- Changed U6 to J6.
+- Removed all test points and jumpers from BOM
+Screen:
+- Changed all 4.7uF caps to 0805
+- MPR121 on the screen PCB shares the I2C_SDA_SWITCHED and I2C_SCL_SWITCHED bus from the keyboard PCB. 10k pull-ups exist for these I2C pins on the keyboard PCB and the screen PCB. The total pull-up on each line is 5k, which is acceptable for I2C (4.7k is a standard pull-up). Pullups on this switched I2C line are switched off in sleep mode, so current draw is not a significant problem.
+
+> Compliance Points:
+1. ESD TVS Protection:
+Keyboard:
+- The U2 TVS diode includes a diode for the VBUS pin as well. The order was incorrect though, changed order to:
+plug>TVS>F1>C20>system power.
+- Added a second USBLC6-2SC6 for CC1 and CC2 (U6).
+Screen:
+- Added three TPD4E02B04DQA TVS diodes on the capacitive touch pins (U2, U3, & U4).
+- Added twelve 470 ohm series resistors. One for each capacitive touch line (R4-R15).
+
+2. ESD GND Holes:
+Keyboard:
+- Through holes changed to PTH with GND connection where possible. Others left as-is.
+
+Screen:
+- All through holes changed to PTH with GND connection.
+
+3. Conducted emissions DCDC, Xtals  inductor:
+- Noted
+
+4. Block Diagram with frequencies FCC:
+- Noted, will create block diagram prior to FCC certs
+
+5. 4 Layers Stackup:
+- Swapped layers IN1 and IN2, GND reference layer is directly below component layer.
+
+6. CE thermistor battery temperature:
+- There is already an NTC thermister (TH1) included on the board and connected to the charge management IC. This halts charging if the battery goes out of temp range (programmable via I2C on U9). This seems like it will be OK based on my research, do you recommend changes?
+
+7.ESP32 S3 Module
+- Module layout specification from espressif is followed. GND plane has a cutout on all layers for the antenna.
+
+8. Battery Certification:
+- It seems like the fuse F1 was labeled wrong. It's a 5A hold, 10A trip fuse. This is only on the USB input though.
+- The battery itself has a protection circuit with a fuse that prevents short circuit.
+- Reverse polarity protection - added a P-Channel MOSFET (Q2) between battery connector and system to prevent a reversed polarity condition. Please verify functionality and part choice. (I made this sim: https://www.falstad.com/s.php?s=9XoeUL)
+
+9.PREVG/PREVL lines clearance:
+- PREVGH & PREVGL lines kept away from digital IO signals with as much clearance as possible.
+
+
+
+

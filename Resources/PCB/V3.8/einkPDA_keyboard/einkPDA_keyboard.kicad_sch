@@ -25413,7 +25413,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10A FUSE"
+		(property "Value" "3A FUSE"
 			(at 63.246 215.392 90)
 			(effects
 				(font
@@ -25450,7 +25450,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part #" "C2760308 "
+		(property "LCSC Part #" "C2843999"
 			(at 69.85 210.82 0)
 			(effects
 				(font
