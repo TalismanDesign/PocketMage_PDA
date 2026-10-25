@@ -540,6 +540,45 @@ if (global_fs->exists(assetsSrc.c_str())) {
     global_fs->remove(propsDst.c_str());
   }
 
+  // --- Overlay binary (optional) ---
+  String overlayDst = pathJoin(slotDir, base + ".overlay.bin");
+  String overlaySrc = "";
+  {
+    String want1 = base + ".overlay.bin";
+    String want2 = base + ".app.overlay.bin";
+    File scan = global_fs->open(TEMP_DIR);
+    if (scan && scan.isDirectory()) {
+      File entry;
+      while ((entry = scan.openNextFile())) {
+        String name = entry.name();
+        int sep = name.lastIndexOf('/');
+        if (sep >= 0) name = name.substring(sep + 1);
+        if (name.startsWith("._")) { entry.close(); continue; }
+        if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2) || name.endsWith(".overlay.bin")) {
+          // prefer exact matches for base name
+          if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2)) {
+            overlaySrc = pathJoin(TEMP_DIR, entry.name());
+            entry.close();
+            break;
+          }
+          if (overlaySrc.length() == 0) {
+            overlaySrc = pathJoin(TEMP_DIR, entry.name());
+          }
+        }
+        entry.close();
+      }
+      scan.close();
+    }
+  }
+  if (overlaySrc.length() > 0) {
+    if (global_fs->exists(overlayDst.c_str())) global_fs->remove(overlayDst.c_str());
+    if (copyFile(*global_fs, overlaySrc.c_str(), overlayDst.c_str())) {
+      Serial.printf("Overlay copied: %s -> %s\n", overlaySrc.c_str(), overlayDst.c_str());
+    } else {
+      Serial.printf("Overlay copy failed (non-fatal): %s\n", overlaySrc.c_str());
+    }
+  }
+
   // --- Save ElfAppInfo ---
   ElfAppInfo info = {};
   strncpy(info.name, base.c_str(), sizeof(info.name) - 1);
