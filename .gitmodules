@@ -6,3 +6,6 @@
 	url = https://github.com/TalismanDesign/esp-iot-solution.git
 	branch = pocketmage-pin-1.3.3
 	shallow = true
+[submodule "Code/PocketMageOS/lib/elf_overlay"]
+	path = Code/PocketMageOS/lib/elf_overlay
+	url = https://github.com/TalismanDesign/elf_overlay

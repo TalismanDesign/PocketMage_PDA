@@ -10,7 +10,7 @@
 
 #include <globals.h>
 #include <elf_runner.h>
-#include <overlay_loader.h>
+#include <elf_overlay/overlay_loader.h>
 #include <esp_elf.h>
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
@@ -132,39 +132,6 @@ static int elfFileSourceRead(void *ctx, size_t offset, void *buf, size_t len) {
   return file->read((uint8_t *)buf, len) == len ? 0 : -EIO;
 }
 
-// Segment span for the resident app image: esp_elf_t does not record the
-// PT_LOAD extent, so recompute it from the program headers with the same
-// rules esp_elf_load_segment() uses (contiguous PT_LOADs from vaddr_s).
-static int elfSegmentSpan(File *f, uint32_t *vaddr_s, uint32_t *span) {
-  elf32_hdr_t ehdr;
-  if (!f->seek(0) || f->read((uint8_t *)&ehdr, sizeof(ehdr)) != (int)sizeof(ehdr))
-    return -EIO;
-  if (ehdr.ident[0] != 0x7f || ehdr.ident[1] != 'E' ||
-      ehdr.ident[2] != 'L' || ehdr.ident[3] != 'F')
-    return -EINVAL;
-  uint32_t count = ehdr.phnum;
-  if (count == 0 || count > 16) return -EINVAL; // app images have a handful
-  elf32_phdr_t phdr[16];
-  if (!f->seek(ehdr.phoff) ||
-      f->read((uint8_t *)phdr, count * sizeof(elf32_phdr_t)) != (int)(count * sizeof(elf32_phdr_t)))
-    return -EIO;
-  uint32_t lo = 0, hi = 0;
-  bool any = false;
-  for (uint32_t i = 0; i < count; i++) {
-    if (phdr[i].type != PT_LOAD) continue;
-    uint32_t s = phdr[i].vaddr;
-    uint32_t e = s + phdr[i].memsz;
-    if (e < s) return -EINVAL;
-    if (!any) { lo = s; hi = e; any = true; }
-    else if (s < hi) return -EINVAL; // overlapping, matches loader's check
-    else hi = e;
-  }
-  if (!any || hi <= lo) return -EINVAL;
-  *vaddr_s = lo;
-  *span = hi - lo;
-  return 0;
-}
-
 static void elfAppTask(void *param) {
   ElfRunParams *p = (ElfRunParams *)param;
   bool ok = false;
@@ -215,22 +182,23 @@ static void elfAppTask(void *param) {
       Serial.printf("[ELF] init=%d relocate=%d entry=%p t=%u\n",
                     ire, rre, (void *)elf.entry, (unsigned)(millis() - t1));
       if (ire == 0 && rre == 0) {
+        Serial.printf("[ELF] runtime_base=%p\n", (void *)esp_elf_runtime_base(&elf));
         char *argv[4] = { p->appName, p->elfPath, p->version, p->author };
         Serial.printf("[ELF] %s RUN v%s by %s\n", p->appName, p->version,
                       p->author);
         const bool prevFastRefresh = FAST_REFRESH;
         FAST_REFRESH = true;
-        overlay_loader_t *ov_loader = NULL;
+        elf_overlay_loader_t *ov_loader = NULL;
         {
           char ov_path[160];
           bool found = false;
-          snprintf(ov_path, sizeof(ov_path), "%s.overlay.bin", p->elfPath);
+          snprintf(ov_path, sizeof(ov_path), "%s.elfo", p->elfPath);
           if (global_fs->exists(ov_path)) found = true;
           if (!found) {
             size_t len = strlen(p->elfPath);
             if (len > 8 && strcmp(p->elfPath + len - 8, ".app.elf") == 0) {
               strcpy(ov_path, p->elfPath);
-              strcpy(ov_path + len - 8, ".overlay.bin");
+              strcpy(ov_path + len - 8, ".elfo");
               if (global_fs->exists(ov_path)) found = true;
             }
           }
@@ -242,7 +210,7 @@ static void elfAppTask(void *param) {
             dir[sizeof(dir)-1]=0;
             char *slash = strrchr(dir, '/');
             if (slash) *slash = 0; else strcpy(dir, "/apps");
-            snprintf(ov_path, sizeof(ov_path), "%s/%.*s.overlay.bin", dir, (int)(strchr(base,'.') ? (strchr(base,'.')-base) : (int)strlen(base)), base);
+            snprintf(ov_path, sizeof(ov_path), "%s/%.*s.elfo", dir, (int)(strchr(base,'.') ? (strchr(base,'.')-base) : (int)strlen(base)), base);
             if (global_fs->exists(ov_path)) found = true;
           }
           if (!found) {
@@ -253,43 +221,37 @@ static void elfAppTask(void *param) {
             dir[sizeof(dir)-1]=0;
             char *slash = strrchr(dir, '/');
             if (slash) *slash = 0; else strcpy(dir, "/apps");
-            snprintf(ov_path, sizeof(ov_path), "%s/callgraph.overlay.bin", dir);
+            snprintf(ov_path, sizeof(ov_path), "%s/%s.elfo", dir, base);
             if (global_fs->exists(ov_path)) found = true;
           }
           if (found) {
             Serial.printf("[ELF] loading overlay from %s\n", ov_path);
-            if (overlay_loader_load(&ov_loader, ov_path) == OVERLAY_OK) {
-              overlay_loader_set_active(ov_loader);
-              if (elf.psegment) {
-                // The entry vaddr recorded at relocate time; canonical is the
-                // pre-relocation address the emitter stamped into the stub
-                // table, so it survives across emissions instead of a magic
-                // stub-block offset.
-                uint32_t entry_vaddr = (uint32_t)elf.entry - (uint32_t)elf.psegment + elf.svaddr;
-                uint32_t seg_svaddr = 0, seg_size = 0;
-                if (elfSegmentSpan(&f, &seg_svaddr, &seg_size) == 0 &&
-                    seg_svaddr == elf.svaddr) {
-                  overlay_loader_set_app_image_size(ov_loader, seg_size);
+            if (elf_overlay_load(&ov_loader, ov_path) == ELF_OVERLAY_OK) {
+              elf_overlay_set_active(ov_loader);
+              // Section map: canonical vaddr -> resident addr, from ELF sections.
+              elf_overlay_section_map_t map = {};
+              for (int i = 0; i < 5; i++) {
+                map.entries[i].v_addr = (uint32_t)elf.sec[i].v_addr;
+                map.entries[i].addr = (uint32_t)elf.sec[i].addr;
+                map.entries[i].size = (uint32_t)elf.sec[i].size;
+              }
+              elf_overlay_set_section_map(ov_loader, &map);
+              elf_overlay_apply_redirects(ov_loader);
+              elf_overlay_set_symbol_resolver(ov_loader, scopedSymResolver);
+              void *stub_base = elf_overlay_get_stub_block(ov_loader);
+              if (stub_base) {
+                Serial.printf("[ELF] overlay loaded, stub_base=%p\n", stub_base);
+                uint32_t stub_off = 0;
+                uint32_t entry_vaddr = (uint32_t)elf.entry -
+                                       (uint32_t)elf.sec[ELF_SEC_TEXT].addr +
+                                       elf.sec[ELF_SEC_TEXT].v_addr;
+                if (elf_overlay_find_stub(ov_loader, entry_vaddr, &stub_off) == ELF_OVERLAY_OK) {
+                  elf.entry = (int (*)(int, char**))((uintptr_t)stub_base + stub_off);
+                  Serial.printf("[ELF] entry redirected to %p (stub_off=0x%x)\n",
+                                (void*)elf.entry, stub_off);
                 } else {
-                  Serial.println("[ELF] segment span unavailable; redirect msync skipped");
-                }
-                Serial.printf("[ELF] overlay loaded, app_base=%p entry_vaddr=0x%08x seg_size=0x%x\n",
-                              elf.psegment, entry_vaddr, (unsigned)seg_size);
-                overlay_loader_apply_redirects(ov_loader, elf.psegment);
-                void *stub_base = overlay_loader_get_stub_block_base(ov_loader);
-                if (stub_base) {
-                  // Stubs call overlay_enter themselves with the key baked in
-                  // at emit time, so no manual pre-load of a body is needed.
-                  Serial.printf("[ELF] stub_base=%p\n", stub_base);
-                  uint32_t stub_off = 0;
-                  if (overlay_loader_find_stub_off(ov_loader, entry_vaddr, &stub_off) == OVERLAY_OK) {
-                    elf.entry = (int (*)(int, char**))((uintptr_t)stub_base + stub_off);
-                    Serial.printf("[ELF] entry redirected to %p (stub_off=0x%x)\n",
-                                  (void*)elf.entry, stub_off);
-                  } else {
-                    Serial.printf("[ELF] no stub for entry 0x%08x; running unredirected\n",
-                                  entry_vaddr);
-                  }
+                  Serial.printf("[ELF] no stub for entry 0x%08x; running unredirected\n",
+                                entry_vaddr);
                 }
               }
             }
@@ -297,9 +259,9 @@ static void elfAppTask(void *param) {
         }
         esp_elf_request(&elf, 0, 4, argv);
         FAST_REFRESH = prevFastRefresh;
-        overlay_loader_set_active(NULL);
+        elf_overlay_set_active(NULL);
         if (ov_loader) {
-          overlay_loader_unload(ov_loader);
+          elf_overlay_unload(ov_loader);
           ov_loader = NULL;
         }
         esp_elf_deinit(&elf);

@@ -541,11 +541,11 @@ if (global_fs->exists(assetsSrc.c_str())) {
   }
 
   // --- Overlay binary (optional) ---
-  String overlayDst = pathJoin(slotDir, base + ".overlay.bin");
+  String overlayDst = pathJoin(slotDir, base + ".elfo");
   String overlaySrc = "";
   {
-    String want1 = base + ".overlay.bin";
-    String want2 = base + ".app.overlay.bin";
+    String want1 = base + ".elfo";
+    String want2 = base + ".app.elfo";
     File scan = global_fs->open(TEMP_DIR);
     if (scan && scan.isDirectory()) {
       File entry;
@@ -554,7 +554,7 @@ if (global_fs->exists(assetsSrc.c_str())) {
         int sep = name.lastIndexOf('/');
         if (sep >= 0) name = name.substring(sep + 1);
         if (name.startsWith("._")) { entry.close(); continue; }
-        if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2) || name.endsWith(".overlay.bin")) {
+        if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2) || name.endsWith(".elfo")) {
           // prefer exact matches for base name
           if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2)) {
             overlaySrc = pathJoin(TEMP_DIR, entry.name());
