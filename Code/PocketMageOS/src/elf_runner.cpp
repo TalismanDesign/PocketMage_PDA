@@ -11,6 +11,7 @@
 #include <globals.h>
 #include <elf_runner.h>
 #include <elf_overlay/overlay_loader.h>
+#include <elf_overlay/esp_elf_integration.h>
 #include <esp_elf.h>
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
@@ -226,16 +227,18 @@ static void elfAppTask(void *param) {
           }
           if (found) {
             Serial.printf("[ELF] loading overlay from %s\n", ov_path);
-            if (elf_overlay_load(&ov_loader, ov_path) == ELF_OVERLAY_OK) {
+            char ov_vfs_path[192];
+            const char *mount = global_fs ? global_fs->mountpoint() : NULL;
+            if (mount && mount[0] && strncmp(ov_path, mount, strlen(mount)) != 0) {
+              snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s%s", mount, ov_path);
+            } else {
+              snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s", ov_path);
+            }
+            int ov_rc = elf_overlay_load(&ov_loader, ov_vfs_path);
+            if (ov_rc == ELF_OVERLAY_OK) {
               elf_overlay_set_active(ov_loader);
               // Section map: canonical vaddr -> resident addr, from ELF sections.
-              elf_overlay_section_map_t map = {};
-              for (int i = 0; i < 5; i++) {
-                map.entries[i].v_addr = (uint32_t)elf.sec[i].v_addr;
-                map.entries[i].addr = (uint32_t)elf.sec[i].addr;
-                map.entries[i].size = (uint32_t)elf.sec[i].size;
-              }
-              elf_overlay_set_section_map(ov_loader, &map);
+              elf_overlay_esp_elf_set_section_map(ov_loader, &elf);
               elf_overlay_apply_redirects(ov_loader);
               elf_overlay_set_symbol_resolver(ov_loader, scopedSymResolver);
               void *stub_base = elf_overlay_get_stub_block(ov_loader);
@@ -254,6 +257,8 @@ static void elfAppTask(void *param) {
                                 entry_vaddr);
                 }
               }
+            } else {
+              Serial.printf("[ELF] overlay load failed rc=%d path=%s\n", ov_rc, ov_vfs_path);
             }
           }
         }
