@@ -85,8 +85,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      # The SDK build rules resolve the Xtensa compiler by probing this exact
-      # directory layout, so the toolchain is installed where app.mk looks.
+      - name: Install icon tooling and the SDK
+        working-directory: Code/PocketMageOS
+        run: |
+          set -euo pipefail
+          pip install --quiet Pillow
+          pip install lib/PocketMage_SDK
+
       - name: Install Little-Endian Xtensa Toolchain
         run: |
           set -euo pipefail
@@ -101,27 +106,40 @@ jobs:
           test -x "$TGT/xtensa-esp-elf/bin/xtensa-esp32s3-elf-g++"
           echo "toolchain installed at $TGT/xtensa-esp-elf"
 
+      - name: Build the elf_overlay host tools
+        working-directory: Code/PocketMageOS/lib/elf_overlay
+        run: |
+          set -euo pipefail
+          cmake -S . -B build
+          cmake --build build --target elf_overlay_relink elf_overlay_emit
+          echo "$PWD/build" >> "$GITHUB_PATH"
+
       - name: Build Example App
         working-directory: Code/PocketMageOS
+        env:
+          PM_SDK_ROOT: ${{ github.workspace }}/Code/PocketMageOS/lib/PocketMage_SDK
         run: |
           set -euo pipefail
-          make -C lib/PocketMage_SDK/examples/hello_app clean all check pack
+          APP=lib/PocketMage_SDK/tools/pm/tests/fixtures/template
+          make -C "$APP" clean all pack
+          pm check "$APP"
 
       - name: Assert artifact little-endian
-        working-directory: Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build
+        working-directory: Code/PocketMageOS/lib/PocketMage_SDK/tools/pm/tests/fixtures/template/build
         run: |
           set -euo pipefail
-          xtensa-esp-elf-readelf -h hello_app.app.elf | grep -q 'little endian'
-          tar -tf hello_app.tar | grep -q -- 'hello_app.app.elf'
-          tar -tf hello_app.tar | grep -q -- 'hello_app_ICON.bin'
+          xtensa-esp-elf-readelf -h template.app.elf | grep -q 'little endian'
+          tar -tf template.tar | grep -q -- 'template.app.elf'
+          tar -tf template.tar | grep -q -- 'template.elfo'
+          tar -tf template.tar | grep -q -- 'template_ICON.bin'
 
       - name: Upload App Tar Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hello_app-${{ github.sha }}
+          name: template-app-${{ github.sha }}
           path: |
-            Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build/hello_app.tar
-            Code/PocketMageOS/lib/PocketMage_SDK/examples/hello_app/build/hello_app.app.elf
+            Code/PocketMageOS/lib/PocketMage_SDK/tools/pm/tests/fixtures/template/build/template.tar
+            Code/PocketMageOS/lib/PocketMage_SDK/tools/pm/tests/fixtures/template/build/template.app.elf
           if-no-files-found: error
           retention-days: 14
 
