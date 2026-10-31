@@ -104,6 +104,7 @@ jobs:
           echo "$SHA  /tmp/xtensa-esp-elf.tar.xz" | sha256sum -c -
           tar -xJf /tmp/xtensa-esp-elf.tar.xz -C "$TGT"
           test -x "$TGT/xtensa-esp-elf/bin/xtensa-esp32s3-elf-g++"
+          echo "$TGT/xtensa-esp-elf/bin" >> "$GITHUB_PATH"
           echo "toolchain installed at $TGT/xtensa-esp-elf"
 
       - name: Build the elf_overlay host tools
