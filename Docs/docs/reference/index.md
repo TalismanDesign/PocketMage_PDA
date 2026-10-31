@@ -10,7 +10,7 @@ Use these pages when you need the exact API, state, or helper names. This sectio
 ## Pages
 
 - [App API Reference](app-api.md) - app entry points, helpers, and shared patterns
-- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage/`
+- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage_SDK/`
 - [System State Reference](system-state.md) - globals, settings, and runtime state
 - [Command Manual](../command-manual/index.md) - keyboard mappings and built-in app commands
 - [Scripting](../scripting/index.md) - Wrench examples and command reference

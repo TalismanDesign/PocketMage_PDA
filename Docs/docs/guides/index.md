@@ -47,6 +47,5 @@ The Wrench terminal app and its examples.
 
 ## Best fit
 
-::: callout tip "Pick the right page"
-Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **ELF Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
+::: callout tip "Pick the right page" Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **ELF Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
 :::

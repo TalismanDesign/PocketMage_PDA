@@ -88,8 +88,7 @@ Connect to a remote host over WiFi from the terminal app (`ssh` command).
 
 ## Hardware behavior
 
-::: callout tip "The screen split matters"
-E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
+::: callout tip "The screen split matters" E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
 :::
 
 ## Sleep and power

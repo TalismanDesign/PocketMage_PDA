@@ -70,9 +70,9 @@ See [PocketMage Library](../reference/pocketmage-library.md) for the full module
 ## Native vs ELF apps
 
 - **Native apps** live in `src/OS_APPS/`, are compiled into the firmware, and are wired into the dispatch switch.
-- **ELF apps** are compiled separately against the PocketMage SDK and loaded from the SD card at runtime through the app loader.
+- **ELF apps** are compiled separately against the PocketMage SDK into a `.app.elf`, packed with an overlay sidecar, and loaded from the SD card at runtime through the app loader. No firmware reflash is involved. The runner (`src/elf_runner.cpp`) relocates the base image with `esp_elf`, then pages the app's code into executable RAM through the `elf_overlay` runtime, and runs the app's entry in its own task while the OS loop stands down.
 
-Both follow the same three-function shape. The difference is only where the code ships. See [Making Apps](../guides/making-apps.md).
+Both follow the same three-function shape. The difference is where the code ships and how it is loaded. See [ELF Apps](../guides/elf-apps.md) for the device side, [Making Apps](../guides/making-apps.md) for the workflow, and the [SDK docs](https://talismandesign.github.io/PocketMage_SDK/docs/) for the binary contract.
 
 ## Source layout
 
@@ -81,11 +81,16 @@ Both follow the same three-function shape. The difference is only where the code
 - `Code/PocketMageOS/src/UTILS.cpp` - shared prompts, boot shortcuts, and runtime helpers
 - `Code/PocketMageOS/include/globals.h` - app prototypes, app state, shared runtime state
 - `Code/PocketMageOS/include/config.h` - pins and system settings
-- `Code/PocketMageOS/lib/PocketMage/` - the reusable hardware layer
+- `Code/PocketMageOS/lib/PocketMage_SDK/` - the reusable hardware layer (the PocketMage SDK, vendored as a submodule)
+- `Code/PocketMageOS/lib/elf_overlay/` - the overlay runtime that pages ELF-app code into executable RAM
+- `Code/PocketMageOS/src/elf_runner.cpp` - loads and runs installed ELF apps
 
 ## Next steps
 
 ::: grids
+::: grid
+::: button "Architecture" ./architecture.md icon:layers
+:::
 ::: grid
 ::: button "Build Environments" ./build-environments.md icon:settings
 :::
