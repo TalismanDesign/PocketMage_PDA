@@ -1,0 +1,19 @@
+{
+  "name": "pwm_audio",
+  "version": "1.1.2",
+  "description": "Espressif pwm_audio sink (LEDC + gptimer ISR + ring buffer).",
+  "keywords": ["pwm", "audio", "ledc", "pocketmage"],
+  "license": "Apache-2.0",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "build": {
+    "srcDir": "../esp-iot-solution/components/audio/pwm_audio",
+    "includeDir": "../esp-iot-solution/components/audio/pwm_audio/include",
+    "srcFilter": "+<pwm_audio.c>",
+    "flags": [
+      "-DPWM_AUDIO_VER_MAJOR=1",
+      "-DPWM_AUDIO_VER_MINOR=1",
+      "-DPWM_AUDIO_VER_PATCH=2"
+    ]
+  }
+}
