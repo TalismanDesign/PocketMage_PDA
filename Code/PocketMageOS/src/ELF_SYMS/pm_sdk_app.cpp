@@ -189,6 +189,10 @@ int8_t pm_audio_get_volume() {
   return P_AUDIO.getVolume();
 }
 
+uint32_t pm_audio_get_position() {
+  return P_AUDIO.getPosition();
+}
+
 bool pm_audio_usb_connected() {
   return P_AUDIO.usbConnected();
 }

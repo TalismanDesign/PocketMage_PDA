@@ -179,6 +179,62 @@ static void elfAppTask(void *param) {
       esp_elf_t elf;
       uint32_t t1 = millis();
       int ire = esp_elf_init(&elf);
+
+      // Load overlay before relocation
+      elf_overlay_loader_t *ov_loader = NULL;
+      {
+        char ov_path[160];
+        bool found = false;
+        snprintf(ov_path, sizeof(ov_path), "%s.elfo", p->elfPath);
+        if (global_fs->exists(ov_path)) found = true;
+        if (!found) {
+          size_t len = strlen(p->elfPath);
+          if (len > 8 && strcmp(p->elfPath + len - 8, ".app.elf") == 0) {
+            strcpy(ov_path, p->elfPath);
+            strcpy(ov_path + len - 8, ".elfo");
+            if (global_fs->exists(ov_path)) found = true;
+          }
+        }
+        if (!found) {
+          const char *base = strrchr(p->elfPath, '/');
+          base = base ? base + 1 : p->elfPath;
+          char dir[128];
+          strncpy(dir, p->elfPath, sizeof(dir)-1);
+          dir[sizeof(dir)-1]=0;
+          char *slash = strrchr(dir, '/');
+          if (slash) *slash = 0; else strcpy(dir, "/apps");
+          snprintf(ov_path, sizeof(ov_path), "%s/%.*s.elfo", dir, (int)(strchr(base,'.') ? (strchr(base,'.')-base) : (int)strlen(base)), base);
+          if (global_fs->exists(ov_path)) found = true;
+        }
+        if (!found) {
+          const char *base = strrchr(p->elfPath, '/');
+          base = base ? base + 1 : p->elfPath;
+          char dir[128];
+          strncpy(dir, p->elfPath, sizeof(dir)-1);
+          dir[sizeof(dir)-1]=0;
+          char *slash = strrchr(dir, '/');
+          if (slash) *slash = 0; else strcpy(dir, "/apps");
+          snprintf(ov_path, sizeof(ov_path), "%s/%s.elfo", dir, base);
+          if (global_fs->exists(ov_path)) found = true;
+        }
+        if (found) {
+          char ov_vfs_path[192];
+          const char *mount = global_fs ? global_fs->mountpoint() : NULL;
+          if (mount && mount[0] && strncmp(ov_path, mount, strlen(mount)) != 0) {
+            snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s%s", mount, ov_path);
+          } else {
+            snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s", ov_path);
+          }
+          Serial.printf("[ELF] loading overlay from %s\n", ov_vfs_path);
+          int ov_rc = elf_overlay_load(&ov_loader, ov_vfs_path);
+          if (ov_rc != ELF_OVERLAY_OK) {
+            Serial.printf("[ELF] overlay load skipped rc=%d path=%s\n",
+                          ov_rc, ov_vfs_path);
+            ov_loader = NULL;
+          }
+        }
+      }
+
       int rre = (ire == 0) ? esp_elf_relocate_source(&elf, &src) : ire;
       Serial.printf("[ELF] init=%d relocate=%d entry=%p t=%u\n",
                     ire, rre, (void *)elf.entry, (unsigned)(millis() - t1));
@@ -189,76 +245,26 @@ static void elfAppTask(void *param) {
                       p->author);
         const bool prevFastRefresh = FAST_REFRESH;
         FAST_REFRESH = true;
-        elf_overlay_loader_t *ov_loader = NULL;
-        {
-          char ov_path[160];
-          bool found = false;
-          snprintf(ov_path, sizeof(ov_path), "%s.elfo", p->elfPath);
-          if (global_fs->exists(ov_path)) found = true;
-          if (!found) {
-            size_t len = strlen(p->elfPath);
-            if (len > 8 && strcmp(p->elfPath + len - 8, ".app.elf") == 0) {
-              strcpy(ov_path, p->elfPath);
-              strcpy(ov_path + len - 8, ".elfo");
-              if (global_fs->exists(ov_path)) found = true;
-            }
-          }
-          if (!found) {
-            const char *base = strrchr(p->elfPath, '/');
-            base = base ? base + 1 : p->elfPath;
-            char dir[128];
-            strncpy(dir, p->elfPath, sizeof(dir)-1);
-            dir[sizeof(dir)-1]=0;
-            char *slash = strrchr(dir, '/');
-            if (slash) *slash = 0; else strcpy(dir, "/apps");
-            snprintf(ov_path, sizeof(ov_path), "%s/%.*s.elfo", dir, (int)(strchr(base,'.') ? (strchr(base,'.')-base) : (int)strlen(base)), base);
-            if (global_fs->exists(ov_path)) found = true;
-          }
-          if (!found) {
-            const char *base = strrchr(p->elfPath, '/');
-            base = base ? base + 1 : p->elfPath;
-            char dir[128];
-            strncpy(dir, p->elfPath, sizeof(dir)-1);
-            dir[sizeof(dir)-1]=0;
-            char *slash = strrchr(dir, '/');
-            if (slash) *slash = 0; else strcpy(dir, "/apps");
-            snprintf(ov_path, sizeof(ov_path), "%s/%s.elfo", dir, base);
-            if (global_fs->exists(ov_path)) found = true;
-          }
-          if (found) {
-            Serial.printf("[ELF] loading overlay from %s\n", ov_path);
-            char ov_vfs_path[192];
-            const char *mount = global_fs ? global_fs->mountpoint() : NULL;
-            if (mount && mount[0] && strncmp(ov_path, mount, strlen(mount)) != 0) {
-              snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s%s", mount, ov_path);
+
+        if (ov_loader) {
+          elf_overlay_set_active(ov_loader);
+          elf_overlay_esp_elf_set_section_map(ov_loader, &elf);
+          elf_overlay_apply_redirects(ov_loader);
+          elf_overlay_set_symbol_resolver(ov_loader, scopedSymResolver);
+          void *stub_base = elf_overlay_get_stub_block(ov_loader);
+          if (stub_base) {
+            Serial.printf("[ELF] overlay loaded, stub_base=%p\n", stub_base);
+            uint32_t stub_off = 0;
+            uint32_t entry_vaddr = (uint32_t)elf.entry -
+                                   (uint32_t)elf.sec[ELF_SEC_TEXT].addr +
+                                   elf.sec[ELF_SEC_TEXT].v_addr;
+            if (elf_overlay_find_stub(ov_loader, entry_vaddr, &stub_off) == ELF_OVERLAY_OK) {
+              elf.entry = (int (*)(int, char**))((uintptr_t)stub_base + stub_off);
+              Serial.printf("[ELF] entry redirected to %p (stub_off=0x%x)\n",
+                            (void*)elf.entry, stub_off);
             } else {
-              snprintf(ov_vfs_path, sizeof(ov_vfs_path), "%s", ov_path);
-            }
-            int ov_rc = elf_overlay_load(&ov_loader, ov_vfs_path);
-            if (ov_rc == ELF_OVERLAY_OK) {
-              elf_overlay_set_active(ov_loader);
-              // Section map: canonical vaddr -> resident addr, from ELF sections.
-              elf_overlay_esp_elf_set_section_map(ov_loader, &elf);
-              elf_overlay_apply_redirects(ov_loader);
-              elf_overlay_set_symbol_resolver(ov_loader, scopedSymResolver);
-              void *stub_base = elf_overlay_get_stub_block(ov_loader);
-              if (stub_base) {
-                Serial.printf("[ELF] overlay loaded, stub_base=%p\n", stub_base);
-                uint32_t stub_off = 0;
-                uint32_t entry_vaddr = (uint32_t)elf.entry -
-                                       (uint32_t)elf.sec[ELF_SEC_TEXT].addr +
-                                       elf.sec[ELF_SEC_TEXT].v_addr;
-                if (elf_overlay_find_stub(ov_loader, entry_vaddr, &stub_off) == ELF_OVERLAY_OK) {
-                  elf.entry = (int (*)(int, char**))((uintptr_t)stub_base + stub_off);
-                  Serial.printf("[ELF] entry redirected to %p (stub_off=0x%x)\n",
-                                (void*)elf.entry, stub_off);
-                } else {
-                  Serial.printf("[ELF] no stub for entry 0x%08x; running unredirected\n",
-                                entry_vaddr);
-                }
-              }
-            } else {
-              Serial.printf("[ELF] overlay load failed rc=%d path=%s\n", ov_rc, ov_vfs_path);
+              Serial.printf("[ELF] no stub for entry 0x%08x; running unredirected\n",
+                            entry_vaddr);
             }
           }
         }

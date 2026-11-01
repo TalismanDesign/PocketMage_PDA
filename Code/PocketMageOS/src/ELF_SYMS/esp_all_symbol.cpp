@@ -911,6 +911,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_audio_dispatch_events),
     ESP_ELFSYM_EXPORT(pm_audio_get_current_path),
     ESP_ELFSYM_EXPORT(pm_audio_get_last_error),
+    ESP_ELFSYM_EXPORT(pm_audio_get_position),
     ESP_ELFSYM_EXPORT(pm_audio_get_state),
     ESP_ELFSYM_EXPORT(pm_audio_get_volume),
     ESP_ELFSYM_EXPORT(pm_audio_is_playing),

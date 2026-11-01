@@ -133,7 +133,17 @@ const char* pm_clock_timestamp(void) {
 }
 
 bool pm_sd_write_binary_file(const char* path, const uint8_t* buf, size_t len) {
-  if (!global_fs || !path || (!buf && len > 0)) {
+  printf("[pm_sd_write_binary_file] entry: global_fs=%p path=%s\n", (void*)global_fs, path ? path : "(null)");
+  if (!global_fs) {
+    printf("[pm_sd_write_binary_file] global_fs is NULL\n");
+    return false;
+  }
+  uintptr_t fs_addr = reinterpret_cast<uintptr_t>(global_fs);
+  if (fs_addr < 0x3c000000u || fs_addr > 0x40ffffffu) {
+    printf("[pm_sd_write_binary_file] global_fs is garbage: 0x%x\n", fs_addr);
+    return false;
+  }
+  if (!path || (!buf && len > 0)) {
     return false;
   }
   File file = global_fs->open(path, FILE_WRITE);
@@ -146,7 +156,18 @@ bool pm_sd_write_binary_file(const char* path, const uint8_t* buf, size_t len) {
 }
 
 bool pm_sd_mkdir(const char* path) {
-  if (!global_fs || !path || !path[0]) {
+  printf("[pm_sd_mkdir] entry: global_fs=%p path=%s\n", (void*)global_fs, path ? path : "(null)");
+  fflush(stdout);
+  if (!global_fs) {
+    printf("[pm_sd_mkdir] global_fs is NULL\n");
+    fflush(stdout);
+    return false;
+  }
+  // Sanity check: global_fs should point into DRAM/IRAM, not low memory
+  uintptr_t fs_addr = reinterpret_cast<uintptr_t>(global_fs);
+  if (fs_addr < 0x3c000000u || fs_addr > 0x40ffffffu) {
+    printf("[pm_sd_mkdir] global_fs is garbage: 0x%x\n", fs_addr);
+    fflush(stdout);
     return false;
   }
   if (global_fs->exists(path)) {
