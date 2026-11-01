@@ -7,7 +7,7 @@ path: /getting-started/what-is-pocketmage/
 updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:07:11.651Z"
+  generated_at: "2026-11-01T04:13:17.671Z"
 ---
 ---
 title: "What is PocketMage?"

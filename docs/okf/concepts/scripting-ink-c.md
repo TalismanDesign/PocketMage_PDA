@@ -7,7 +7,7 @@ path: /scripting/ink-c/
 updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:07:11.654Z"
+  generated_at: "2026-11-01T04:13:17.677Z"
 ---
 ---
 title: "Scripting Example: E-Ink Drawing"
