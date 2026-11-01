@@ -152,3 +152,93 @@ bool pm_sd_mkdir(const char* path) {
   }
   return global_fs->mkdir(path);
 }
+
+// One directory enumeration lives at a time
+namespace {
+
+struct DirEntry {
+  char name[128];
+  bool is_dir;
+};
+
+DirEntry* s_dir_entries = nullptr;
+int s_dir_count = 0;
+int s_dir_cap = 0;
+
+void dir_reset() {
+  free(s_dir_entries);
+  s_dir_entries = nullptr;
+  s_dir_count = 0;
+  s_dir_cap = 0;
+}
+
+bool dir_push(const char* name, bool is_dir) {
+  if (s_dir_count == s_dir_cap) {
+    const int next = s_dir_cap ? s_dir_cap * 2 : 16;
+    DirEntry* grown =
+        static_cast<DirEntry*>(realloc(s_dir_entries, next * sizeof(DirEntry)));
+    if (!grown) {
+      return false;
+    }
+    s_dir_entries = grown;
+    s_dir_cap = next;
+  }
+  DirEntry& e = s_dir_entries[s_dir_count];
+  strncpy(e.name, name ? name : "", sizeof(e.name) - 1);
+  e.name[sizeof(e.name) - 1] = '\0';
+  // Keep only the leaf: some backends hand back a full path.
+  char* slash = strrchr(e.name, '/');
+  if (slash && slash != e.name) {
+    memmove(e.name, slash + 1, strlen(slash + 1) + 1);
+  }
+  e.is_dir = is_dir;
+  s_dir_count++;
+  return true;
+}
+
+}  // namespace
+
+int pm_sd_dir_open(const char* path) {
+  dir_reset();
+  if (!global_fs || !path || !path[0]) {
+    return -1;
+  }
+  File dir = global_fs->open(path);
+  if (!dir) {
+    return -1;
+  }
+  if (!dir.isDirectory()) {
+    dir.close();
+    return -1;
+  }
+  File entry = dir.openNextFile();
+  while (entry) {
+    if (!dir_push(entry.name(), entry.isDirectory())) {
+      entry.close();
+      dir.close();
+      dir_reset();
+      return -1;
+    }
+    entry.close();
+    entry = dir.openNextFile();
+  }
+  dir.close();
+  return s_dir_count;
+}
+
+bool pm_sd_dir_entry(int i, char* name_out, size_t name_size, bool* is_dir) {
+  if (i < 0 || i >= s_dir_count || !name_out || name_size == 0) {
+    return false;
+  }
+  const DirEntry& e = s_dir_entries[i];
+  strncpy(name_out, e.name, name_size - 1);
+  name_out[name_size - 1] = '\0';
+  if (is_dir) {
+    *is_dir = e.is_dir;
+  }
+  return true;
+}
+
+void pm_sd_dir_close(void) {
+  dir_reset();
+}
