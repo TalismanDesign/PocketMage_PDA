@@ -4,6 +4,7 @@
 #include <globals.h>
 
 #include <pm_app_api.h>
+#include <pocketmage_image/pocketmage_image.h>
 
 // Jingle pointers in SDK declaration order, generated into pm_sdk_app.cpp.
 // C++ typed, so it stays out of the C-facing header.
@@ -241,4 +242,31 @@ bool pm_sd_dir_entry(int i, char* name_out, size_t name_size, bool* is_dir) {
 
 void pm_sd_dir_close(void) {
   dir_reset();
+}
+
+// Image decode primitives (JPEG via esp_new_jpeg, PNG via PNGdec). Writes a
+// Floyd-Steinberg-dithered, nearest-neighbour-scaled 1-bit image into the
+// caller's framebuffer at (out_x, out_y) bounded by max_size.
+bool pm_image_decode_to_1bit(const char* path, uint8_t* buf, int buf_w, int buf_h,
+                             int out_x, int out_y, int max_size) {
+  if (!buf || buf_w <= 0 || buf_h <= 0 || max_size <= 0) {
+    return false;
+  }
+  return P_IMAGE.decodeTo1Bit(path, buf, buf_w, buf_h, out_x, out_y, max_size);
+}
+
+// Probe an image file. Fills width/height/format (0=none, 1=jpeg, 2=png).
+// Returns true on recognized format.
+bool pm_image_probe(const char* path, int* width, int* height, int* format) {
+  if (!path || !width || !height || !format) {
+    return false;
+  }
+  ImageInfo info;
+  if (!P_IMAGE.probe(path, info)) {
+    return false;
+  }
+  *width = info.width;
+  *height = info.height;
+  *format = static_cast<int>(info.format);
+  return true;
 }

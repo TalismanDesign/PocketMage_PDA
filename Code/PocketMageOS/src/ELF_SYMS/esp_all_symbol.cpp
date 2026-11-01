@@ -966,6 +966,8 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_i18n_normalize_command),
     ESP_ELFSYM_EXPORT(pm_i18n_set_language),
     ESP_ELFSYM_EXPORT(pm_i18n_set_language_by_code),
+    ESP_ELFSYM_EXPORT(pm_image_decode_to_1bit),
+    ESP_ELFSYM_EXPORT(pm_image_probe),
     ESP_ELFSYM_EXPORT(pm_io_join_string),
     ESP_ELFSYM_EXPORT(pm_io_remove_char),
     ESP_ELFSYM_EXPORT(pm_io_split_string_count),
