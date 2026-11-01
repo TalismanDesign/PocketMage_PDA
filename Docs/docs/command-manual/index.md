@@ -48,7 +48,7 @@ Use the PCB legends for the full key map. This page focuses on what each app doe
 | Calendar | Date and event management                  |
 | Journal  | Daily notes                                |
 | Lexicon  | Dictionary lookup                          |
-| Loader   | OTA app management                         |
+| Loader   | ELF app management                         |
 | Terminal | Wrench scripting and shell-style workflows |
 
 Terminal hosts a sub-mode for **SSH** (remote shell over WiFi); enter it with the `ssh` command from the terminal prompt.
@@ -284,11 +284,11 @@ Type a word to search the dictionary. Matches load from the SD card. Commands ar
 
 ## App loader
 
-Manage and install `.tar` apps into OTA slots. Commands are case-insensitive.
+Manage and install `.tar` apps into ELF slots. Commands are case-insensitive.
 
 | Input             | Action                                                     |
 |-------------------|------------------------------------------------------------|
-| **A / B / C / D** | Select OTA slot to edit                                    |
+| **A / B / C / D** | Select ELF slot to edit                                    |
 | **(S)**           | Swap app in the selected slot (choose a `.tar` file)       |
 | **(D)**           | Delete app in the selected slot                            |
 | **(FN) + ( < )**  | Exit app / return to menu                                  |

@@ -27,7 +27,7 @@ enum AppState { HOME, TXT, FILEWIZ, USB_APP, COMM, SETTINGS, TASKS, CALENDAR, JO
 | `CALENDAR` | Calendar |
 | `JOURNAL` | Journal |
 | `LEXICON` | Lexicon |
-| `APPLOADER` | App loader (OTA apps) |
+| `APPLOADER` | App loader (ELF apps) |
 | `TERMINAL` | Terminal (Wrench shell) |
 
 ## How dispatch works
@@ -80,7 +80,7 @@ Declared in `globals.h` and `config.h`:
 - `prefs` - persistent settings
 - `global_fs` - the active filesystem
 - `disableTimeout` - global idle-timeout lockout
-- `OTA1_APP` through `OTA4_APP` - installed OTA app names
+- `ELFINFO1` through `ELFINFO4` - NVS records for installed ELF apps
 
 ## Transitions
 

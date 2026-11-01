@@ -4,7 +4,7 @@
 
 #include <pgmspace.h>
 
-#if !OTA_APP // POCKETMAGE_OS
+#if PM_TARGET_HOST // POCKETMAGE_OS
 //
 extern const unsigned char backgroundaero [] PROGMEM;
 extern const unsigned char backgroundbliss [] PROGMEM;

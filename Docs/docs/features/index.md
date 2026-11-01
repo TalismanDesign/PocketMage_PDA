@@ -71,7 +71,7 @@ Search the dictionary loaded on the SD card.
 :::
 ::: grid
 ::: card "Loader" icon:package
-Install, swap, and delete OTA apps in the four app slots.
+Install, swap, and delete ELF apps in the four SD app slots.
 :::
 :::
 ::: grid
@@ -88,8 +88,7 @@ Connect to a remote host over WiFi from the terminal app (`ssh` command).
 
 ## Hardware behavior
 
-::: callout tip "The screen split matters"
-E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
+::: callout tip "The screen split matters" E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
 :::
 
 ## Sleep and power

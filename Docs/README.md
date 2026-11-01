@@ -12,7 +12,7 @@ The `docs/` folder contains all the source Markdown files that make up the docum
 
 - **Getting Started** - what PocketMage is, setup, and first steps
 - **PocketMageOS** - the operating system and runtime model
-- **Guides** - making apps, native apps, OTA apps, and scripting
+- **Guides** - making apps, native apps, ELF apps, and scripting
 - **Reference** - app API, system state, and the PocketMage library
 - **Commands** - keymaps and built-in command reference
 - **Features** - what PocketMage can do today

@@ -1,0 +1,23 @@
+{
+  "name": "esp_audio_codec",
+  "version": "2.6.2",
+  "description": "Espressif ESP Audio Codec / Simple Decoder (esp-adf-libs).",
+  "keywords": ["audio", "codec", "decoder", "mp3", "aac", "flac", "pocketmage"],
+  "license": "LicenseRef-Espressif-Modified-MIT",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "build": {
+    "srcDir": "../esp-adf-libs/esp_audio_codec/src",
+    "srcFilter": "+<audio_decoder_reg.c> +<simple_decoder_reg.c>",
+    "includeDir": "../esp-adf-libs/esp_audio_codec/include",
+    "flags": [
+      "-I../esp-adf-libs/esp_audio_codec/include/decoder",
+      "-I../esp-adf-libs/esp_audio_codec/include/decoder/impl",
+      "-I../esp-adf-libs/esp_audio_codec/include/simple_dec",
+      "-DCONFIG_AUDIO_DECODER_MP3_SUPPORT=1",
+      "-DCONFIG_AUDIO_DECODER_PCM_SUPPORT=1",
+      "-DCONFIG_AUDIO_SIMPLE_DEC_WAV_SUPPORT=1"
+    ],
+    "extraScript": "link_prebuilt.py"
+  }
+}

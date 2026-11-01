@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           
           # Read offsets from partition CSV (expect 0x-prefixed hex or decimal)
-          APP0_OFFSET=$(grep "^app0," partitions_4APP.csv | cut -d',' -f4 | tr -d ' ')
+          APP0_OFFSET=$(grep "^app0," partitions.csv | cut -d',' -f4 | tr -d ' ')
           PARTITIONS_OFFSET="0x8000"  # Standard for ESP32
           
           echo "bootloader_offset=0x0" >> $GITHUB_OUTPUT

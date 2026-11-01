@@ -5,7 +5,9 @@ description: "Shared hardware, UI, and system modules used by PocketMage."
 
 # PocketMage Library
 
-The PocketMage Library is the shared layer under `Code/PocketMageOS/lib/PocketMage/`. It is the hardware wrapper and utility layer for PocketMageOS. Reach for it when you want to talk to the screen, storage, keyboard, audio, clock, or other shared device systems without rewriting them in an app.
+The PocketMage Library is the shared hardware, UI, and system layer the firmware links in-process. It lives in the PocketMage SDK, vendored at `Code/PocketMageOS/lib/PocketMage_SDK/`, and the same code is the contract external ELF apps build against. Reach for it when you want to talk to the screen, storage, keyboard, audio, clock, or other shared device systems without rewriting them in an app.
+
+The SDK has its own [reference documentation](https://talismandesign.github.io/PocketMage_SDK/docs/api/) covering every module and the app-facing C ABI. This page is the firmware-side view: the same modules, as PocketMageOS code calls them.
 
 ## Access pattern
 
@@ -40,7 +42,7 @@ Include `pocketmage.h` to pull in all the major feature modules plus the project
 ## Library layout
 
 ```txt
-lib/PocketMage/
+lib/PocketMage_SDK/
   pocketmage.h           # umbrella header
   pocketmage_oled/       # OLED helpers
   pocketmage_eink/       # E-Ink helpers

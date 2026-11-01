@@ -13,22 +13,23 @@ PocketMage is available on Crowd Supply! Check it out [here](https://pocketmage.
 
   At this point, the plan for this project is to get the software and hardware to maturity and once a finished product is achieved, a few things will happen. First, the project files (Code, KiCad schematics, 3D files) will be open-sourced and free for anyone to access. Next, I will likely begin selling kits that allow people to purchase all the parts required to build a device for themselves if they don't want to source the parts themselves. Finally, the community will be encouraged to help develop the software for the device and hopefully push it even further than I could myself.
 
-  I will try my best to keep this GitHub up to date with the development of the device.
+The project is open hardware and open software: the code, KiCad schematics, and 3D files are published under Apache-2.0. Kits are available on [Crowd Supply](https://pocketmage.org/back) for anyone who prefers not to source parts individually. Community contributions to the firmware and apps are welcome.
 
 ## [Getting Started]
 
-Start with the docs site:
+Start with the docs sites. The PocketMageOS docs cover the device, the OS, and the built-in apps; the SDK docs cover building standalone apps.
 
-- [PocketMage Docs](https://talismandesign.github.io/PocketMage_PDA/docs/)
+- [PocketMageOS Docs](https://talismandesign.github.io/PocketMage_PDA/docs/)
+- [Architecture](https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture)
 - [Build Environments](https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments)
 - [Command Manual](https://talismandesign.github.io/PocketMage_PDA/docs/command-manual)
 - [FAQ](https://talismandesign.github.io/PocketMage_PDA/docs/faq)
 - [Scripting](https://talismandesign.github.io/PocketMage_PDA/docs/scripting)
-- [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api)
+- [PocketMage SDK Docs](https://talismandesign.github.io/PocketMage_SDK/docs/)
 
-To build or extend apps, start with [APP_TEMPLATE.cpp](./Code/PocketMageOS/src/APP_TEMPLATE.cpp) and the [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api).
-The app walkthrough video is still useful for a first pass:
-[Developing For the PocketMage](https://www.youtube.com/watch?v=3Ytc-3-BbMM)
+Apps come in two forms. **Native apps** compile into the firmware; start from [APP_TEMPLATE.cpp](./Code/PocketMageOS/src/APP_TEMPLATE.cpp) and the [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api). **ELF apps** build standalone against the SDK and load from the SD card at runtime; start from the [SDK Get Started guide](https://talismandesign.github.io/PocketMage_SDK/docs/get-started/).
+
+The app walkthrough video is a useful first pass: [Developing For the PocketMage](https://www.youtube.com/watch?v=3Ytc-3-BbMM).
 
 ## [Hardware]
 
@@ -67,7 +68,7 @@ The app walkthrough video is still useful for a first pass:
 - Tasks app
 - Journal app
 - Dictionary app (Lexicon)
-- App loader for OTA apps
+- App loader for ELF apps
 - Terminal app (Wrench scripting)
 - SSH
 - Commands supported through the home menu:

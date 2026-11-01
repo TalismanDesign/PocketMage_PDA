@@ -1,6 +1,7 @@
 
 #include <assets.h>
-#if !OTA_APP // POCKETMAGE_OS
+#include <config.h>
+#if PM_TARGET_HOST // POCKETMAGE_OS
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // 'homeIcons2', 40x40px
 const unsigned char _homeIcons2 [] PROGMEM = {

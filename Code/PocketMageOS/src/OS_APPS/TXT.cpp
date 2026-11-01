@@ -7,7 +7,7 @@
 //      o888o      o888o  o88888o      o888o    //
 
 #include <globals.h>
-#if !OTA_APP  // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 static constexpr const char* TAG = "TXT_NEW";
 
 #include "esp32-hal-log.h"
