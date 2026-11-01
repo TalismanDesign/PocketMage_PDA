@@ -1,0 +1,2052 @@
+<!--
+  ---------------------------------------------------------------
+  docmd : the zero-config documentation engine.
+  @website https://docmd.io
+  [docmd-source] - Please do not remove this header.
+  ---------------------------------------------------------------
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="generator" content="docmd v0.9.8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script>
+      var root = "../../";
+      if (root && !root.endsWith('/')) root += '/';
+      if (root === '') root = './';
+      window.DOCMD_ROOT = root;
+
+      window.DOCMD_SITE_ROOT = "/PocketMage_PDA/docs/";
+
+      window.DOCMD_APPEARANCE = "system";
+      window.DOCMD_VERSION_ROOT = "/";
+      window.DOCMD_BASE = "/PocketMage_PDA/docs/";
+      window.DOCMD_LOCALE = "";
+      window.DOCMD_DEFAULT_LOCALE = "";
+    </script>
+    <script>/**
+ * --------------------------------------------------------------------
+ * docmd : the zero-config documentation engine.
+ *
+ * @package     @docmd/core (and ecosystem)
+ * @website     https://docmd.io
+ * @repository  https://github.com/docmd-io/docmd
+ * @license     MIT
+ * @copyright   Copyright (c) 2025-present docmd.io
+ *
+ * [docmd-source] - Please do not remove this header.
+ * --------------------------------------------------------------------
+ */
+
+(function () {
+  try {
+    // 1. Determine Theme
+    //
+    // Resolve from three sources, in priority order:
+    //   1. localStorage explicit user choice (light / dark)
+    //   2. window.DOCMD_APPEARANCE  (current canonical name, set by EJS templates)
+    //   3. window.DOCMD_DEFAULT_MODE (legacy alias kept for pre-0.8.7 outputs)
+    //   4. 'light' as the final fallback
+    //
+    // Note: localStorage is only honoured when it holds an explicit
+    // 'light' or 'dark' value. A stored 'system' value (from a prior
+    // session where the user picked "follow system") must NOT win over
+    // a freshly resolved config value — the resolved value will itself
+    // be 'system' in that case and the OS preference check below takes
+    // over, so this is a no-op for the in-session behaviour but keeps
+    // any future storage migration simple.
+    var localValue = localStorage.getItem('docmd-theme');
+    var configValue = window.DOCMD_APPEARANCE
+      || window.DOCMD_DEFAULT_MODE
+      || 'light';
+    var theme = (localValue === 'light' || localValue === 'dark')
+      ? localValue
+      : configValue;
+
+    if (theme === 'system') {
+      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    // 2. Apply to Root
+    document.documentElement.setAttribute('data-theme', theme);
+
+    // 3. Highlight.js Toggle Strategy
+    var lightLink = document.getElementById('hljs-light');
+    var darkLink = document.getElementById('hljs-dark');
+
+    if (lightLink && darkLink) {
+      if (theme === 'dark') {
+        lightLink.disabled = true;
+        darkLink.disabled = false;
+      } else {
+        lightLink.disabled = false;
+        darkLink.disabled = true;
+      }
+    }
+
+    document.documentElement.style.visibility = "visible";
+  } catch (e) {
+    document.documentElement.style.visibility = "visible";
+    console.error('Theme init failed', e);
+  }
+})();</script>
+    <style>
+      html {
+        visibility: hidden;
+      }
+    </style>
+    <title>Architecture - PocketMage</title>
+    
+    
+
+    <link id="site-favicon" rel="icon" href="../../assets/favicon.png?v=mvxb6g8g">
+    <link rel="stylesheet" href="../../assets/css/docmd-main.css?v=mvxb6g8g">
+    
+    <link rel="stylesheet" href="../../assets/css/docmd-highlight-light.css?v=mvxb6g8g" id="hljs-light" >
+    <link rel="stylesheet" href="../../assets/css/docmd-highlight-dark.css?v=mvxb6g8g" id="hljs-dark" disabled>
+    
+    
+<meta name="description" content="How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run.">
+<link rel="canonical" href="https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/">
+<meta property="og:title" content="Architecture - PocketMage">
+<meta property="og:description" content="How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run.">
+<meta property="og:url" content="https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://talismandesign.github.io/PocketMage_PDA/docs/assets/images/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Architecture - PocketMage">
+<meta name="twitter:description" content="How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run.">
+<meta name="twitter:image" content="https://talismandesign.github.io/PocketMage_PDA/docs/assets/images/og-image.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"PocketMage","item":"https://talismandesign.github.io/PocketMage_PDA/docs/"},{"@type":"ListItem","position":2,"name":"Architecture","item":"https://talismandesign.github.io/PocketMage_PDA/docs/development/"},{"@type":"ListItem","position":3,"name":"System architecture","item":"https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/"}]}
+</script>
+
+
+
+
+<link rel="stylesheet" href="../../assets/css/docmd-theme-ruby.css?v=mvxb6g8g" >
+<link rel="stylesheet" href="../../assets/css/docmd-git.css?v=mvxb6g8g" >
+<link rel="stylesheet" href="../../assets/css/docmd-openapi.css?v=mvxb6g8g" >
+<link rel="stylesheet" href="../../assets/css/docmd-ai.css?v=mvxb6g8g" >
+
+    
+      <link rel="stylesheet" href="../../assets/css/theme.css?v=mvxb6g8g">
+    
+    
+  </head>
+  <body
+    class="sidebar-collapsible"
+    data-default-collapsed="false"
+    data-copy-code-enabled="true" data-spa-enabled="true" data-source-file="docs/development/architecture.md">
+
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    
+    
+
+    
+
+    
+    
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          
+            <h1><a href="../../">
+                PocketMage
+              </a></h1>
+          
+          <span class="mobile-view sidebar-menu-button float-right">
+            
+<svg class="lucide-icon icon-menu " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-menu"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 5h16" />
+  <path d="M4 12h16" />
+  <path d="M4 19h16" />
+</svg>
+
+          </span>
+        </div>
+        <div class="sidebar-top-group">
+          
+          
+          
+          
+          
+        </div>
+        
+
+<nav class="sidebar-nav" aria-label="Main Navigation">
+  <ul>
+    
+      <li class="" >
+      
+        <a href="../../" class=" "
+          >
+           
+<svg class="lucide-icon icon-home " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-house"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Home
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="collapsible nav-group"  aria-expanded="false" >
+      
+        <a href="../../getting-started/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-rocket " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-rocket"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+  <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09" />
+  <path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z" />
+  <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Get Started
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../getting-started/what-is-pocketmage/" class=" "
+          >
+           
+<svg class="lucide-icon icon-info " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-info"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M12 16v-4" />
+  <path d="M12 8h.01" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            What is PocketMage
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../features/" class=" "
+          >
+           
+<svg class="lucide-icon icon-star " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-star"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Features
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../tutorials/format-micro-sd/" class=" "
+          >
+           
+          
+          <span class="nav-item-title">
+            Format a MicroSD Card
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="collapsible nav-group"  aria-expanded="false" >
+      
+        <a href="../../command-manual/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-keyboard " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-keyboard"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Using the Device
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../command-manual/" class=" "
+          >
+           
+<svg class="lucide-icon icon-keyboard " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-keyboard"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Command Manual
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../faq/" class=" "
+          >
+           
+<svg class="lucide-icon icon-help-circle " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-circle-question-mark"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+  <path d="M12 17h.01" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            FAQ
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="active-parent collapsible expanded nav-group"  aria-expanded="true" >
+      
+        <a href="../../development/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-cpu " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-cpu"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 20v2" />
+  <path d="M12 2v2" />
+  <path d="M17 20v2" />
+  <path d="M17 2v2" />
+  <path d="M2 12h2" />
+  <path d="M2 17h2" />
+  <path d="M2 7h2" />
+  <path d="M20 12h2" />
+  <path d="M20 17h2" />
+  <path d="M20 7h2" />
+  <path d="M7 20v2" />
+  <path d="M7 2v2" />
+  <rect x="4" y="4" width="16" height="16" rx="2" />
+  <rect x="8" y="8" width="8" height="8" rx="1" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Architecture
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../development/" class=" "
+          >
+           
+<svg class="lucide-icon icon-cpu " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-cpu"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 20v2" />
+  <path d="M12 2v2" />
+  <path d="M17 20v2" />
+  <path d="M17 2v2" />
+  <path d="M2 12h2" />
+  <path d="M2 17h2" />
+  <path d="M2 7h2" />
+  <path d="M20 12h2" />
+  <path d="M20 17h2" />
+  <path d="M20 7h2" />
+  <path d="M7 20v2" />
+  <path d="M7 2v2" />
+  <rect x="4" y="4" width="16" height="16" rx="2" />
+  <rect x="8" y="8" width="8" height="8" rx="1" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            PocketMageOS overview
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="active" >
+      
+        <a href="../../development/architecture/" class="active "
+          >
+           
+<svg class="lucide-icon icon-layers " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-layers"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" />
+  <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
+  <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            System architecture
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../reference/system-state/" class=" "
+          >
+           
+<svg class="lucide-icon icon-settings " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-settings"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            System State
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="collapsible nav-group"  aria-expanded="false" >
+      
+        <a href="../../development/build-environments/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-settings " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-settings"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Building &amp; Flashing
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../development/build-environments/" class=" "
+          >
+           
+<svg class="lucide-icon icon-settings " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-settings"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Build Environments
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="collapsible nav-group"  aria-expanded="false" >
+      
+        <a href="../../guides/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-package " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-package"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Apps &amp; Scripting
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../guides/making-apps/" class=" "
+          >
+           
+<svg class="lucide-icon icon-code " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-code"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m16 18 6-6-6-6" />
+  <path d="m8 6-6 6 6 6" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Making Apps
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../guides/native-apps/" class=" "
+          >
+           
+<svg class="lucide-icon icon-terminal " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-terminal"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Native Apps
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../guides/elf-apps/" class=" "
+          >
+           
+<svg class="lucide-icon icon-package " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-package"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            ELF Apps
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../scripting/" class=" "
+          >
+           
+<svg class="lucide-icon icon-terminal " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-terminal"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Scripting overview
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../scripting/example-c/" class=" "
+          >
+           
+<svg class="lucide-icon icon-terminal " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-terminal"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Basic Input/Output
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../scripting/ink-c/" class=" "
+          >
+           
+<svg class="lucide-icon icon-image " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-image"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+  <circle cx="9" cy="9" r="2" />
+  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            E-Ink Drawing
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../scripting/oled-c/" class=" "
+          >
+           
+<svg class="lucide-icon icon-monitor " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-monitor"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            OLED Drawing
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../scripting/fullPotionCommandList/" class=" "
+          >
+           
+<svg class="lucide-icon icon-book " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-book"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Full Command Reference
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="collapsible nav-group"  aria-expanded="false" >
+      
+        <a href="../../reference/" class=" nav-group"
+          >
+           
+<svg class="lucide-icon icon-book " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-book"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Reference
+            </span>
+          
+            <span class="collapse-icon-wrapper">
+<svg class="lucide-icon icon-chevron-right collapse-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+          
+          
+        </a>
+        
+
+        
+          <ul class="submenu">
+            
+      <li class="" >
+      
+        <a href="../../reference/app-api/" class=" "
+          >
+           
+<svg class="lucide-icon icon-code " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-code"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m16 18 6-6-6-6" />
+  <path d="m8 6-6 6 6 6" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            App API
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../reference/pocketmage-library/" class=" "
+          >
+           
+<svg class="lucide-icon icon-box " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-box"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+  <path d="m3.3 7 8.7 5 8.7-5" />
+  <path d="M12 22V12" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            PocketMage Library
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../reference/system-state/" class=" "
+          >
+           
+<svg class="lucide-icon icon-settings " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-settings"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <circle cx="12" cy="12" r="3" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            System State
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+          </ul>
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="https://talismandesign.github.io/PocketMage_SDK/docs" class=" "
+          target="_blank" rel="noopener">
+           
+<svg class="lucide-icon icon-boxes " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-boxes"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
+  <path d="m7 16.5-4.74-2.85" />
+  <path d="m7 16.5 5-3" />
+  <path d="M7 16.5v5.17" />
+  <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
+  <path d="m17 16.5-5-3" />
+  <path d="m17 16.5 4.74-2.85" />
+  <path d="M17 16.5v5.17" />
+  <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
+  <path d="M12 8 7.26 5.15" />
+  <path d="m12 8 4.74-2.85" />
+  <path d="M12 13.5V8" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            SDK docs
+            </span>
+          
+           
+<svg class="lucide-icon icon-external-link nav-external-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-external-link"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h6v6" />
+  <path d="M10 14 21 3" />
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+</svg>
+
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="https://github.com/TalismanDesign/PocketMage_PDA" class=" "
+          target="_blank" rel="noopener">
+           
+          
+          <span class="nav-item-title">
+            GitHub
+            </span>
+          
+           
+<svg class="lucide-icon icon-external-link nav-external-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-external-link"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M15 3h6v6" />
+  <path d="M10 14 21 3" />
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+</svg>
+
+          
+        </a>
+        
+
+        
+      </li>
+    
+  </ul>
+</nav>
+        <div class="sidebar-bottom-group mt-auto">
+          
+          
+          
+          
+          
+        </div>
+      </aside>
+      
+      <div class="main-content-wrapper">
+        
+        
+        
+          <header class="page-header">
+            <div class="header-left">
+              
+                <button id="sidebar-toggle-button" class="sidebar-toggle-button"
+                  aria-label="Toggle Sidebar">
+                  
+<svg class="lucide-icon icon-chevron-left " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-left"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m15 18-6-6 6-6" />
+</svg>
+
+                </button>
+              
+              <div class="header-titles-wrapper">
+                <span class="header-title">
+                  Architecture
+                </span>
+              </div>
+            </div>
+            <div class="header-right">
+              
+                
+
+
+<div class="docmd-options-menu">
+    
+    <button class="docmd-search-trigger" aria-label="Search">
+        
+<svg class="lucide-icon icon-search " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-search"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" />
+</svg>
+
+        <span class="search-label">Search</span>
+        <span class="search-keys"><kbd class="docmd-kbd">⌘</kbd><kbd class="docmd-kbd">K</kbd></span>
+    </button>
+    
+
+    
+
+    
+
+    
+    <button class="theme-toggle-button" aria-label="Toggle theme" title="Toggle theme">
+        
+<svg class="lucide-icon icon-sun icon-sun" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-sun"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <circle cx="12" cy="12" r="4" />
+  <path d="M12 2v2" />
+  <path d="M12 20v2" />
+  <path d="m4.93 4.93 1.41 1.41" />
+  <path d="m17.66 17.66 1.41 1.41" />
+  <path d="M2 12h2" />
+  <path d="M20 12h2" />
+  <path d="m6.34 17.66-1.41 1.41" />
+  <path d="m19.07 4.93-1.41 1.41" />
+</svg>
+ 
+<svg class="lucide-icon icon-moon icon-moon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-moon"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+</svg>
+
+    </button>
+    
+
+    
+
+    
+</div>
+
+              
+            </div>
+          </header>
+        
+        <div class="content-theme-cover">
+          <main class="content-area" id="main-content">
+            <div class="content-layout">
+              <div class="main-content">
+                <div class="docmd-breadcrumbs-row">
+                  <div id="docmd-raw-markdown" data-content="---%0Atitle%3A%20%22Architecture%22%0Adescription%3A%20%22How%20PocketMageOS%20is%20put%20together%3A%20the%20boot%20path%2C%20the%20dispatch%20state%20machine%2C%20the%20two-display%20model%2C%20storage%2C%20and%20the%20two%20ways%20apps%20run.%22%0A---%0A%0A%23%20Architecture%0A%0APocketMageOS%20is%20a%20single-core-visible%20cooperative%20state%20machine%20on%20an%20ESP32-S3.%20One%20variable%2C%20%60CurrentAppState%60%2C%20decides%20which%20app%20owns%20the%20keyboard%20and%20the%20screens%3B%20the%20main%20loop%20routes%20every%20keystroke%20and%20every%20screen%20refresh%20to%20that%20app&#039;s%20handlers.%20This%20page%20is%20the%20map%20of%20the%20whole%20system%20and%20where%20each%20part%20is%20documented%20in%20depth.%0A%0A%23%23%20The%20layers%0A%0A%60%60%60mermaid%0Aflowchart%20TB%0A%20%20%20%20subgraph%20APPS%5B%22Apps%22%5D%0A%20%20%20%20%20%20%20%20direction%20LR%0A%20%20%20%20%20%20%20%20A1%5B%22native%20apps%3Cbr%3Esrc%2FOS_APPS%2F%22%5D%0A%20%20%20%20%20%20%20%20A2%5B%22ELF%20apps%3Cbr%3ESD%20card%22%5D%0A%20%20%20%20end%0A%20%20%20%20subgraph%20RUNTIME%5B%22PocketMageOS%20runtime%22%5D%0A%20%20%20%20%20%20%20%20R1%5B%22boot%2C%20dispatch%2C%20state%2C%20timeout%2C%20app%20loading%3Cbr%3EPocketMageV3.cpp%2C%20UTILS.cpp%2C%20elf_runner.cpp%22%5D%0A%20%20%20%20end%0A%20%20%20%20subgraph%20LIB%5B%22PocketMage%20Library%20-%20the%20SDK%20(lib%2FPocketMage_SDK%2F)%22%5D%0A%20%20%20%20%20%20%20%20L1%5B%22OLED%2C%20E-Ink%2C%20SD%2C%20keyboard%2C%20touch%2C%20clock%2C%20buzzer%2C%3Cbr%3EWiFi%2C%20fonts%2C%20layout%2C%20UI%2C%20i18n%22%5D%0A%20%20%20%20end%0A%20%20%20%20subgraph%20HW%5B%22Hardware%20(ESP32-S3)%22%5D%0A%20%20%20%20%20%20%20%20H1%5B%22E-Ink%2C%20OLED%2C%20TCA8418%20keyboard%2C%20MPR121%20touch%2C%3Cbr%3EPCF8563%20RTC%2C%20buzzer%2C%20microSD%2C%20USB%2C%20radios%22%5D%0A%20%20%20%20end%0A%20%20%20%20APPS%20--%3E%20RUNTIME%20--%3E%20LIB%20--%3E%20HW%0A%60%60%60%0A%0AApps%20never%20touch%20hardware%20directly.%20They%20call%20the%20library%3B%20the%20library%20is%20the%20only%20layer%20that%20knows%20the%20pins.%20That%20boundary%20is%20what%20lets%20the%20same%20app%20code%20build%20as%20a%20native%20app%2C%20as%20a%20loadable%20ELF%2C%20and%20against%20future%20hardware%20revisions.%0A%0A%23%23%20Boot%0A%0AOn%20power-up%20the%20OS%20mounts%20the%20SD%20card%2C%20initializes%20the%20displays%20and%20keyboard%2C%20and%20loads%20persistent%20settings%20from%20NVS.%20It%20then%20decides%20which%20app%20to%20enter%20based%20on%20how%20the%20device%20woke%3A%0A%0A-%20Normal%20boot%20enters%20HOME%2C%20unless%20%60HOME_ON_BOOT%60%20is%20off.%0A-%20A%20wake%20with%20a%20held%20shortcut%20key%20enters%20the%20mapped%20app%20(for%20example%20%60n%60%20opens%20TXT).%20The%20mapping%20is%20%60bootShortcutApp()%60%20in%20%60UTILS.cpp%60.%0A-%20A%20wake%20from%20now-later%20returns%20to%20the%20app%20that%20was%20active%20before%20sleep%2C%20with%20its%20saved%20state%20restored.%0A%0A%23%23%20Dispatch%0A%0AThe%20main%20loop%20in%20%60PocketMageV3.cpp%60%20is%20a%20cooperative%20dispatcher.%20Two%20functions%20switch%20on%20%60CurrentAppState%60%3A%0A%0A-%20%60processKB()%60%20routes%20each%20keypress%20to%20the%20active%20app&#039;s%20keyboard%20handler.%0A-%20%60applicationEinkHandler()%60%20routes%20each%20screen%20refresh%20to%20the%20active%20app&#039;s%20draw%20handler.%0A%0AEvery%20app%20is%20three%20functions%20-%20init%2C%20handle%20input%2C%20draw%20-%20and%20the%20app%20never%20drives%20the%20loop%20itself.%0A%0A%60%60%60mermaid%0Aflowchart%20LR%0A%20%20%20%20KB%5B%22keypress%22%5D%20--%3E%20PKB%5B%22processKB()%22%5D%0A%20%20%20%20RF%5B%22refresh%20tick%22%5D%20--%3E%20AEH%5B%22applicationEinkHandler()%22%5D%0A%20%20%20%20PKB%20--%3E%20SW%7B%22switch%3Cbr%3ECurrentAppState%22%7D%0A%20%20%20%20AEH%20--%3E%20SW%0A%20%20%20%20SW%20--%3E%20H%5B%22HOME%22%5D%0A%20%20%20%20SW%20--%3E%20T%5B%22TXT%22%5D%0A%20%20%20%20SW%20--%3E%20F%5B%22FILEWIZ%22%5D%0A%20%20%20%20SW%20--%3E%20E%5B%22other%20apps...%22%5D%0A%20%20%20%20H%20--%3E%20HND%5B%22active%20app&#039;s%3Cbr%3Einput%20%2B%20draw%20handlers%22%5D%0A%20%20%20%20T%20--%3E%20HND%0A%20%20%20%20F%20--%3E%20HND%0A%20%20%20%20E%20--%3E%20HND%0A%60%60%60%0A%0AThe%20full%20state%20model%2C%20the%20%60AppState%60%20enum%2C%20the%20HOME%20sub-states%2C%20and%20the%20transition%20helpers%20are%20in%20the%20%5BSystem%20State%20reference%5D(..%2Freference%2Fsystem-state.md).%0A%0A%23%23%20The%20two%20displays%0A%0AThe%20device%20pairs%20a%20slow%2C%20sharp%20320x240%20E-Ink%20panel%20with%20a%20fast%20256x32%20OLED.%20Anything%20that%20benefits%20from%20instant%20feedback%20-%20prompts%2C%20status%2C%20timers%20-%20goes%20to%20the%20OLED%3B%20anything%20that%20benefits%20from%20a%20large%20readable%20page%20-%20notes%2C%20files%2C%20calendars%20-%20goes%20to%20the%20E-Ink.%20The%20E-Ink%20panel%20is%20guarded%20by%20a%20recursive%20mutex%20and%20refreshed%20from%20a%20background%20task%2C%20so%20code%20in%20other%20tasks%20must%20respect%20that%20boundary.%20The%20display%20APIs%20are%20in%20the%20%5BPocketMage%20Library%20reference%5D(..%2Freference%2Fpocketmage-library.md)%2C%20with%20the%20full%20per-module%20contract%20on%20the%20%5BSDK%20API%20docs%5D(https%3A%2F%2Ftalismandesign.github.io%2FPocketMage_SDK%2Fdocs%2Fapi%2F).%0A%0A%23%23%20State%20and%20timeout%0A%0AThe%20OS%20keeps%20shared%20runtime%20state%20in%20%60globals.h%60%3A%20the%20active%20app%2C%20the%20home%20sub-state%2C%20the%20re-init%20flag%2C%20persistent%20preferences%2C%20the%20active%20filesystem%20handle%2C%20and%20the%20idle-timeout%20lockout.%20After%20%60IDLE_TIME%60%20without%20input%20the%20OS%20shows%20the%20idle%20state%3B%20after%20%60TIMEOUT%60%20it%20sleeps.%20Apps%20reset%20the%20idle%20clock%20with%20%60resetIdle()%60%20or%20hold%20it%20off%20with%20%60disableTimeout%60.%20The%20full%20list%20is%20in%20the%20%5BSystem%20State%20reference%5D(..%2Freference%2Fsystem-state.md%23system-state-reference-shared-state-you-will-touch).%0A%0A%23%23%20Storage%0A%0AFiles%20live%20on%20a%20microSD%20card%2C%20reached%20through%20the%20library&#039;s%20SD%20module%20(%60PM_SD()%60).%20The%20OS%20tracks%20a%20working%20file%20and%20an%20editing%20file%20for%20save%2Fload%20flows%2C%20and%20installed%20ELF%20apps%20live%20in%20four%20slots%20under%20%60%2Fapps%2Fslot1%60%20through%20%60%2Fapps%2Fslot4%60%2C%20tracked%20in%20NVS%20as%20%60ELFINFO1%60%20through%20%60ELFINFO4%60.%0A%0A%23%23%20How%20apps%20run%0A%0ANative%20and%20ELF%20apps%20share%20the%20three-function%20shape%3B%20they%20differ%20only%20in%20where%20the%20code%20ships%20and%20how%20it%20is%20loaded.%0A%0A-%20**Native%20apps**%20are%20compiled%20into%20the%20firmware%20under%20%60src%2FOS_APPS%2F%60%20and%20wired%20into%20the%20dispatch%20switch.%20See%20%5BNative%20Apps%5D(..%2Fguides%2Fnative-apps.md).%0A-%20**ELF%20apps**%20are%20built%20separately%20against%20the%20SDK%2C%20packed%20with%20an%20overlay%20sidecar%2C%20and%20loaded%20from%20the%20SD%20card%20at%20runtime%20by%20%60src%2Felf_runner.cpp%60.%20The%20runner%20relocates%20the%20base%20image%20with%20%60esp_elf%60%2C%20pages%20the%20app&#039;s%20code%20into%20executable%20RAM%20through%20the%20%60elf_overlay%60%20runtime%2C%20and%20runs%20the%20entry%20in%20its%20own%2016%20KB%20task%20while%20the%20OS%20loop%20and%20the%20E-Ink%20task%20stand%20down.%20Returning%20from%20the%20entry%20unloads%20the%20app%20and%20reopens%20HOME.%20See%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)%2C%20and%20the%20SDK&#039;s%20%5BApp%20ABI%5D(https%3A%2F%2Ftalismandesign.github.io%2FPocketMage_SDK%2Fdocs%2Fapp-abi%2F)%20and%20%5BOverlay%20format%5D(https%3A%2F%2Ftalismandesign.github.io%2FPocketMage_SDK%2Fdocs%2Foverlay%2F).%0A%0A%60%60%60mermaid%0AsequenceDiagram%0A%20%20%20%20participant%20OS%20as%20OS%20loop%0A%20%20%20%20participant%20RN%20as%20elf_runner%0A%20%20%20%20participant%20EE%20as%20esp_elf%0A%20%20%20%20participant%20OV%20as%20elf_overlay%0A%20%20%20%20participant%20APP%20as%20app%20task%0A%20%20%20%20OS-%3E%3ERN%3A%20launch%20installed%20ELF%20(slot)%0A%20%20%20%20RN-%3E%3EEE%3A%20relocate%20base%20image%20from%20SD%0A%20%20%20%20RN-%3E%3EOV%3A%20load%20overlay%20sidecar%2C%20apply%20redirects%0A%20%20%20%20RN-%3E%3EAPP%3A%20start%2016%20KB%20task%2C%20run%20entry%0A%20%20%20%20Note%20over%20OS%2CAPP%3A%20OS%20loop%20and%20E-Ink%20task%20stand%20down%0A%20%20%20%20APP--%3E%3ERN%3A%20entry%20returns%0A%20%20%20%20RN-%3E%3EOV%3A%20unload%20overlay%0A%20%20%20%20RN-%3E%3EOS%3A%20reopen%20HOME%0A%60%60%60%0A%0A%23%23%20Source%20map%0A%0A%7C%20Path%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20Role%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%0A%7C%20-------------------------------------------%20%7C%20---------------------------------------------%20%7C%0A%7C%20%60src%2FPocketMageV3.cpp%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20main%20loop%20and%20app%20dispatch%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%0A%7C%20%60src%2FOS_APPS%2F%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20native%20app%20code%2C%20one%20file%20per%20app%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%0A%7C%20%60src%2FUTILS.cpp%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20shared%20prompts%2C%20boot%20shortcuts%2C%20runtime%20helpers%20%7C%0A%7C%20%60src%2Felf_runner.cpp%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20loads%20and%20runs%20installed%20ELF%20apps%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%0A%7C%20%60src%2FELF_SYMS%2F%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20the%20generated%20host%20export%20table%20for%20ELF%20apps%20%20%7C%0A%7C%20%60include%2Fglobals.h%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20app%20prototypes%2C%20app%20state%2C%20shared%20runtime%20state%20%7C%0A%7C%20%60include%2Fconfig.h%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20pins%20and%20system%20settings%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%0A%7C%20%60lib%2FPocketMage_SDK%2F%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20the%20reusable%20hardware%20layer%20(the%20SDK)%20%20%20%20%20%20%20%20%20%7C%0A%7C%20%60lib%2Felf_overlay%2F%60%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7C%20the%20overlay%20runtime%20for%20ELF-app%20code%20%20%20%20%20%20%20%20%20%20%7C%0A%0A%23%23%20Read%20next%0A%0A-%20%5BSystem%20State%20reference%5D(..%2Freference%2Fsystem-state.md)%0A-%20%5BPocketMage%20Library%20reference%5D(..%2Freference%2Fpocketmage-library.md)%0A-%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)%0A-%20%5BBuild%20Environments%5D(build-environments.md)%0A" style="display: none;"></div>
+                  
+                    <nav aria-label="breadcrumb" class="docmd-breadcrumbs">
+                      <ol>
+                        
+                        
+                          <li class="breadcrumb-item " >
+                            
+                              <a href="../../development/">Architecture</a>
+                            
+                            
+                              <span class="breadcrumb-separator">
+<svg class="lucide-icon icon-chevron-right " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m9 18 6-6-6-6" />
+</svg>
+</span>
+                            
+                          </li>
+                        
+                          <li class="breadcrumb-item active" aria-current=&quot;page&quot;>
+                            
+                              <span>System architecture</span>
+                            
+                            
+                          </li>
+                        
+                      </ol>
+                    </nav>
+                  
+
+                  
+                  
+                    <div class="docmd-copy-widgets">
+                      
+                        <button class="docmd-copy-btn docmd-copy-raw-btn" data-copied="Copied!" title="Copy Markdown" aria-label="Copy Markdown">
+                          <span class="docmd-btn-icon">
+<svg class="lucide-icon icon-copy " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-copy"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+</svg>
+</span>
+                        </button>
+                      
+                      
+                        <button class="docmd-copy-btn docmd-copy-context-btn" data-copied="Copied!" title="Copy Context">
+                          <span class="docmd-btn-icon">
+<svg class="lucide-icon icon-message-square " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-message-square"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" />
+</svg>
+</span>
+                          <span class="docmd-btn-text">Copy Context</span>
+                        </button>
+                      
+                      
+                    </div>
+                  
+                </div>
+                
+                  <h1 class="docmd-focus-title">
+                    Architecture
+                  </h1>
+                
+                <h1 id="architecture" class="docmd-heading"><a href="#architecture" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Architecture</h1>
+<p>PocketMageOS is a single-core-visible cooperative state machine on an ESP32-S3. One variable, <code>CurrentAppState</code>, decides which app owns the keyboard and the screens; the main loop routes every keystroke and every screen refresh to that app’s handlers. This page is the map of the whole system and where each part is documented in depth.</p>
+<h2 id="architecture-the-layers" class="docmd-heading"><a href="#architecture-the-layers" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>The layers</h2>
+<div class="mermaid">flowchart TB
+    subgraph APPS[&quot;Apps&quot;]
+        direction LR
+        A1[&quot;native apps&lt;br&gt;src/OS_APPS/&quot;]
+        A2[&quot;ELF apps&lt;br&gt;SD card&quot;]
+    end
+    subgraph RUNTIME[&quot;PocketMageOS runtime&quot;]
+        R1[&quot;boot, dispatch, state, timeout, app loading&lt;br&gt;PocketMageV3.cpp, UTILS.cpp, elf_runner.cpp&quot;]
+    end
+    subgraph LIB[&quot;PocketMage Library - the SDK (lib/PocketMage_SDK/)&quot;]
+        L1[&quot;OLED, E-Ink, SD, keyboard, touch, clock, buzzer,&lt;br&gt;WiFi, fonts, layout, UI, i18n&quot;]
+    end
+    subgraph HW[&quot;Hardware (ESP32-S3)&quot;]
+        H1[&quot;E-Ink, OLED, TCA8418 keyboard, MPR121 touch,&lt;br&gt;PCF8563 RTC, buzzer, microSD, USB, radios&quot;]
+    end
+    APPS --&gt; RUNTIME --&gt; LIB --&gt; HW
+</div>
+<p>Apps never touch hardware directly. They call the library; the library is the only layer that knows the pins. That boundary is what lets the same app code build as a native app, as a loadable ELF, and against future hardware revisions.</p>
+<h2 id="architecture-boot" class="docmd-heading"><a href="#architecture-boot" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Boot</h2>
+<p>On power-up the OS mounts the SD card, initializes the displays and keyboard, and loads persistent settings from NVS. It then decides which app to enter based on how the device woke:</p>
+<ul>
+<li>Normal boot enters HOME, unless <code>HOME_ON_BOOT</code> is off.</li>
+<li>A wake with a held shortcut key enters the mapped app (for example <code>n</code> opens TXT). The mapping is <code>bootShortcutApp()</code> in <code>UTILS.cpp</code>.</li>
+<li>A wake from now-later returns to the app that was active before sleep, with its saved state restored.</li>
+</ul>
+<h2 id="architecture-dispatch" class="docmd-heading"><a href="#architecture-dispatch" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Dispatch</h2>
+<p>The main loop in <code>PocketMageV3.cpp</code> is a cooperative dispatcher. Two functions switch on <code>CurrentAppState</code>:</p>
+<ul>
+<li><code>processKB()</code> routes each keypress to the active app’s keyboard handler.</li>
+<li><code>applicationEinkHandler()</code> routes each screen refresh to the active app’s draw handler.</li>
+</ul>
+<p>Every app is three functions - init, handle input, draw - and the app never drives the loop itself.</p>
+<div class="mermaid">flowchart LR
+    KB[&quot;keypress&quot;] --&gt; PKB[&quot;processKB()&quot;]
+    RF[&quot;refresh tick&quot;] --&gt; AEH[&quot;applicationEinkHandler()&quot;]
+    PKB --&gt; SW{&quot;switch&lt;br&gt;CurrentAppState&quot;}
+    AEH --&gt; SW
+    SW --&gt; H[&quot;HOME&quot;]
+    SW --&gt; T[&quot;TXT&quot;]
+    SW --&gt; F[&quot;FILEWIZ&quot;]
+    SW --&gt; E[&quot;other apps...&quot;]
+    H --&gt; HND[&quot;active app's&lt;br&gt;input + draw handlers&quot;]
+    T --&gt; HND
+    F --&gt; HND
+    E --&gt; HND
+</div>
+<p>The full state model, the <code>AppState</code> enum, the HOME sub-states, and the transition helpers are in the <a href="../../reference/system-state/">System State reference</a>.</p>
+<h2 id="architecture-the-two-displays" class="docmd-heading"><a href="#architecture-the-two-displays" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>The two displays</h2>
+<p>The device pairs a slow, sharp 320x240 E-Ink panel with a fast 256x32 OLED. Anything that benefits from instant feedback - prompts, status, timers - goes to the OLED; anything that benefits from a large readable page - notes, files, calendars - goes to the E-Ink. The E-Ink panel is guarded by a recursive mutex and refreshed from a background task, so code in other tasks must respect that boundary. The display APIs are in the <a href="../../reference/pocketmage-library/">PocketMage Library reference</a>, with the full per-module contract on the <a href="https://talismandesign.github.io/PocketMage_SDK/docs/api/">SDK API docs</a>.</p>
+<h2 id="architecture-state-and-timeout" class="docmd-heading"><a href="#architecture-state-and-timeout" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>State and timeout</h2>
+<p>The OS keeps shared runtime state in <code>globals.h</code>: the active app, the home sub-state, the re-init flag, persistent preferences, the active filesystem handle, and the idle-timeout lockout. After <code>IDLE_TIME</code> without input the OS shows the idle state; after <code>TIMEOUT</code> it sleeps. Apps reset the idle clock with <code>resetIdle()</code> or hold it off with <code>disableTimeout</code>. The full list is in the <a href="../../reference/system-state/#system-state-reference-shared-state-you-will-touch">System State reference</a>.</p>
+<h2 id="architecture-storage" class="docmd-heading"><a href="#architecture-storage" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Storage</h2>
+<p>Files live on a microSD card, reached through the library’s SD module (<code>PM_SD()</code>). The OS tracks a working file and an editing file for save/load flows, and installed ELF apps live in four slots under <code>/apps/slot1</code> through <code>/apps/slot4</code>, tracked in NVS as <code>ELFINFO1</code> through <code>ELFINFO4</code>.</p>
+<h2 id="architecture-how-apps-run" class="docmd-heading"><a href="#architecture-how-apps-run" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>How apps run</h2>
+<p>Native and ELF apps share the three-function shape; they differ only in where the code ships and how it is loaded.</p>
+<ul>
+<li><strong>Native apps</strong> are compiled into the firmware under <code>src/OS_APPS/</code> and wired into the dispatch switch. See <a href="../../guides/native-apps/">Native Apps</a>.</li>
+<li><strong>ELF apps</strong> are built separately against the SDK, packed with an overlay sidecar, and loaded from the SD card at runtime by <code>src/elf_runner.cpp</code>. The runner relocates the base image with <code>esp_elf</code>, pages the app’s code into executable RAM through the <code>elf_overlay</code> runtime, and runs the entry in its own 16 KB task while the OS loop and the E-Ink task stand down. Returning from the entry unloads the app and reopens HOME. See <a href="../../guides/elf-apps/">ELF Apps</a>, and the SDK’s <a href="https://talismandesign.github.io/PocketMage_SDK/docs/app-abi/">App ABI</a> and <a href="https://talismandesign.github.io/PocketMage_SDK/docs/overlay/">Overlay format</a>.</li>
+</ul>
+<div class="mermaid">sequenceDiagram
+    participant OS as OS loop
+    participant RN as elf_runner
+    participant EE as esp_elf
+    participant OV as elf_overlay
+    participant APP as app task
+    OS-&gt;&gt;RN: launch installed ELF (slot)
+    RN-&gt;&gt;EE: relocate base image from SD
+    RN-&gt;&gt;OV: load overlay sidecar, apply redirects
+    RN-&gt;&gt;APP: start 16 KB task, run entry
+    Note over OS,APP: OS loop and E-Ink task stand down
+    APP--&gt;&gt;RN: entry returns
+    RN-&gt;&gt;OV: unload overlay
+    RN-&gt;&gt;OS: reopen HOME
+</div>
+<h2 id="architecture-source-map" class="docmd-heading"><a href="#architecture-source-map" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Source map</h2>
+<div class="table-wrapper"><table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/PocketMageV3.cpp</code></td>
+<td>main loop and app dispatch</td>
+</tr>
+<tr>
+<td><code>src/OS_APPS/</code></td>
+<td>native app code, one file per app</td>
+</tr>
+<tr>
+<td><code>src/UTILS.cpp</code></td>
+<td>shared prompts, boot shortcuts, runtime helpers</td>
+</tr>
+<tr>
+<td><code>src/elf_runner.cpp</code></td>
+<td>loads and runs installed ELF apps</td>
+</tr>
+<tr>
+<td><code>src/ELF_SYMS/</code></td>
+<td>the generated host export table for ELF apps</td>
+</tr>
+<tr>
+<td><code>include/globals.h</code></td>
+<td>app prototypes, app state, shared runtime state</td>
+</tr>
+<tr>
+<td><code>include/config.h</code></td>
+<td>pins and system settings</td>
+</tr>
+<tr>
+<td><code>lib/PocketMage_SDK/</code></td>
+<td>the reusable hardware layer (the SDK)</td>
+</tr>
+<tr>
+<td><code>lib/elf_overlay/</code></td>
+<td>the overlay runtime for ELF-app code</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="architecture-read-next" class="docmd-heading"><a href="#architecture-read-next" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Read next</h2>
+<ul>
+<li><a href="../../reference/system-state/">System State reference</a></li>
+<li><a href="../../reference/pocketmage-library/">PocketMage Library reference</a></li>
+<li><a href="../../guides/elf-apps/">ELF Apps</a></li>
+<li><a href="../build-environments/">Build Environments</a></li>
+</ul>
+
+                
+                  <div class="page-navigation">
+                    
+                      <a href="../../development/" class="prev-page">
+                        
+<svg class="lucide-icon icon-arrow-left page-nav-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-arrow-left"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m12 19-7-7 7-7" />
+  <path d="M19 12H5" />
+</svg>
+
+                        <span><small>Previous</small><strong>
+                            PocketMageOS overview
+                          </strong></span>
+                      </a>
+                    
+                    
+                      <a href="../../reference/system-state/" class="next-page">
+                        <span><small>Next</small>
+                          <strong>
+                            System State
+                          </strong></span>
+                        
+<svg class="lucide-icon icon-arrow-right page-nav-icon" width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-arrow-right"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M5 12h14" />
+  <path d="m12 5 7 7-7 7" />
+</svg>
+
+                      </a>
+                    
+                  </div>
+                
+              </div>
+              
+              
+              <div class="toc-sidebar">
+                
+                
+                  
+
+
+  <div class="toc-container">
+    <h2 class="toc-title">On This Page<span class="mobile-view toc-menu-button float-right">
+<svg class="lucide-icon icon-chevron-down " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-chevron-down"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="m6 9 6 6 6-6" />
+</svg>
+</span></h2>
+    <ul class="toc-list">
+      
+        <li class="toc-item toc-level-1">
+          <a href="#architecture" class="toc-link">Architecture</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-the-layers" class="toc-link">The layers</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-boot" class="toc-link">Boot</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-dispatch" class="toc-link">Dispatch</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-the-two-displays" class="toc-link">The two displays</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-state-and-timeout" class="toc-link">State and timeout</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-storage" class="toc-link">Storage</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-how-apps-run" class="toc-link">How apps run</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-source-map" class="toc-link">Source map</a>
+        </li>
+      
+        <li class="toc-item toc-level-2">
+          <a href="#architecture-read-next" class="toc-link">Read next</a>
+        </li>
+      
+    </ul>
+  </div>
+
+                
+                
+              </div>
+              
+            </div>
+            <div class="page-footer-actions">
+              
+              
+                <span class="git-last-updated" data-timestamp="1793505982000">
+                  <svg class="git-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span class="git-label">Last updated:</span>
+                  <span class="git-time" data-timestamp="1793505982000"></span>
+                  
+                  <div class="git-commit-tooltip" role="tooltip">
+                    <div class="git-tooltip-title">Recent commits</div>
+                    <ul class="git-commit-list">
+                      
+                        <li class="git-commit-item">
+                          <div class="git-commit-avatar" title="NellowTCS">
+                            
+                              <img src="https://www.gravatar.com/avatar/baecf29c7bedbb00a8d5bd5984799c55?d=mp&amp;s=64" alt="NellowTCS">
+                            
+                          </div>
+                          <div class="git-commit-details">
+                            <div class="git-commit-message" title="Merge pull request #330 from TalismanDesign/pocketmage-sdk">Merge pull request #330 from Talisman...</div>
+                            <div class="git-commit-meta">
+                              <span class="git-commit-author">NellowTCS</span>
+                              <span class="git-commit-date" data-timestamp="1793505982000"></span>
+                            </div>
+                          </div>
+                        </li>
+                      
+                    </ul>
+                  </div>
+                  
+                </span>
+              
+              <span class="git-spacer"></span>
+              
+                <a href="https://github.com/TalismanDesign/PocketMage_PDA/edit/main/Docs/docs/Docs/docs/development/architecture.md" target="_blank" rel="noopener noreferrer" class="edit-link">
+                  
+<svg class="lucide-icon icon-pencil " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-pencil"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+  <path d="m15 5 4 4" />
+</svg>
+
+                  Edit this page
+                </a>
+              
+            </div>
+          </main>
+          
+
+
+<footer class="footer-complete">
+  <div class="footer-complete-top">
+      <div class="footer-brand">
+          
+            <span class="footer-title">PocketMage</span>
+          
+          
+            <p class="footer-desc">A clamshell PDA powered by an ESP32-S3 with E-Ink and OLED displays.</p>
+          
+        </div>
+        
+          <div class="footer-columns">
+            
+              <div class="footer-column">
+                <span class="footer-column-title">Device</span>
+                <ul>
+                  
+                    <li><a href="command-manual/" >Command Manual</a></li>
+                  
+                    <li><a href="features/" >Features</a></li>
+                  
+                    <li><a href="faq/" >FAQ</a></li>
+                  
+                </ul>
+              </div>
+            
+              <div class="footer-column">
+                <span class="footer-column-title">Build</span>
+                <ul>
+                  
+                    <li><a href="development/architecture/" >Architecture</a></li>
+                  
+                    <li><a href="development/build-environments/" >Build Environments</a></li>
+                  
+                    <li><a href="guides/making-apps/" >Making Apps</a></li>
+                  
+                    <li><a href="https://talismandesign.github.io/PocketMage_SDK/docs" >SDK docs</a></li>
+                  
+                </ul>
+              </div>
+            
+              <div class="footer-column">
+                <span class="footer-column-title">Community</span>
+                <ul>
+                  
+                    <li><a href="https://github.com/TalismanDesign/PocketMage_PDA" >GitHub</a></li>
+                  
+                    <li><a href="https://discord.gg/KSCapSf4XH" >Discord</a></li>
+                  
+                    <li><a href="https://pocketmage.org/" >Website</a></li>
+                  
+                </ul>
+              </div>
+            
+          </div>
+        
+      </div>
+      <div class="footer-complete-bottom">
+        <div class="user-footer">Built with <a href="https://docmd.io">docmd</a>. <a href="https://github.com/TalismanDesign/PocketMage_PDA">View on GitHub</a>.</div>
+        
+          <div class="branding-footer">
+            Built with <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66"></path><path d="m18 15-2-2"></path><path d="m15 18-2-2"></path></svg> <a href="https://docmd.io" target="_blank" rel="noopener">docmd.</a>
+          </div>
+        
+      </div>
+  </footer>
+
+        </div>
+      </div>
+      
+      <script src="../../assets/js/docmd-main.js?v=mvxb6g8g"></script>
+      
+      <script src="../../assets/js/docmd-git.js?v=mvxb6g8g"></script>
+      <script src="../../assets/js/docmd-image-lightbox.js?v=mvxb6g8g" ></script>
+<script src="../../assets/js/vendor/minisearch.js?v=mvxb6g8g" ></script>
+<script src="../../assets/js/docmd-search.js?v=mvxb6g8g" ></script>
+<script src="../../assets/js/init-mermaid.js?v=mvxb6g8g" ></script>
+<script src="../../assets/js/docmd-git.js?v=mvxb6g8g" ></script>
+<script src="../../assets/js/docmd-ai.js?v=mvxb6g8g" ></script>
+
+  <!-- Search Modal (Injected by @docmd/plugin-search) -->
+  <div id="docmd-search-modal" data-semantic="true" class="docmd-search-modal" style="display: none;" data-show-confidence="true" data-show-filters="true"
+       data-search-placeholder="Search documentation..."
+       data-search-no-results="No results found."
+       data-search-error="Failed to load search index."
+       data-search-offline="Search requires a web server. Open this site via http://localhost instead of file:// to enable search."
+       data-search-offline-build="Search is disabled because these docs were built with the --offline flag. Rebuild the site without the flag to enable search."
+       data-search-initial="Type to start searching..."
+       data-search-navigate="to navigate"
+       data-search-escape="to close">
+      <div class="docmd-search-box">
+          <div class="docmd-search-header">
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon icon-search"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <input type="text" id="docmd-search-input" placeholder="Search documentation..." autocomplete="off" spellcheck="false">
+              <button onclick="window.closeDocmdSearch()" class="docmd-search-close" aria-label="Close search">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon icon-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+              </button>
+          </div>
+          <div id="docmd-search-results" class="docmd-search-results"></div>
+          <div class="docmd-search-footer">
+              <span><kbd class="docmd-kbd">↑</kbd> <kbd class="docmd-kbd">↓</kbd> to navigate</span>
+              <span><kbd class="docmd-kbd">ESC</kbd> to close</span>
+          </div>
+      </div>
+  </div>
+
+    <script>
+      (function() {
+        var searchDebounceTimer;
+
+        document.addEventListener('click', function(e) {
+          var link = e.target.closest('a');
+          if (!link || !window.gtag) return;
+          
+          var url = link.href;
+          var hostname = window.location.hostname;
+          var isExternal = link.hostname && link.hostname !== hostname;
+          var isDownload = link.hasAttribute('download') || url.match(/\.(pdf|zip|tar|gz|exe|pkg)$/i);
+          
+          if (isExternal) {
+            gtag('event', 'click_external', { 'url': url, 'link_text': link.innerText.trim() });
+          } else if (isDownload) {
+            gtag('event', 'download', { 'file_name': url.split('/').pop(), 'url': url });
+          }
+
+          // TOC tracking
+          if (link.classList.contains('toc-link')) {
+            gtag('event', 'toc_click', { 'target_id': link.getAttribute('href'), 'title': link.innerText.trim() });
+          }
+
+          // Permalink tracking
+          if (link.classList.contains('heading-anchor')) {
+            gtag('event', 'permalink_click', { 'url': url });
+          }
+        });
+
+        
+        // Search Keyword Tracking
+        document.addEventListener('input', function(e) {
+          if (e.target.id === 'docmd-search-input' && window.gtag) {
+            var query = e.target.value.trim();
+            if (query.length < 3) return;
+            
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(function() {
+              gtag('event', 'search', { 'search_term': query });
+            }, 1000);
+          }
+        });
+        
+      })();
+    </script>
+
+<script>window.__git_config={"repo":"https://github.com/TalismanDesign/PocketMage_PDA/edit/main/Docs/docs","branch":"main","editLink":true,"lastUpdated":true,"commitHistory":true,"maxCommits":5,"dateFormat":"relative"};window.__git_i18n={"lastUpdated":"Last updated","recentCommits":"Recent commits","viewCommitHistory":"View commit history","editOnGitHub":"Edit on GitHub","editOnGitLab":"Edit on GitLab","editOnBitbucket":"Edit on Bitbucket","editThisPage":"Edit this page","justNow":"just now","minutesAgo":"{n}m ago","hoursAgo":"{n}h ago","daysAgo":"{n}d ago"}</script>
+<div id="docmd-ai-root"></div><script>window.__docmd_ai_config={"endpoint":"","cloud":{},"captcha":true,"position":"bottom-center","siteTitle":"PocketMage","siteBase":"/PocketMage_PDA/docs/","siteUrl":"https://talismandesign.github.io/PocketMage_PDA/docs","versions":null,"i18n":null,"navigation":[{"title":"Home","path":"/","icon":"home"},{"title":"Get Started","icon":"rocket","collapsible":true,"path":"/getting-started/","children":[{"title":"What is PocketMage","path":"/getting-started/what-is-pocketmage/","icon":"info"},{"title":"Features","path":"/features/","icon":"star"},{"title":"Format a MicroSD Card","path":"/tutorials/format-micro-sd/","icon":"card-sd"}]},{"title":"Using the Device","icon":"keyboard","collapsible":true,"path":"/command-manual/","children":[{"title":"Command Manual","path":"/command-manual/","icon":"keyboard"},{"title":"FAQ","path":"/faq/","icon":"help-circle"}]},{"title":"Architecture","icon":"cpu","collapsible":true,"path":"/development/","children":[{"title":"PocketMageOS overview","path":"/development/","icon":"cpu"},{"title":"System architecture","path":"/development/architecture/","icon":"layers"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"Building & Flashing","icon":"settings","collapsible":true,"path":"/development/build-environments/","children":[{"title":"Build Environments","path":"/development/build-environments/","icon":"settings"}]},{"title":"Apps & Scripting","icon":"package","collapsible":true,"path":"/guides/","children":[{"title":"Making Apps","path":"/guides/making-apps/","icon":"code"},{"title":"Native Apps","path":"/guides/native-apps/","icon":"terminal"},{"title":"ELF Apps","path":"/guides/elf-apps/","icon":"package"},{"title":"Scripting overview","path":"/scripting/","icon":"terminal"},{"title":"Basic Input/Output","path":"/scripting/example-c/","icon":"terminal"},{"title":"E-Ink Drawing","path":"/scripting/ink-c/","icon":"image"},{"title":"OLED Drawing","path":"/scripting/oled-c/","icon":"monitor"},{"title":"Full Command Reference","path":"/scripting/fullPotionCommandList/","icon":"book"}]},{"title":"Reference","icon":"book","collapsible":true,"path":"/reference/","children":[{"title":"App API","path":"/reference/app-api/","icon":"code"},{"title":"PocketMage Library","path":"/reference/pocketmage-library/","icon":"box"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"SDK docs","path":"https://talismandesign.github.io/PocketMage_SDK/docs","icon":"boxes","external":true},{"title":"GitHub","path":"https://github.com/TalismanDesign/PocketMage_PDA","icon":"github","external":true}],"searchCapabilities":{"keyword":true,"semantic":false},"isWorkspace":false,"workspaceProjects":[],"messageActions":false,"contextLimit":5};</script>
+      
+      
+      
+  </body>
+</html>

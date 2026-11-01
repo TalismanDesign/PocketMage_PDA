@@ -15,6 +15,10 @@
       "path": "development",
       "children": [
         {
+          "title": "Architecture",
+          "path": "development/architecture.md"
+        },
+        {
           "title": "Build Environments",
           "path": "development/build-environments.md"
         },
@@ -63,6 +67,10 @@
       "path": "guides",
       "children": [
         {
+          "title": "Elf Apps",
+          "path": "guides/elf-apps.md"
+        },
+        {
           "title": "Index",
           "path": "guides/index.md"
         },
@@ -73,10 +81,6 @@
         {
           "title": "Native Apps",
           "path": "guides/native-apps.md"
-        },
-        {
-          "title": "Ota Apps",
-          "path": "guides/ota-apps.md"
         }
       ]
     },

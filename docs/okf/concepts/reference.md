@@ -4,10 +4,10 @@ title: Reference
 description: "Exact-use reference pages for PocketMage app authors and contributors."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/reference/"
 path: /reference/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.722Z"
+  generated_at: "2026-11-01T04:07:11.653Z"
 ---
 ---
 title: "Reference"
@@ -21,14 +21,14 @@ Use these pages when you need the exact API, state, or helper names. This sectio
 ## Pages
 
 - [App API Reference](app-api.md) - app entry points, helpers, and shared patterns
-- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage/`
+- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage_SDK/`
 - [System State Reference](system-state.md) - globals, settings, and runtime state
 - [Command Manual](../command-manual/index.md) - keyboard mappings and built-in app commands
 - [Scripting](../scripting/index.md) - Wrench examples and command reference
 
 ## When to use this section
 
-Start here if you are writing an OTA app, touching shared app state, or looking for the current function names used by the firmware.
+Start here if you are writing an ELF app, touching shared app state, or looking for the current function names used by the firmware.
 
 - **Writing an app** - read [App API](app-api.md) for the entry points, then [PocketMage Library](pocketmage-library.md) for the modules you can call.
 - **Adding an app** - read [System State](system-state.md) to see the `AppState` enum and dispatch switch.

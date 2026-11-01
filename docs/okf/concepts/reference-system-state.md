@@ -4,10 +4,10 @@ title: "System State Reference"
 description: "The AppState enum, boot shortcuts, and how the OS dispatches between apps."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/reference/system-state/"
 path: /reference/system-state/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.722Z"
+  generated_at: "2026-11-01T04:07:11.653Z"
 ---
 ---
 title: "System State Reference"
@@ -38,7 +38,7 @@ enum AppState { HOME, TXT, FILEWIZ, USB_APP, COMM, SETTINGS, TASKS, CALENDAR, JO
 | `CALENDAR` | Calendar |
 | `JOURNAL` | Journal |
 | `LEXICON` | Lexicon |
-| `APPLOADER` | App loader (OTA apps) |
+| `APPLOADER` | App loader (ELF apps) |
 | `TERMINAL` | Terminal (Wrench shell) |
 
 ## How dispatch works
@@ -91,7 +91,7 @@ Declared in `globals.h` and `config.h`:
 - `prefs` - persistent settings
 - `global_fs` - the active filesystem
 - `disableTimeout` - global idle-timeout lockout
-- `OTA1_APP` through `OTA4_APP` - installed OTA app names
+- `ELFINFO1` through `ELFINFO4` - NVS records for installed ELF apps
 
 ## Transitions
 

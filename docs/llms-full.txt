@@ -4,7 +4,7 @@
 
 ---
 
-## [PocketMage Command Manual](https://talismandesign.github.io/PocketMage_PDA/docs/command-manual/)
+## [PocketMage Command Manual](https://talismandesign.github.io/PocketMage_PDA/docs/command-manual/) (Command Manual)
 
 ---
 title: "PocketMage Command Manual"
@@ -56,7 +56,7 @@ Use the PCB legends for the full key map. This page focuses on what each app doe
 | Calendar | Date and event management                  |
 | Journal  | Daily notes                                |
 | Lexicon  | Dictionary lookup                          |
-| Loader   | OTA app management                         |
+| Loader   | ELF app management                         |
 | Terminal | Wrench scripting and shell-style workflows |
 
 Terminal hosts a sub-mode for **SSH** (remote shell over WiFi); enter it with the `ssh` command from the terminal prompt.
@@ -292,11 +292,11 @@ Type a word to search the dictionary. Matches load from the SD card. Commands ar
 
 ## App loader
 
-Manage and install `.tar` apps into OTA slots. Commands are case-insensitive.
+Manage and install `.tar` apps into ELF slots. Commands are case-insensitive.
 
 | Input             | Action                                                     |
 |-------------------|------------------------------------------------------------|
-| **A / B / C / D** | Select OTA slot to edit                                    |
+| **A / B / C / D** | Select ELF slot to edit                                    |
 | **(S)**           | Swap app in the selected slot (choose a `.tar` file)       |
 | **(D)**           | Delete app in the selected slot                            |
 | **(FN) + ( < )**  | Exit app / return to menu                                  |
@@ -319,7 +319,136 @@ On battery, the device saves power and shows a random screensaver. When charging
 
 ---
 
-## [Build Environments & PlatformIO Setup](https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/)
+## [Architecture](https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/) (Development)
+
+---
+title: "Architecture"
+description: "How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run."
+---
+
+# Architecture
+
+PocketMageOS is a single-core-visible cooperative state machine on an ESP32-S3. One variable, `CurrentAppState`, decides which app owns the keyboard and the screens; the main loop routes every keystroke and every screen refresh to that app's handlers. This page is the map of the whole system and where each part is documented in depth.
+
+## The layers
+
+```mermaid
+flowchart TB
+    subgraph APPS["Apps"]
+        direction LR
+        A1["native apps<br>src/OS_APPS/"]
+        A2["ELF apps<br>SD card"]
+    end
+    subgraph RUNTIME["PocketMageOS runtime"]
+        R1["boot, dispatch, state, timeout, app loading<br>PocketMageV3.cpp, UTILS.cpp, elf_runner.cpp"]
+    end
+    subgraph LIB["PocketMage Library - the SDK (lib/PocketMage_SDK/)"]
+        L1["OLED, E-Ink, SD, keyboard, touch, clock, buzzer,<br>WiFi, fonts, layout, UI, i18n"]
+    end
+    subgraph HW["Hardware (ESP32-S3)"]
+        H1["E-Ink, OLED, TCA8418 keyboard, MPR121 touch,<br>PCF8563 RTC, buzzer, microSD, USB, radios"]
+    end
+    APPS --> RUNTIME --> LIB --> HW
+```
+
+Apps never touch hardware directly. They call the library; the library is the only layer that knows the pins. That boundary is what lets the same app code build as a native app, as a loadable ELF, and against future hardware revisions.
+
+## Boot
+
+On power-up the OS mounts the SD card, initializes the displays and keyboard, and loads persistent settings from NVS. It then decides which app to enter based on how the device woke:
+
+- Normal boot enters HOME, unless `HOME_ON_BOOT` is off.
+- A wake with a held shortcut key enters the mapped app (for example `n` opens TXT). The mapping is `bootShortcutApp()` in `UTILS.cpp`.
+- A wake from now-later returns to the app that was active before sleep, with its saved state restored.
+
+## Dispatch
+
+The main loop in `PocketMageV3.cpp` is a cooperative dispatcher. Two functions switch on `CurrentAppState`:
+
+- `processKB()` routes each keypress to the active app's keyboard handler.
+- `applicationEinkHandler()` routes each screen refresh to the active app's draw handler.
+
+Every app is three functions - init, handle input, draw - and the app never drives the loop itself.
+
+```mermaid
+flowchart LR
+    KB["keypress"] --> PKB["processKB()"]
+    RF["refresh tick"] --> AEH["applicationEinkHandler()"]
+    PKB --> SW{"switch<br>CurrentAppState"}
+    AEH --> SW
+    SW --> H["HOME"]
+    SW --> T["TXT"]
+    SW --> F["FILEWIZ"]
+    SW --> E["other apps..."]
+    H --> HND["active app's<br>input + draw handlers"]
+    T --> HND
+    F --> HND
+    E --> HND
+```
+
+The full state model, the `AppState` enum, the HOME sub-states, and the transition helpers are in the [System State reference](../reference/system-state.md).
+
+## The two displays
+
+The device pairs a slow, sharp 320x240 E-Ink panel with a fast 256x32 OLED. Anything that benefits from instant feedback - prompts, status, timers - goes to the OLED; anything that benefits from a large readable page - notes, files, calendars - goes to the E-Ink. The E-Ink panel is guarded by a recursive mutex and refreshed from a background task, so code in other tasks must respect that boundary. The display APIs are in the [PocketMage Library reference](../reference/pocketmage-library.md), with the full per-module contract on the [SDK API docs](https://talismandesign.github.io/PocketMage_SDK/docs/api/).
+
+## State and timeout
+
+The OS keeps shared runtime state in `globals.h`: the active app, the home sub-state, the re-init flag, persistent preferences, the active filesystem handle, and the idle-timeout lockout. After `IDLE_TIME` without input the OS shows the idle state; after `TIMEOUT` it sleeps. Apps reset the idle clock with `resetIdle()` or hold it off with `disableTimeout`. The full list is in the [System State reference](../reference/system-state.md#system-state-reference-shared-state-you-will-touch).
+
+## Storage
+
+Files live on a microSD card, reached through the library's SD module (`PM_SD()`). The OS tracks a working file and an editing file for save/load flows, and installed ELF apps live in four slots under `/apps/slot1` through `/apps/slot4`, tracked in NVS as `ELFINFO1` through `ELFINFO4`.
+
+## How apps run
+
+Native and ELF apps share the three-function shape; they differ only in where the code ships and how it is loaded.
+
+- **Native apps** are compiled into the firmware under `src/OS_APPS/` and wired into the dispatch switch. See [Native Apps](../guides/native-apps.md).
+- **ELF apps** are built separately against the SDK, packed with an overlay sidecar, and loaded from the SD card at runtime by `src/elf_runner.cpp`. The runner relocates the base image with `esp_elf`, pages the app's code into executable RAM through the `elf_overlay` runtime, and runs the entry in its own 16 KB task while the OS loop and the E-Ink task stand down. Returning from the entry unloads the app and reopens HOME. See [ELF Apps](../guides/elf-apps.md), and the SDK's [App ABI](https://talismandesign.github.io/PocketMage_SDK/docs/app-abi/) and [Overlay format](https://talismandesign.github.io/PocketMage_SDK/docs/overlay/).
+
+```mermaid
+sequenceDiagram
+    participant OS as OS loop
+    participant RN as elf_runner
+    participant EE as esp_elf
+    participant OV as elf_overlay
+    participant APP as app task
+    OS->>RN: launch installed ELF (slot)
+    RN->>EE: relocate base image from SD
+    RN->>OV: load overlay sidecar, apply redirects
+    RN->>APP: start 16 KB task, run entry
+    Note over OS,APP: OS loop and E-Ink task stand down
+    APP-->>RN: entry returns
+    RN->>OV: unload overlay
+    RN->>OS: reopen HOME
+```
+
+## Source map
+
+| Path                                        | Role                                          |
+| ------------------------------------------- | --------------------------------------------- |
+| `src/PocketMageV3.cpp`                       | main loop and app dispatch                    |
+| `src/OS_APPS/`                               | native app code, one file per app             |
+| `src/UTILS.cpp`                              | shared prompts, boot shortcuts, runtime helpers |
+| `src/elf_runner.cpp`                         | loads and runs installed ELF apps             |
+| `src/ELF_SYMS/`                              | the generated host export table for ELF apps  |
+| `include/globals.h`                          | app prototypes, app state, shared runtime state |
+| `include/config.h`                           | pins and system settings                      |
+| `lib/PocketMage_SDK/`                        | the reusable hardware layer (the SDK)         |
+| `lib/elf_overlay/`                           | the overlay runtime for ELF-app code          |
+
+## Read next
+
+- [System State reference](../reference/system-state.md)
+- [PocketMage Library reference](../reference/pocketmage-library.md)
+- [ELF Apps](../guides/elf-apps.md)
+- [Build Environments](build-environments.md)
+
+
+---
+
+## [Build Environments & PlatformIO Setup](https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/) (Development)
 
 ---
 title: "Build Environments & PlatformIO Setup"
@@ -328,23 +457,18 @@ description: "How to set up PlatformIO and build PocketMage firmware on Linux, m
 
 # Build Environments & PlatformIO Setup
 
-PocketMage firmware is built with [PlatformIO](https://platformio.org/). The build configuration lives in `Code/PocketMageOS/platformio.ini` and defines three environments that produce different firmware images from the same source.
+PocketMage firmware is built with [PlatformIO](https://platformio.org/). The build configuration lives in `Code/PocketMageOS/platformio.ini` and defines two environments that produce the firmware variants. Third-party apps are not built in this tree; they are compiled against the PocketMage SDK (see [ELF Apps](../guides/elf-apps.md)).
 
-## The three build environments
+## The two build environments
 
 | Environment | Target | Purpose |
 | --- | --- | --- |
 | `PM_PRODUCTION` | Production hardware (N16R2, Quad PSRAM enabled) | The stable OS image flashed to production devices |
 | `PM_BETA` | Beta hardware (N16R8, PSRAM forced disabled) | A test build with the latest changes |
-| `OTA_APP` | Hardware-agnostic | A single third-party app built to be sideloaded |
 
-The three environments share a common `[common]` section and differ only in build flags. The flags set three things: which hardware revision to target, whether the build is an OS or an OTA app, and the version string.
+The two environments share a common `[common]` section and differ in hardware target and version string.
 
-Running `pio run` with no arguments builds all three. Build one explicitly with `pio run -e <name>`.
-
-### What the OTA_APP flag does
-
-The `OTA_APP` environment defines `OTA_APP_FLAG=1`. In `config.h` this becomes `OTA_APP == true`, which excludes the native OS app set from the build. The three entry points from [APP_TEMPLATE.cpp](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp) - `APP_INIT()`, `processKB_APP()`, `einkHandler_APP()` - become the program. The same source tree therefore builds either a full OS or a standalone app depending on the environment you choose.
+Running `pio run` with no arguments builds both defaults (`PM_PRODUCTION` and `PM_BETA`). Build one explicitly with `pio run -e <name>`.
 
 ## Prerequisites
 
@@ -387,14 +511,11 @@ From `Code/PocketMageOS/`:
 ```bash
 pio run -e PM_PRODUCTION   # production firmware
 pio run -e PM_BETA         # beta firmware
-pio run -e OTA_APP         # a third-party OTA app
 ```
 
-## OTA apps
+## ELF apps
 
-OTA apps use the `OTA_APP` environment, which switches the build into app mode as described above. The app is packaged as a `.tar` file and installed on the device through the app loader. See [OTA Apps](../guides/ota-apps.md) and the [app loader section](../command-manual/index.md) of the command manual.
-
-For a full walkthrough, watch the [OTA app development video](https://www.youtube.com/watch?v=3Ytc-3-BbMM).
+Third-party apps are not built with this environment set. They are compiled against the PocketMage SDK into `.app.elf` files, packaged with an icon as a `.tar`, and installed through the app loader. See [ELF Apps](../guides/elf-apps.md) and the [app loader section](../command-manual/index.md) of the command manual.
 
 ## Testing
 
@@ -410,7 +531,7 @@ There is no automated test suite for the firmware. Verify changes against real h
 ::: button "Making Apps" ../guides/making-apps.md icon:code
 :::
 ::: grid
-::: button "OTA Apps" ../guides/ota-apps.md icon:package
+::: button "ELF Apps" ../guides/elf-apps.md icon:package
 :::
 ::: grid
 ::: button "Firmware FAQ" ../faq/index.md icon:help-circle
@@ -420,7 +541,7 @@ There is no automated test suite for the firmware. Verify changes against real h
 
 ---
 
-## [PocketMageOS](https://talismandesign.github.io/PocketMage_PDA/docs/development/)
+## [PocketMageOS](https://talismandesign.github.io/PocketMage_PDA/docs/development/) (Development)
 
 ---
 title: "PocketMageOS"
@@ -449,7 +570,7 @@ Coordinates the shared hardware layer, storage, and device helpers.
 :::
 ::: grid
 ::: card "Support apps" icon:box
-Native apps and OTA apps plug into the same runtime model.
+Native apps and ELF apps plug into the same runtime model.
 :::
 :::
 :::
@@ -487,16 +608,16 @@ The timeout system is also part of the OS. After `IDLE_TIME` without input, the 
 
 ## How apps reach the hardware
 
-Apps do not talk to hardware directly. They call the PocketMage Library, which owns the physical devices. `OLED().sysMessage(...)` flashes a message, `EINK().refresh()` pushes the E-Ink buffer, `KB()` handles key state, and `SD()` handles storage. The library is the only layer that knows the pins. This is what lets the same app code build for native, OTA, and future hardware revisions.
+Apps do not talk to hardware directly. They call the PocketMage Library, which owns the physical devices. `OLED().sysMessage(...)` flashes a message, `EINK().refresh()` pushes the E-Ink buffer, `KB()` handles key state, and `SD()` handles storage. The library is the only layer that knows the pins. This is what lets the same app code build for native, ELF, and future hardware revisions.
 
 See [PocketMage Library](../reference/pocketmage-library.md) for the full module map.
 
-## Native vs OTA apps
+## Native vs ELF apps
 
 - **Native apps** live in `src/OS_APPS/`, are compiled into the firmware, and are wired into the dispatch switch.
-- **OTA apps** are compiled separately with the `OTA_APP` environment and loaded into one of four OTA slots at runtime through the app loader.
+- **ELF apps** are compiled separately against the PocketMage SDK into a `.app.elf`, packed with an overlay sidecar, and loaded from the SD card at runtime through the app loader. No firmware reflash is involved. The runner (`src/elf_runner.cpp`) relocates the base image with `esp_elf`, then pages the app's code into executable RAM through the `elf_overlay` runtime, and runs the app's entry in its own task while the OS loop stands down.
 
-Both follow the same three-function shape. The difference is only where the code ships. See [Making Apps](../guides/making-apps.md).
+Both follow the same three-function shape. The difference is where the code ships and how it is loaded. See [ELF Apps](../guides/elf-apps.md) for the device side, [Making Apps](../guides/making-apps.md) for the workflow, and the [SDK docs](https://talismandesign.github.io/PocketMage_SDK/docs/) for the binary contract.
 
 ## Source layout
 
@@ -505,11 +626,16 @@ Both follow the same three-function shape. The difference is only where the code
 - `Code/PocketMageOS/src/UTILS.cpp` - shared prompts, boot shortcuts, and runtime helpers
 - `Code/PocketMageOS/include/globals.h` - app prototypes, app state, shared runtime state
 - `Code/PocketMageOS/include/config.h` - pins and system settings
-- `Code/PocketMageOS/lib/PocketMage/` - the reusable hardware layer
+- `Code/PocketMageOS/lib/PocketMage_SDK/` - the reusable hardware layer (the PocketMage SDK, vendored as a submodule)
+- `Code/PocketMageOS/lib/elf_overlay/` - the overlay runtime that pages ELF-app code into executable RAM
+- `Code/PocketMageOS/src/elf_runner.cpp` - loads and runs installed ELF apps
 
 ## Next steps
 
 ::: grids
+::: grid
+::: button "Architecture" ./architecture.md icon:layers
+:::
 ::: grid
 ::: button "Build Environments" ./build-environments.md icon:settings
 :::
@@ -527,7 +653,7 @@ Both follow the same three-function shape. The difference is only where the code
 
 ---
 
-## [PocketMage FAQ](https://talismandesign.github.io/PocketMage_PDA/docs/faq/)
+## [PocketMage FAQ](https://talismandesign.github.io/PocketMage_PDA/docs/faq/) (Faq)
 
 ---
 title: "PocketMage FAQ"
@@ -641,7 +767,7 @@ Report the bug in detail on the [GitHub issues page](https://github.com/Talisman
 
 ---
 
-## [Features](https://talismandesign.github.io/PocketMage_PDA/docs/features/)
+## [Features](https://talismandesign.github.io/PocketMage_PDA/docs/features/) (Features)
 
 ---
 title: "Features"
@@ -716,7 +842,7 @@ Search the dictionary loaded on the SD card.
 :::
 ::: grid
 ::: card "Loader" icon:package
-Install, swap, and delete OTA apps in the four app slots.
+Install, swap, and delete ELF apps in the four SD app slots.
 :::
 :::
 ::: grid
@@ -733,8 +859,7 @@ Connect to a remote host over WiFi from the terminal app (`ssh` command).
 
 ## Hardware behavior
 
-::: callout tip "The screen split matters"
-E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
+::: callout tip "The screen split matters" E-Ink handles the main workspace. OLED handles status and fast feedback. The keyboard supports normal, shift, function, and function plus shift layers.
 :::
 
 ## Sleep and power
@@ -774,7 +899,7 @@ On battery, the device enters sleep and shows a random screensaver. When plugged
 
 ---
 
-## [Getting Started](https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/)
+## [Getting Started](https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/) (Getting Started)
 
 ---
 title: "Getting Started"
@@ -788,9 +913,9 @@ This is the shortest path from project overview to working firmware and app code
 ## Your first path
 
 1. Read [What is PocketMage](what-is-pocketmage.md).
-2. Set up the build in [Build Environments](../development/build-environments.md).
-3. Open the [PocketMageOS overview](../development/index.md).
-4. Use [Making Apps](../guides/making-apps.md) when you are ready to write code.
+2. Understand how the system fits together in [Architecture](../development/architecture.md).
+3. Set up the build in [Build Environments](../development/build-environments.md).
+4. Use [Making Apps](../guides/making-apps.md) when you are ready to write code; for standalone ELF apps, follow the [SDK docs](https://talismandesign.github.io/PocketMage_SDK/docs).
 5. Keep the [PocketMage Library](../reference/pocketmage-library.md) and [Command Manual](../command-manual/index.md) open while testing.
 
 ## Core pages
@@ -811,6 +936,13 @@ Operating system and runtime overview.
 :::
 :::
 ::: grid
+::: card "Architecture" icon:layers
+Boot, dispatch, displays, storage, and how apps run.
+
+::: button "Open" ../development/architecture.md icon:arrow-right
+:::
+:::
+::: grid
 ::: card "Build Environments" icon:settings
 PlatformIO setup and firmware builds.
 
@@ -819,7 +951,7 @@ PlatformIO setup and firmware builds.
 :::
 ::: grid
 ::: card "App Guides" icon:book-open
-How to build native and OTA apps.
+How to build native and ELF apps.
 
 ::: button "Open" ../guides/index.md icon:arrow-right
 :::
@@ -843,7 +975,7 @@ The hardware wrapper and helper layer.
 
 ---
 
-## [What is PocketMage?](https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/what-is-pocketmage/)
+## [What is PocketMage?](https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/what-is-pocketmage/) (Getting Started)
 
 ---
 title: "What is PocketMage?"
@@ -872,7 +1004,7 @@ PocketMageOS handles apps and state; the PocketMage Library handles the hardware
 :::
 ::: grid
 ::: card "Open and extendable" icon:wrench
-Build apps with C++ or run Wrench scripts from the terminal. Load third-party apps over OTA.
+Build apps with C++ or run Wrench scripts from the terminal. Load third-party apps at runtime.
 :::
 :::
 :::
@@ -888,9 +1020,9 @@ The device runs on an ESP32-S3 with 16 MB flash and WiFi and Bluetooth radios. S
 PocketMage firmware is split into two layers so that apps stay small.
 
 - **PocketMageOS** is the operating system. It owns boot, app switching, state, keyboard routing, and the screen dispatch loop. If you are changing how the device behaves, you are working in PocketMageOS.
-- **PocketMage Library** is the reusable hardware and UI support layer in `Code/PocketMageOS/lib/PocketMage/`. It wraps the display, storage, keyboard, audio, clock, and system helpers so apps never talk to hardware directly.
+- **PocketMage Library** is the reusable hardware and UI support layer, shipped as the PocketMage SDK and vendored at `Code/PocketMageOS/lib/PocketMage_SDK/`. It wraps the display, storage, keyboard, audio, clock, and system helpers so apps never talk to hardware directly.
 
-The split matters because both native apps and third-party OTA apps build on the same library. An app does three jobs - initialize, handle input, draw - and uses the library for everything else.
+The split matters because both native apps and third-party ELF apps build on the same library. An app does three jobs - initialize, handle input, draw - and uses the library for everything else. Native apps are compiled into the firmware; ELF apps are built separately against the SDK and loaded from the SD card at runtime. The SDK is documented on its own [SDK documentation site](https://talismandesign.github.io/PocketMage_SDK/docs/).
 
 ## What ships on the device
 
@@ -908,7 +1040,7 @@ The stock firmware includes these apps:
 | Calendar | Date and event management |
 | Journal | Daily notes |
 | Lexicon | Dictionary lookup from the SD card |
-| Loader | OTA app management |
+| Loader | ELF app management |
 | Terminal | Wrench scripting and shell workflows |
 | SSH | Remote shell over WiFi (terminal sub-mode) |
 
@@ -939,7 +1071,63 @@ The stock firmware includes these apps:
 
 ---
 
-## [Guides](https://talismandesign.github.io/PocketMage_PDA/docs/guides/)
+## [ELF Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/elf-apps/) (Guides)
+
+---
+title: "ELF Apps"
+description: "How third-party PocketMage apps are built, installed, and loaded by the OS at runtime."
+---
+
+# ELF Apps
+
+Third-party apps are compiled outside the OS into a `.app.elf`, packed into a `.tar` with an overlay sidecar and an icon, and installed at runtime through the app loader. No firmware reflash is involved. This page covers the app from the OS side: how the loader runs it, where installed apps live, and what an app can rely on. The binary contract itself, the build tooling, and the full symbol surface are owned by the SDK documentation and are not duplicated here.
+
+For building and shipping an app, start with the SDK docs:
+
+- [App ABI](https://talismandesign.github.io/PocketMage_SDK/docs/app-abi/) - the binary contract
+- [Overlay format](https://talismandesign.github.io/PocketMage_SDK/docs/overlay/) - the `.elfo` sidecar
+- [Building apps](https://talismandesign.github.io/PocketMage_SDK/docs/build/) - the toolchain and `make` targets
+- [Symbols](https://talismandesign.github.io/PocketMage_SDK/docs/symbols/) - the host export surface
+
+## What an ELF app is
+
+An ELF app is a standalone 32-bit `ET_DYN` program linked against the PocketMage SDK with `PM_TARGET_APP`. It links `-nostdlib`, so it ships no runtime of its own; everything it references, from `malloc` to the `pm_*` API, resolves from the host at load time.
+
+The runner (`src/elf_runner.cpp`) loads an installed app in two stages. It reads the `.app.elf` from the SD card and relocates the base image with `esp_elf`, then loads the matching `.elfo` overlay sidecar, which pages the app's code into executable RAM on demand and patches ISA-specific relocations. The entry (`app_main`) then runs in its own 16 KB task on core 1. While the app runs, the OS loop and the E-Ink task stand down and the app owns the UI through the host singletons.
+
+Exiting is a `return` from `app_main`. No reboot is needed: the runner unloads the overlay, deinitializes the base image, and reopens HOME.
+
+## Packaging and installing
+
+1. Build the app into `<name>.app.elf` and its `<name>.elfo` overlay sidecar.
+2. Pack them with a 40x40 `<name>_ICON.bin` and an optional `app.properties` manifest into a plain `.tar` (`make pack` does this).
+3. Copy the `.tar` onto the SD card, typically over USB.
+4. Open the app loader on the device and use the swap action to install it into one of the four slots.
+
+Installed apps live in `/apps/slot1` through `/apps/slot4` on the SD card and are tracked in NVS under `ELFINFO1` through `ELFINFO4`. Launch an installed app from the home screen by typing `A`, `B`, `C`, or `D`, or from the loader.
+
+## The manifest (`app.properties`)
+
+The loader reads an optional `app.properties` from the app's slot directory (up to 1024 bytes). Recognized fields are `name`, `version`, `author`, and `scope`. The first three become the app's display metadata and are passed to `app_main` as `argv`. `scope` (default `all`) restricts which `pm_*` symbols the app may resolve: anything outside its scope fails to resolve, so a mis-scoped app is rejected at load rather than reaching an API it did not declare. The runtime baseline (libc, libstdc++, ESP-IDF) stays available at any scope.
+
+## What an ELF app should assume
+
+- It runs without the native PocketMageOS app set. Do not call functions from `src/OS_APPS/`.
+- Keep the app self-contained and link against the SDK only.
+- Use the PocketMage library for hardware access, exactly like native apps.
+- The host exports a curated symbol set (generated into `src/ELF_SYMS/esp_all_symbol.cpp`), including `pocketmage_sdk_version` for version checks. A symbol outside that set must be added to the SDK surface before an app can resolve it.
+
+## Read next
+
+- [Making Apps](making-apps.md)
+- [PocketMage Library](../reference/pocketmage-library.md)
+- [App API Reference](../reference/app-api.md)
+- [Build Environments](../development/build-environments.md)
+
+
+---
+
+## [Guides](https://talismandesign.github.io/PocketMage_PDA/docs/guides/) (Guides)
 
 ---
 title: "Guides"
@@ -952,7 +1140,7 @@ How to build apps on PocketMageOS, use the PocketMage Library, and work through 
 
 ::: tag "App workflow"
 ::: tag "Native apps"
-::: tag "OTA apps"
+::: tag "ELF apps"
 ::: tag "Scripting"
 
 ## Guides
@@ -960,7 +1148,7 @@ How to build apps on PocketMageOS, use the PocketMage Library, and work through 
 ::: grids
 ::: grid
 ::: card "Making Apps" icon:code
-The app workflow, the template, and the choice between native and OTA apps.
+The app workflow, the template, and the choice between native and ELF apps.
 
 ::: button "Open" ./making-apps.md icon:arrow-right
 :::
@@ -973,10 +1161,10 @@ How PocketMageOS apps are structured and wired into the OS.
 :::
 :::
 ::: grid
-::: card "OTA Apps" icon:package
-How third-party apps fit into the OTA loader and shared library layer.
+::: card "ELF Apps" icon:package
+How third-party apps fit into the runtime loader and shared library layer.
 
-::: button "Open" ./ota-apps.md icon:arrow-right
+::: button "Open" ./elf-apps.md icon:arrow-right
 :::
 :::
 ::: grid
@@ -990,23 +1178,22 @@ The Wrench terminal app and its examples.
 
 ## Best fit
 
-::: callout tip "Pick the right page"
-Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **OTA Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
+::: callout tip "Pick the right page" Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **ELF Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
 :::
 
 
 ---
 
-## [Making Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/making-apps/)
+## [Making Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/making-apps/) (Guides)
 
 ---
 title: "Making Apps"
-description: "How to create PocketMage apps, both native and OTA."
+description: "How to create PocketMage apps: native apps in the OS and ELF apps sideloaded at runtime."
 ---
 
 # Making Apps
 
-PocketMage apps come in two forms: native apps that ship inside PocketMageOS, and OTA apps that are loaded onto the device later. The two share the same core shape, so this page walks through that shape once and then explains where the paths diverge.
+PocketMage apps come in two forms: native apps that ship inside PocketMageOS, and ELF apps that are sideloaded onto the device later. Native apps are the focus of this page; the full path for sideloaded apps is the [ELF Apps](elf-apps.md) guide.
 
 ::: grids
 ::: grid
@@ -1015,13 +1202,13 @@ Compiled into the OS and wired into the app dispatch switch.
 :::
 :::
 ::: grid
-::: card "OTA apps" icon:package
-Compiled separately and loaded into one of four OTA slots at runtime.
+::: card "ELF apps" icon:package
+Compiled standalone, loaded from the SD card at runtime.
 :::
 :::
 ::: grid
-::: card "Same shape" icon:code
-Both are three functions: init, handle input, draw.
+::: card "Native shape" icon:code
+Native apps are three functions: init, handle input, draw.
 :::
 :::
 :::
@@ -1042,11 +1229,11 @@ The app template is your starting point:
 
 - [APP_TEMPLATE.cpp](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp)
 
-It defines the three entry points an OTA app needs:
+It defines the three entry points a compiled-in app needs:
 
 ```cpp
 #include <globals.h>
-#if OTA_APP
+#if PM_TARGET_APP
 void APP_INIT() {
   // 1. set up app state
 }
@@ -1063,7 +1250,7 @@ void einkHandler_APP() {
 
 ## Building the app step by step
 
-1. **Decide native vs OTA.** If the app belongs to the device experience, make it native. If it is third-party or experimental, make it an OTA app so it can be installed and removed without reflashing the OS.
+1. **Decide native vs ELF.** If the app belongs to the device experience, make it native. If it is third-party or experimental, make it an ELF app so it can be installed and removed without reflashing the OS.
 2. **Pick the shared helpers.** Browse the [PocketMage Library](../reference/pocketmage-library.md) before writing anything. Prompts (`textPrompt()`), file selection (`fileWizardMini()`), and timeouts (`checkTimeout()`) already exist; do not reimplement them.
 3. **Wire it into the OS (native only).** Add an `AppState` entry, the three prototypes, and the `switch` cases marked `// ADD APP CASES HERE` in `PocketMageV3.cpp`. Then add a home-screen command if you want it launchable by name.
 4. **Test the keyboard path first.** Get a keypress into your handler and onto the OLED before worrying about the E-Ink.
@@ -1078,17 +1265,17 @@ void einkHandler_APP() {
 - Make exit, save, and sleep behavior obvious.
 - For native apps, follow the existing app in `src/OS_APPS/` that does the closest job.
 
-## Native vs OTA: which path
+## Native vs ELF: which path
 
-| | Native | OTA |
+| | Native | ELF |
 | --- | --- | --- |
-| Where the code lives | `src/OS_APPS/` inside PocketMageOS | Standalone project using `APP_TEMPLATE.cpp` |
-| How it is built | With the OS (`PM_PRODUCTION`/`PM_BETA`) | With the `OTA_APP` environment |
+| Where the code lives | `src/OS_APPS/` inside PocketMageOS | Standalone project against the PocketMage SDK |
+| How it is built | With the OS (`PM_PRODUCTION`/`PM_BETA`) | Against the SDK (`PM_TARGET_APP`) |
 | How it ships | Flashed as part of the firmware | Packaged as a `.tar` and loaded through the app loader |
-| Dispatch | Wired into the switch in `PocketMageV3.cpp` | Entry points called by the loader |
+| Dispatch | Wired into the switch in `PocketMageV3.cpp` | Loaded by `elf_runner` and run in its own task |
 | Hardware access | PocketMage Library | PocketMage Library |
 
-Read the [Native Apps](native-apps.md) and [OTA Apps](ota-apps.md) pages for the details of each path.
+Read the [Native Apps](native-apps.md) and [ELF Apps](elf-apps.md) pages for the details of each path.
 
 ## Next steps
 
@@ -1097,7 +1284,7 @@ Read the [Native Apps](native-apps.md) and [OTA Apps](ota-apps.md) pages for the
 ::: button "Native Apps" ./native-apps.md icon:terminal
 :::
 ::: grid
-::: button "OTA Apps" ./ota-apps.md icon:package
+::: button "ELF Apps" ./elf-apps.md icon:package
 :::
 ::: grid
 ::: button "App API Reference" ../reference/app-api.md icon:book
@@ -1110,7 +1297,7 @@ Read the [Native Apps](native-apps.md) and [OTA Apps](ota-apps.md) pages for the
 
 ---
 
-## [Native Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/native-apps/)
+## [Native Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/native-apps/) (Guides)
 
 ---
 title: "Native Apps"
@@ -1182,71 +1369,6 @@ The OS calls your three functions, but you share everything else through helpers
 
 ---
 
-## [OTA Apps](https://talismandesign.github.io/PocketMage_PDA/docs/guides/ota-apps/)
-
----
-title: "OTA Apps"
-description: "How third-party PocketMage apps work."
----
-
-# OTA Apps
-
-OTA apps are separate programs that PocketMageOS loads into one of four OTA slots at runtime through the app loader. They let third parties ship apps without reflashing the OS. This page explains what an OTA app is, how it is built, and what it can rely on at runtime.
-
-## What an OTA app is
-
-An OTA app is the same three-function shape as a native app, but compiled standalone with the `OTA_APP` environment. The loader calls its entry points directly:
-
-- `APP_INIT()`
-- `processKB_APP()`
-- `einkHandler_APP()`
-
-## The template
-
-Start from `Code/PocketMageOS/src/APP_TEMPLATE.cpp`. It shows the three entry points and the `#if OTA_APP` guard that keeps the code out of normal OS builds.
-
-## Building an OTA app
-
-Build with the `OTA_APP` environment from `Code/PocketMageOS/`:
-
-```bash
-pio run -e OTA_APP
-```
-
-That environment defines `OTA_APP_FLAG=1`, which:
-
-- sets `OTA_APP == true` in `config.h`
-- excludes the native OS app set from the build
-- makes the template's entry points the program
-
-See [Build Environments](../development/build-environments.md) for the details.
-
-## Packaging and installing
-
-1. Build the app with `pio run -e OTA_APP`.
-2. Package the result as a `.tar` file.
-3. Copy the `.tar` to the device, typically over USB.
-4. Open the app loader on the device and use the swap action to install it into one of the four slots (`A` through `D`).
-
-Installed apps are tracked in `OTA1_APP` through `OTA4_APP` in `globals.h`. Launch an installed app from the home screen by typing its slot letter, or from the loader.
-
-## What an OTA app should assume
-
-- It runs without the native PocketMageOS app set. Do not call functions from `OS_APPS/`.
-- It should stay self-contained.
-- It uses the PocketMage Library for hardware access, exactly like native apps.
-- There is no version or ABI compatibility check between an app and the OS core it loads into. An app built against a different OS version loads without warning, so test against the OS version you target and keep the code resilient.
-
-## Read next
-
-- [Making Apps](making-apps.md)
-- [PocketMage Library](../reference/pocketmage-library.md)
-- [App API Reference](../reference/app-api.md)
-- [Build Environments](../development/build-environments.md)
-
-
----
-
 ## [PocketMage Documentation](https://talismandesign.github.io/PocketMage_PDA/docs/)
 
 ---
@@ -1256,10 +1378,10 @@ description: "Official documentation for the PocketMage open-source PDA device."
 
 # PocketMage Documentation
 
-PocketMageOS docs for the clamshell PDA, the reusable PocketMage Library, and the app workflow built on top of both.
+PocketMageOS docs for the clamshell PDA: the operating system, the device hardware, the built-in apps and commands, and how native and ELF apps run on top. The app-facing build contract lives in the separate [PocketMage SDK docs](https://talismandesign.github.io/PocketMage_SDK/docs).
 
 ::: tag "PocketMageOS"
-::: tag "PocketMage Library"
+::: tag "Hardware"
 ::: tag "Apps"
 ::: tag "Commands"
 
@@ -1281,8 +1403,15 @@ The operating system, app runtime, and navigation flow.
 :::
 :::
 ::: grid
+::: card "Architecture" icon:layers
+Boot, dispatch, the two-display model, storage, and how apps run, end to end.
+
+::: button "Open" ./development/architecture.md icon:arrow-right
+:::
+:::
+::: grid
 ::: card "Guides" icon:book-open
-How to make apps, native apps, OTA apps, and scripts.
+How to make apps, native apps, ELF apps, and scripts.
 
 ::: button "Open" ./guides/index.md icon:arrow-right
 :::
@@ -1308,6 +1437,13 @@ What the device does today and what is still planned.
 ::: button "Open" ./features/index.md icon:arrow-right
 :::
 :::
+::: grid
+::: card "SDK docs" icon:boxes
+Build ELF apps against the SDK: the toolchain, the full component API, and the binary contract.
+
+::: button "Open" https://talismandesign.github.io/PocketMage_SDK/docs icon:arrow-right
+:::
+:::
 :::
 
 ## Quick path
@@ -1315,10 +1451,11 @@ What the device does today and what is still planned.
 ::: steps
 
 1. Read [What is PocketMage](getting-started/what-is-pocketmage.md).
-2. Set up the firmware build in [Build Environments](development/build-environments.md).
-3. Learn the app model in [Making Apps](guides/making-apps.md).
-4. Use the [PocketMage Library](reference/pocketmage-library.md) when you need the hardware wrapper.
-5. Keep the [Command Manual](command-manual/index.md) open while testing apps.
+2. Understand the system in [Architecture](development/architecture.md).
+3. Set up the firmware build in [Build Environments](development/build-environments.md).
+4. Learn the app model in [Making Apps](guides/making-apps.md); for standalone ELF apps, follow the [SDK docs](https://talismandesign.github.io/PocketMage_SDK/docs).
+5. Use the [PocketMage Library](reference/pocketmage-library.md) when you need the hardware wrapper.
+6. Keep the [Command Manual](command-manual/index.md) open while testing apps.
 
 :::
 
@@ -1332,7 +1469,7 @@ What the device does today and what is still planned.
 
 ---
 
-## [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api/)
+## [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api/) (Reference)
 
 ---
 title: "App API Reference"
@@ -1341,22 +1478,22 @@ description: "Entry points and helper functions for PocketMage apps."
 
 # App API Reference
 
-Every PocketMage app, native or OTA, is built from the same entry points and shared helpers. This page documents the exact names and what each one is for. Declarations live in `Code/PocketMageOS/include/globals.h`.
+Every PocketMage app, native or ELF, calls the same shared helpers. This page documents the exact names and what each one is for. Declarations live in `Code/PocketMageOS/include/globals.h`.
 
 ## The two app styles
 
 - **Native OS apps** live in `Code/PocketMageOS/src/OS_APPS/` and are wired into the dispatch switch.
-- **OTA apps** use `Code/PocketMageOS/src/APP_TEMPLATE.cpp` and build standalone.
+- **ELF apps** are built against the PocketMage SDK into a `.app.elf` and loaded by `elf_runner` at runtime. The `APP_TEMPLATE.cpp` scaffold shows the `PM_TARGET_APP` entry hooks.
 
 Both call the same shared helpers below.
 
-## OTA app entry points
+## Compiled-in app entry points
 
-A third-party app implements three functions:
+A compiled-in third-party app implements three functions:
 
 ```cpp
 #include <globals.h>
-#if OTA_APP
+#if PM_TARGET_APP
 void APP_INIT() {
   // set up state; runs once when the app is entered
 }
@@ -1371,7 +1508,7 @@ void einkHandler_APP() {
 #endif
 ```
 
-The `OTA_APP` build path defines `OTA_APP_FLAG=1` in `platformio.ini`, which sets `OTA_APP` and excludes the native OS app set.
+The `PM_TARGET_APP` build path is set by the SDK's `config.h`, which selects the app entry hooks and excludes the OS app set. Standalone `.app.elf` apps enter through their own `main` instead.
 
 ## Native OS app entry points
 
@@ -1419,7 +1556,6 @@ To add a native app, extend the `AppState` enum and add cases to the `switch (Cu
 
 - `saveEditingFile()` - save the current native text editing file
 - `fileWizardMini(bool allowRecentSelect = false, String rootDir = "/", char inchar_ = 0)` - file selection dialog, returns the chosen path
-- `rebootToAppSlot(int otaIndex)` - reboot straight into an OTA app slot
 
 ## Terminal (Wrench)
 
@@ -1440,7 +1576,7 @@ Common state is declared in `globals.h` and `config.h`.
 - `global_fs` - the active filesystem
 - `newState` - set to re-run the target app's `*_INIT()`
 - `disableTimeout` - global timeout lockout
-- `OTA1_APP` through `OTA4_APP` - installed OTA app names
+- `ELFINFO1` through `ELFINFO4` - NVS records for installed ELF apps (see `elf_runner.cpp`)
 
 If you are unsure where a function belongs, start with the existing app in `src/OS_APPS/` that already does the same job.
 
@@ -1464,7 +1600,7 @@ If you are unsure where a function belongs, start with the existing app in `src/
 
 ---
 
-## [Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/)
+## [Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/) (Reference)
 
 ---
 title: "Reference"
@@ -1478,14 +1614,14 @@ Use these pages when you need the exact API, state, or helper names. This sectio
 ## Pages
 
 - [App API Reference](app-api.md) - app entry points, helpers, and shared patterns
-- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage/`
+- [PocketMage Library](pocketmage-library.md) - the shared firmware modules under `lib/PocketMage_SDK/`
 - [System State Reference](system-state.md) - globals, settings, and runtime state
 - [Command Manual](../command-manual/index.md) - keyboard mappings and built-in app commands
 - [Scripting](../scripting/index.md) - Wrench examples and command reference
 
 ## When to use this section
 
-Start here if you are writing an OTA app, touching shared app state, or looking for the current function names used by the firmware.
+Start here if you are writing an ELF app, touching shared app state, or looking for the current function names used by the firmware.
 
 - **Writing an app** - read [App API](app-api.md) for the entry points, then [PocketMage Library](pocketmage-library.md) for the modules you can call.
 - **Adding an app** - read [System State](system-state.md) to see the `AppState` enum and dispatch switch.
@@ -1512,7 +1648,7 @@ Start here if you are writing an OTA app, touching shared app state, or looking 
 
 ---
 
-## [PocketMage Library](https://talismandesign.github.io/PocketMage_PDA/docs/reference/pocketmage-library/)
+## [PocketMage Library](https://talismandesign.github.io/PocketMage_PDA/docs/reference/pocketmage-library/) (Reference)
 
 ---
 title: "PocketMage Library"
@@ -1521,7 +1657,9 @@ description: "Shared hardware, UI, and system modules used by PocketMage."
 
 # PocketMage Library
 
-The PocketMage Library is the shared layer under `Code/PocketMageOS/lib/PocketMage/`. It is the hardware wrapper and utility layer for PocketMageOS. Reach for it when you want to talk to the screen, storage, keyboard, audio, clock, or other shared device systems without rewriting them in an app.
+The PocketMage Library is the shared hardware, UI, and system layer the firmware links in-process. It lives in the PocketMage SDK, vendored at `Code/PocketMageOS/lib/PocketMage_SDK/`, and the same code is the contract external ELF apps build against. Reach for it when you want to talk to the screen, storage, keyboard, audio, clock, or other shared device systems without rewriting them in an app.
+
+The SDK has its own [reference documentation](https://talismandesign.github.io/PocketMage_SDK/docs/api/) covering every module and the app-facing C ABI. This page is the firmware-side view: the same modules, as PocketMageOS code calls them.
 
 ## Access pattern
 
@@ -1556,7 +1694,7 @@ Include `pocketmage.h` to pull in all the major feature modules plus the project
 ## Library layout
 
 ```txt
-lib/PocketMage/
+lib/PocketMage_SDK/
   pocketmage.h           # umbrella header
   pocketmage_oled/       # OLED helpers
   pocketmage_eink/       # E-Ink helpers
@@ -1688,7 +1826,7 @@ WiFi helpers and connectivity.
 
 ---
 
-## [System State Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/system-state/)
+## [System State Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/system-state/) (Reference)
 
 ---
 title: "System State Reference"
@@ -1719,7 +1857,7 @@ enum AppState { HOME, TXT, FILEWIZ, USB_APP, COMM, SETTINGS, TASKS, CALENDAR, JO
 | `CALENDAR` | Calendar |
 | `JOURNAL` | Journal |
 | `LEXICON` | Lexicon |
-| `APPLOADER` | App loader (OTA apps) |
+| `APPLOADER` | App loader (ELF apps) |
 | `TERMINAL` | Terminal (Wrench shell) |
 
 ## How dispatch works
@@ -1772,7 +1910,7 @@ Declared in `globals.h` and `config.h`:
 - `prefs` - persistent settings
 - `global_fs` - the active filesystem
 - `disableTimeout` - global idle-timeout lockout
-- `OTA1_APP` through `OTA4_APP` - installed OTA app names
+- `ELFINFO1` through `ELFINFO4` - NVS records for installed ELF apps
 
 ## Transitions
 
@@ -1801,7 +1939,7 @@ Declared in `globals.h` and `config.h`:
 
 ---
 
-## [Scripting Example: Basic Input/Output](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/example-c/)
+## [Scripting Example: Basic Input/Output](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/example-c/) (Scripting)
 
 ---
 title: "Scripting Example: Basic Input/Output"
@@ -1878,7 +2016,7 @@ updateTerm();
 
 ---
 
-## [PocketMage Scripting Reference](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/fullPotionCommandList/)
+## [PocketMage Scripting Reference](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/fullPotionCommandList/) (Scripting)
 
 ---
 title: "PocketMage Scripting Reference"
@@ -2336,7 +2474,7 @@ Generates a pseudo-random integer within a specific range.
 
 ---
 
-## [Scripting](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/)
+## [Scripting](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/) (Scripting)
 
 ---
 title: "Scripting"
@@ -2418,7 +2556,7 @@ Wrench bindings fall into five groups. The [full command list](fullPotionCommand
 
 ---
 
-## [Scripting Example: E-Ink Drawing](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/ink-c/)
+## [Scripting Example: E-Ink Drawing](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/ink-c/) (Scripting)
 
 ---
 title: "Scripting Example: E-Ink Drawing"
@@ -2473,7 +2611,7 @@ delay(3000);
 
 ---
 
-## [Scripting Example: OLED Drawing](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/oled-c/)
+## [Scripting Example: OLED Drawing](https://talismandesign.github.io/PocketMage_PDA/docs/scripting/oled-c/) (Scripting)
 
 ---
 title: "Scripting Example: OLED Drawing"
@@ -2528,7 +2666,7 @@ delay(3000);
 
 ---
 
-## [Format a MicroSD Card for PocketMage](https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/format-micro-sd/)
+## [Format a MicroSD Card for PocketMage](https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/format-micro-sd/) (Tutorials)
 
 ---
 title: "Format a MicroSD Card for PocketMage"
@@ -2537,47 +2675,48 @@ description: "Guide to formatting SD cards for compatibility with PocketMage."
 
 # PocketMage SD Card Formatting Guide
 
-**WARNING**  
-These steps will ERASE the SD card. Back up your data first.
+::: callout danger "These steps erase the card" Everything on the card is destroyed. Back up your data before you start, and double-check the disk identifier at every step so you do not wipe the wrong device.
+:::
 
-This guide ensures SD cards are formatted in a way that is compatible with the PocketMage device.
-
----
+This guide formats an SD card so PocketMage can mount it. The device reads a single FAT32 primary partition on an MBR partition table with 32 KB clusters; anything else is not detected reliably.
 
 ## Supported SD card requirements
 
-- **Card size:** 2 GB - 32 GB microSD recommended. The slot supports up to 2 TB, but cards above 32 GB must be forced to FAT32 + MBR and are not recommended.
+- **Card size:** 2 GB to 32 GB microSD recommended. The slot accepts up to 2 TB, but cards above 32 GB must be forced to FAT32 and MBR and are not recommended.
 - **Filesystem:** FAT32
 - **Partition scheme:** MBR (Master Boot Record)
-- **Partitions:** Single primary partition
+- **Partitions:** a single primary partition
 - **Cluster (allocation unit) size:** 32 KB
 - **Sector size:** 512 bytes (default)
 
-X exFAT is NOT supported  
-X GPT partition tables are NOT supported  
-X 64 GB+ cards are NOT recommended unless you explicitly force FAT32 + MBR
+Not supported: exFAT, GPT partition tables, and 64 GB or larger cards unless you explicitly force FAT32 and MBR.
 
----
-
-## Windows (Recommended)
+## Windows (recommended)
 
 ### Step 1: Open diskpart
 
-1. Insert the SD card
-2. Open **Command Prompt as Administrator**
-3. Run:
-   diskpart
+Insert the card, open **Command Prompt as Administrator**, and run:
 
-### Step 2: Identify the SD card
+```bat
+diskpart
+```
 
+### Step 2: Identify the card
+
+```text
 list disk
+```
 
-Find the disk number that matches your SD card size.
+Find the disk number that matches your card size.
 
-**Make sure you select the correct disk.**
+::: callout warning "Select the correct disk" The next step wipes the disk you select. Confirm the number against the card size before continuing.
+:::
 
 ### Step 3: Format the card (MBR + FAT32)
 
+Replace `X` with your disk number, then run each line in the `diskpart` prompt:
+
+```text
 select disk X
 clean
 convert mbr
@@ -2585,94 +2724,99 @@ create partition primary
 format fs=fat32 unit=32k quick
 assign
 exit
+```
 
 ### Step 4: Verify (optional)
 
-- Open **Disk Management**
-- Right-click the disk → Properties → Volumes
-- Partition style must say **Master Boot Record (MBR)**
+Open **Disk Management**, right-click the disk, and open Properties then Volumes. The partition style must read **Master Boot Record (MBR)**.
 
----
+## macOS (Terminal, not Disk Utility)
 
-## macOS (Terminal, NOT Disk Utility)
+Disk Utility often creates GPT layouts that do not work. Use the terminal.
 
-macOS Disk Utility often creates GPT layouts that do not work.
+### Step 1: Identify the card
 
-### Step 1: Identify the SD card
-
+```sh
 diskutil list
+```
 
-Find the disk number (example: disk2).
+Find the disk number (for example, `disk2`).
 
 ### Step 2: Erase and create MBR + FAT32
 
+```sh
 diskutil eraseDisk FAT32 PM_SD MBRFormat /dev/disk2
+```
 
 ### Step 3: Force 32 KB cluster size
 
+```sh
 sudo newfs_msdos -F 32 -c 64 /dev/disk2s1
+```
 
-Explanation:  
--c 64 = 64 × 512-byte sectors = 32 KB clusters
+`-c 64` sets 64 sectors per cluster; at 512 bytes per sector that is a 32 KB cluster.
 
 ### Step 4: Verify
 
+```sh
 diskutil info /dev/disk2 | grep "Partition Map"
+```
 
-Must say:
-Partition Map Scheme: Master Boot Record
-
----
+The output must read `Partition Map Scheme: Master Boot Record`.
 
 ## Linux
 
-### Step 1: Identify the SD card
+### Step 1: Identify the card
 
+```sh
 lsblk
+```
 
-Example device: /dev/sdb
+Example device: `/dev/sdb`.
 
 ### Step 2: Remove existing partition data
 
+```sh
 sudo wipefs -a /dev/sdb
+```
 
-### Step 3: Create MBR partition table
+### Step 3: Create the MBR partition table
 
+```sh
 sudo parted /dev/sdb --script mklabel msdos
 sudo parted /dev/sdb --script mkpart primary fat32 1MiB 100%
+```
 
 ### Step 4: Format FAT32 with 32 KB clusters
 
+```sh
 sudo mkfs.fat -F 32 -s 64 /dev/sdb1
+```
 
 ### Step 5: Verify
 
+```sh
 lsblk -o NAME,SIZE,PTTYPE
+```
 
-PTTYPE must be dos.
+`PTTYPE` must read `dos`.
 
----
-
-## Final Checklist
+## Final checklist
 
 Before using the card in PocketMage, confirm:
 
 - FAT32 filesystem
 - MBR partition table (not GPT)
-- One primary partition
+- one primary partition
 - 32 KB cluster size
-- Card size ≤32 GB
+- card size 32 GB or smaller
 
-If any of these are incorrect, the card may not be detected.
-
----
-
-If issues persist after following this guide, the SD card itself may be incompatible.
+If any of these are wrong, the card may not be detected. If problems persist after following this guide, the card itself may be incompatible.
 
 
 ---
 
-## [PocketMage Tutorials](https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/)
+## [PocketMage Tutorials](https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/) (Tutorials)
 
 ---
 title: "PocketMage Tutorials"
@@ -2690,7 +2834,7 @@ These pages cover hands-on setup tasks.
 ## Development
 
 - [Build Environments & PlatformIO Setup](../development/build-environments.md)
-- [OTA App Template](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp)
+- [App Template (PM_TARGET_APP scaffold)](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp)
 
 ## Scripting
 

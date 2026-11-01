@@ -1,4 +1,5 @@
 [WARN] missing-type /command-manual/  (using fallback 'concept')
+[WARN] missing-type /development/architecture/  (using fallback 'concept')
 [WARN] missing-type /development/build-environments/  (using fallback 'concept')
 [WARN] missing-type /development/  (using fallback 'concept')
 [WARN] missing-type /faq/  (using fallback 'concept')
@@ -19,7 +20,6 @@
 [WARN] orphan-concept features  (no inbound links)
 [WARN] orphan-concept getting-started  (no inbound links)
 [WARN] orphan-concept guides  (no inbound links)
-[WARN] orphan-concept guides-native-apps  (no inbound links)
 [WARN] orphan-concept root  (no inbound links)
 [WARN] orphan-concept reference  (no inbound links)
 [WARN] orphan-concept scripting-example-c  (no inbound links)

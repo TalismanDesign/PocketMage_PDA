@@ -4,10 +4,10 @@ title: "What is PocketMage?"
 description: "A short explanation of the PocketMage device and firmware stack."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/what-is-pocketmage/"
 path: /getting-started/what-is-pocketmage/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.718Z"
+  generated_at: "2026-11-01T04:07:11.651Z"
 ---
 ---
 title: "What is PocketMage?"
@@ -36,7 +36,7 @@ PocketMageOS handles apps and state; the PocketMage Library handles the hardware
 :::
 ::: grid
 ::: card "Open and extendable" icon:wrench
-Build apps with C++ or run Wrench scripts from the terminal. Load third-party apps over OTA.
+Build apps with C++ or run Wrench scripts from the terminal. Load third-party apps at runtime.
 :::
 :::
 :::
@@ -52,9 +52,9 @@ The device runs on an ESP32-S3 with 16 MB flash and WiFi and Bluetooth radios. S
 PocketMage firmware is split into two layers so that apps stay small.
 
 - **PocketMageOS** is the operating system. It owns boot, app switching, state, keyboard routing, and the screen dispatch loop. If you are changing how the device behaves, you are working in PocketMageOS.
-- **PocketMage Library** is the reusable hardware and UI support layer in `Code/PocketMageOS/lib/PocketMage/`. It wraps the display, storage, keyboard, audio, clock, and system helpers so apps never talk to hardware directly.
+- **PocketMage Library** is the reusable hardware and UI support layer, shipped as the PocketMage SDK and vendored at `Code/PocketMageOS/lib/PocketMage_SDK/`. It wraps the display, storage, keyboard, audio, clock, and system helpers so apps never talk to hardware directly.
 
-The split matters because both native apps and third-party OTA apps build on the same library. An app does three jobs - initialize, handle input, draw - and uses the library for everything else.
+The split matters because both native apps and third-party ELF apps build on the same library. An app does three jobs - initialize, handle input, draw - and uses the library for everything else. Native apps are compiled into the firmware; ELF apps are built separately against the SDK and loaded from the SD card at runtime. The SDK is documented on its own [SDK documentation site](https://talismandesign.github.io/PocketMage_SDK/docs/).
 
 ## What ships on the device
 
@@ -72,7 +72,7 @@ The stock firmware includes these apps:
 | Calendar | Date and event management |
 | Journal | Daily notes |
 | Lexicon | Dictionary lookup from the SD card |
-| Loader | OTA app management |
+| Loader | ELF app management |
 | Terminal | Wrench scripting and shell workflows |
 | SSH | Remote shell over WiFi (terminal sub-mode) |
 

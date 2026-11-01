@@ -6,6 +6,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -36,6 +41,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://talismandesign.github.io/PocketMage_PDA/docs/guides/elf-apps/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://talismandesign.github.io/PocketMage_PDA/docs/guides/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -47,11 +57,6 @@
   </url>
   <url>
     <loc>https://talismandesign.github.io/PocketMage_PDA/docs/guides/native-apps/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://talismandesign.github.io/PocketMage_PDA/docs/guides/ota-apps/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

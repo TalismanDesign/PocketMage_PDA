@@ -6,138 +6,168 @@
       "title": "PocketMage Command Manual",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/command-manual/",
       "description": "Keystrokes and command reference for the PocketMage PDA.",
+      "section": "Command Manual",
+      "priority": "medium"
+    },
+    {
+      "title": "Architecture",
+      "url": "https://talismandesign.github.io/PocketMage_PDA/docs/development/architecture/",
+      "description": "How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run.",
+      "section": "Development",
       "priority": "medium"
     },
     {
       "title": "Build Environments & PlatformIO Setup",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/",
       "description": "How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows.",
+      "section": "Development",
       "priority": "medium"
     },
     {
       "title": "PocketMageOS",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/development/",
       "description": "The PocketMage operating system and app runtime.",
+      "section": "Development",
       "priority": "medium"
     },
     {
       "title": "PocketMage FAQ",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/faq/",
       "description": "Frequently asked questions about the PocketMage PDA device.",
+      "section": "Faq",
       "priority": "medium"
     },
     {
       "title": "Features",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/features/",
       "description": "What PocketMage can do today.",
+      "section": "Features",
       "priority": "medium"
     },
     {
       "title": "Getting Started",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/",
       "description": "PocketMage overview, setup, and first steps.",
+      "section": "Getting Started",
       "priority": "medium"
     },
     {
       "title": "What is PocketMage?",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/getting-started/what-is-pocketmage/",
       "description": "A short explanation of the PocketMage device and firmware stack.",
+      "section": "Getting Started",
+      "priority": "medium"
+    },
+    {
+      "title": "ELF Apps",
+      "url": "https://talismandesign.github.io/PocketMage_PDA/docs/guides/elf-apps/",
+      "description": "How third-party PocketMage apps are built, installed, and loaded by the OS at runtime.",
+      "section": "Guides",
       "priority": "medium"
     },
     {
       "title": "Guides",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/guides/",
       "description": "Practical guides for building apps and working with PocketMage.",
+      "section": "Guides",
       "priority": "medium"
     },
     {
       "title": "Making Apps",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/guides/making-apps/",
-      "description": "How to create PocketMage apps, both native and OTA.",
+      "description": "How to create PocketMage apps: native apps in the OS and ELF apps sideloaded at runtime.",
+      "section": "Guides",
       "priority": "medium"
     },
     {
       "title": "Native Apps",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/guides/native-apps/",
       "description": "How PocketMageOS native apps are structured.",
-      "priority": "medium"
-    },
-    {
-      "title": "OTA Apps",
-      "url": "https://talismandesign.github.io/PocketMage_PDA/docs/guides/ota-apps/",
-      "description": "How third-party PocketMage apps work.",
+      "section": "Guides",
       "priority": "medium"
     },
     {
       "title": "PocketMage Documentation",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/",
       "description": "Official documentation for the PocketMage open-source PDA device.",
+      "section": null,
       "priority": "high"
     },
     {
       "title": "App API Reference",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api/",
       "description": "Entry points and helper functions for PocketMage apps.",
+      "section": "Reference",
       "priority": "medium"
     },
     {
       "title": "Reference",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/reference/",
       "description": "Exact-use reference pages for PocketMage app authors and contributors.",
+      "section": "Reference",
       "priority": "medium"
     },
     {
       "title": "PocketMage Library",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/reference/pocketmage-library/",
       "description": "Shared hardware, UI, and system modules used by PocketMage.",
+      "section": "Reference",
       "priority": "medium"
     },
     {
       "title": "System State Reference",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/reference/system-state/",
       "description": "The AppState enum, boot shortcuts, and how the OS dispatches between apps.",
+      "section": "Reference",
       "priority": "medium"
     },
     {
       "title": "Scripting Example: Basic Input/Output",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/example-c/",
       "description": "A simple PocketMage script demonstrating user input, OLED output, and terminal printing.",
+      "section": "Scripting",
       "priority": "medium"
     },
     {
       "title": "PocketMage Scripting Reference",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/fullPotionCommandList/",
       "description": "Complete API reference for Wrench script bindings on PocketMage.",
+      "section": "Scripting",
       "priority": "medium"
     },
     {
       "title": "Scripting",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/",
       "description": "Scripting reference and examples for the PocketMage TERMINAL app (Wrench).",
+      "section": "Scripting",
       "priority": "medium"
     },
     {
       "title": "Scripting Example: E-Ink Drawing",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/ink-c/",
       "description": "A PocketMage script demonstrating drawing shapes and text on the E-Ink display.",
+      "section": "Scripting",
       "priority": "medium"
     },
     {
       "title": "Scripting Example: OLED Drawing",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/oled-c/",
       "description": "A PocketMage script demonstrating drawing shapes and text on the OLED display.",
+      "section": "Scripting",
       "priority": "medium"
     },
     {
       "title": "Format a MicroSD Card for PocketMage",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/format-micro-sd/",
       "description": "Guide to formatting SD cards for compatibility with PocketMage.",
+      "section": "Tutorials",
       "priority": "medium"
     },
     {
       "title": "PocketMage Tutorials",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/",
       "description": "Step-by-step guides for PocketMage setup and configuration.",
+      "section": "Tutorials",
       "priority": "medium"
     }
   ]

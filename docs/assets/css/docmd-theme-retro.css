@@ -1,6 +1,287 @@
-/*!
- * docmd (v0.8.17)
- * Copyright (c) 2025-present docmd.io
- * License: MIT
+/**
+ * --------------------------------------------------------------------
+ * docmd : the zero-config documentation engine.
+ *
+ * @package     @docmd/core (and ecosystem)
+ * @website     https://docmd.io
+ * @repository  https://github.com/docmd-io/docmd
+ * @license     MIT
+ * @copyright   Copyright (c) 2025-present docmd.io
+ *
+ * [docmd-source] - Please do not remove this header.
+ * --------------------------------------------------------------------
  */
-@import"https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap";:root{--retro-primary: #916400;--retro-bg-dark: #121212;--retro-bg-light: #fdf6e3}:root[data-theme=light]{--accent-color: var(--retro-primary);--retro-primary-light: rgba(255, 176, 0, .1);--retro-primary-dark: #b37b00;--bg-color: var(--retro-bg-light);--text-color: #111111;--text-heading: #000000;--border-color: #dc9700;--border-color-hover: #966700;--border-color-codeblock: #efc15b;--text-muted: #4d4d4d;--sidebar-bg: #fffcf3;--sidebar-text: #333333;--sidebar-link-active-bg: rgba(255, 176, 0, .15);--sidebar-link-active-text: var(--retro-primary-dark);--link-color: var(--retro-primary-dark);--link-color-hover: #8f6200;--code-text: var(--retro-primary-dark);--scrollbar-thumb: #d3cbb0;--scrollbar-thumb-hover: var(--retro-primary-dark);--radius-sm: 3px;--radius-md: 3px}:root[data-theme=dark]{--retro-primary: #33ff33;--accent-color: var(--retro-primary);--retro-primary-light: rgba(51, 255, 51, .1);--retro-primary-dark: #22cc22;--bg-color: var(--retro-bg-dark);--text-color: #e0e0e0;--text-heading: var(--retro-primary);--text-muted: #888888;--sidebar-bg: #0a0a0a;--sidebar-text: #a0a0a0;--sidebar-link-active-bg: rgba(51, 255, 51, .15);--sidebar-link-active-text: var(--retro-primary);--link-color: var(--retro-primary);--border-color: #222;--header-bg: var(--sidebar-bg);--header-border: var(--border-color);--code-bg: #0a0a0a;--code-text: var(--retro-primary);--scrollbar-thumb: #222;--scrollbar-thumb-hover: var(--retro-primary)}body{background-color:var(--sidebar-bg)}h1,h2,h3,h4,h5,h6{font-family:IBM Plex Mono,Fira Code,monospace;font-weight:600}.content-theme-cover{position:fixed;overflow:scroll;height:100%;border:1px solid var(--border-color);margin-top:calc(var(--sticky-top-offset) + 5px);border-radius:3px 0 0;background-color:var(--bg-color)}.page-header,.docmd-menubar{background-color:var(--sidebar-bg);border:0}body.has-menubar-top:not(.no-header){--sticky-top-offset: calc(var(--header-h))}.sidebar{border-right:0;padding-left:.25em;background-color:var(--sidebar-bg)}.sidebar nav li.nav-group{background-color:var(--retro-primary-light);border-radius:var(--radius-sm)}.sidebar nav .submenu{border:0;background-color:var(--retro-primary-light);margin:0 .5em .5em;padding:.25em;border-radius:4px}.sidebar nav li a,.sidebar nav li .nav-label{font-family:IBM Plex Mono,monospace;font-size:13px;color:var(--sidebar-text)}.sidebar nav li a.active,.sidebar nav li a:hover,.theme-toggle-button:hover,.docmd-tabs-nav-item:hover,.copy-code-button:hover{background-color:var(--sidebar-link-active-bg)!important;color:var(--sidebar-link-active-text)!important}.sidebar nav li a.active{font-weight:600;box-shadow:inset 3px 0 0 var(--accent-color)}.content-area .button{background-color:var(--accent-color);color:#000;font-family:IBM Plex Mono,monospace;font-weight:600;border-radius:2px}.content-area .button:hover{opacity:.9;box-shadow:0 0 10px var(--retro-primary-light)}.docmd-container{border-radius:var(--radius-sm);padding:1rem}.callout-info .callout-title:before{content:":: INFO :: "}.callout-warning .callout-title:before{content:":: WARN :: "}.callout-tip .callout-title:before{content:":: HINT :: "}.callout-danger .callout-title:before{content:":: FAIL :: "}.callout-success .callout-title:before{content:":: PASS :: "}.callout .callout-title{font-family:IBM Plex Mono,monospace;text-transform:uppercase;font-size:12px}::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background-color:var(--scrollbar-thumb)!important}::-webkit-scrollbar-thumb:hover{background-color:var(--scrollbar-thumb-hover)!important}.sidebar::-webkit-scrollbar-thumb,.toc-list::-webkit-scrollbar-thumb,.docmd-search-results::-webkit-scrollbar-thumb,pre::-webkit-scrollbar-thumb,.table-wrapper::-webkit-scrollbar-thumb{background-color:transparent!important}.sidebar:hover::-webkit-scrollbar-thumb,.toc-list:hover::-webkit-scrollbar-thumb,.docmd-search-results:hover::-webkit-scrollbar-thumb,pre:hover::-webkit-scrollbar-thumb,.table-wrapper:hover::-webkit-scrollbar-thumb{background-color:var(--scrollbar-thumb)!important}.docmd-search-trigger .search-label,.docmd-options-menu .lucide-icon{color:var(--accent-color)}.docmd-options-menu .theme-toggle-button,.docmd-options-menu .sponsor-link-button{border-radius:4px;border:1px solid var(--border-color)}.docmd-options-menu .theme-toggle-button:hover{border-color:var(--accent-color)}.footer-complete{background-color:var(--bg-color);border-top:1px solid var(--border-color);margin-top:2rem}.docmd-kbd{background-color:var(--retro-primary-light);color:var(--accent-color);border:1px solid var(--border-color);font-family:IBM Plex Mono,monospace}.docmd-options-menu .theme-toggle-button,.docmd-options-menu .sponsor-link-button,.docmd-options-menu .docmd-search-trigger{border-radius:3px}.docmd-options-menu .sponsor-link-button:hover{background-color:var(--bg-color)}.toc-sidebar{top:1em}
+
+/* 
+ * Retro Theme : "Classic Computing"
+ * A clean, high-performance take on vintage computing aesthetics.
+ * Features: IBM Amber/Phosphor Green tones, sharp corners, and 
+ * the modern "Sky" structural layout.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --retro-primary: #916400;
+    /* Classic IBM Amber */
+    --retro-bg-dark: #121212;
+    --retro-bg-light: #fdf6e3;
+    /* Solarized light / Old paper */
+}
+
+:root[data-theme=light] {
+    --accent-color: var(--retro-primary);
+    --retro-primary-light: rgba(255, 176, 0, 0.1);
+    --retro-primary-dark: #b37b00;
+    --bg-color: var(--retro-bg-light);
+    --text-color: #111111;
+    --text-heading: #000000;
+    --border-color: #dc9700;
+    --border-color-hover: #966700;
+    --border-color-codeblock: #efc15b;
+    --text-muted: #4d4d4d;
+    --sidebar-bg: #fffcf3;
+    --sidebar-text: #333333;
+    --sidebar-link-active-bg: rgba(255, 176, 0, 0.15);
+    --sidebar-link-active-text: var(--retro-primary-dark);
+    --link-color: var(--retro-primary-dark);
+    --link-color-hover: #8f6200;
+    --code-text: var(--retro-primary-dark);
+    --scrollbar-thumb: #d3cbb0;
+    --scrollbar-thumb-hover: var(--retro-primary-dark);
+    --radius-sm: 3px;
+    --radius-md: 3px;
+}
+
+:root[data-theme=dark] {
+    --retro-primary: #33ff33;
+    /* Classic Phosphor Green */
+    --accent-color: var(--retro-primary);
+    --retro-primary-light: rgba(51, 255, 51, 0.1);
+    --retro-primary-dark: #22cc22;
+
+    --bg-color: var(--retro-bg-dark);
+    --text-color: #e0e0e0;
+    /* Brighter for better contrast on black */
+    --text-heading: var(--retro-primary);
+    --text-muted: #888888;
+
+    --sidebar-bg: #0a0a0a;
+    --sidebar-text: #a0a0a0;
+    --sidebar-link-active-bg: rgba(51, 255, 51, 0.15);
+    /* Explicit override */
+    --sidebar-link-active-text: var(--retro-primary);
+
+    --link-color: var(--retro-primary);
+    --border-color: #222;
+    --header-bg: var(--sidebar-bg);
+    --header-border: var(--border-color);
+
+    --code-bg: #0a0a0a;
+    --code-text: var(--retro-primary);
+
+    --scrollbar-thumb: #222;
+    --scrollbar-thumb-hover: var(--retro-primary);
+}
+
+/* Base Overrides */
+body {
+    background-color: var(--sidebar-bg);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: 'IBM Plex Mono', 'Fira Code', monospace;
+    font-weight: 600;
+}
+
+.content-theme-cover {
+    position: fixed;
+    overflow: scroll;
+    height: 100%;
+    border: 1px solid var(--border-color);
+    margin-top: calc(var(--sticky-top-offset) + 5px);
+    border-radius: 3px 0 0 0;
+    background-color: var(--bg-color);
+}
+
+.page-header,
+.docmd-menubar {
+    background-color: var(--sidebar-bg);
+    border: 0;
+}
+
+body.has-menubar-top:not(.no-header) {
+    --sticky-top-offset: calc(var(--header-h));
+}
+
+.sidebar {
+    border-right: 0;
+    padding-left: .25em;
+    background-color: var(--sidebar-bg);
+}
+
+/* Navigation */
+.sidebar nav li.nav-group {
+    background-color: var(--retro-primary-light);
+    border-radius: var(--radius-sm);
+}
+
+.sidebar nav .submenu {
+    border: 0;
+    background-color: var(--retro-primary-light);
+    margin: 0 .5em .5em;
+    padding: .25em;
+    border-radius: 4px;
+}
+
+.sidebar nav li a,
+.sidebar nav li .nav-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--sidebar-text);
+}
+
+/* Fix leaking Sky colors on selection and hover */
+.sidebar nav li a.active,
+.sidebar nav li a:hover,
+.theme-toggle-button:hover,
+.docmd-tabs-nav-item:hover,
+.copy-code-button:hover {
+    background-color: var(--sidebar-link-active-bg) !important;
+    color: var(--sidebar-link-active-text) !important;
+}
+
+.sidebar nav li a.active {
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent-color);
+}
+
+/* UI Elements */
+.content-area .button {
+    background-color: var(--accent-color);
+    color: #000;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    border-radius: 2px;
+}
+
+.content-area .button:hover {
+    opacity: 0.9;
+    box-shadow: 0 0 10px var(--retro-primary-light);
+}
+
+.docmd-container {
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+}
+
+/* Callouts */
+.callout-info .callout-title::before {
+    content: ":: INFO :: ";
+}
+
+.callout-warning .callout-title::before {
+    content: ":: WARN :: ";
+}
+
+.callout-tip .callout-title::before {
+    content: ":: HINT :: ";
+}
+
+.callout-danger .callout-title::before {
+    content: ":: FAIL :: ";
+}
+
+.callout-success .callout-title::before {
+    content: ":: PASS :: ";
+}
+
+.callout .callout-title {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Fix Scrollbars - use var() from root */
+::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb) !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover) !important;
+}
+
+.sidebar::-webkit-scrollbar-thumb,
+.toc-list::-webkit-scrollbar-thumb,
+.docmd-search-results::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb {
+    background-color: transparent !important;
+}
+
+.sidebar:hover::-webkit-scrollbar-thumb,
+.toc-list:hover::-webkit-scrollbar-thumb,
+.docmd-search-results:hover::-webkit-scrollbar-thumb,
+pre:hover::-webkit-scrollbar-thumb,
+.table-wrapper:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb) !important;
+}
+
+/* Options Menu */
+.docmd-search-trigger .search-label,
+.docmd-options-menu .lucide-icon {
+    color: var(--accent-color);
+}
+
+.docmd-options-menu .theme-toggle-button,
+.docmd-options-menu .sponsor-link-button {
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.docmd-options-menu .theme-toggle-button:hover {
+    border-color: var(--accent-color);
+}
+
+/* Misc */
+.footer-complete {
+    background-color: var(--bg-color);
+    border-top: 1px solid var(--border-color);
+    margin-top: 2rem;
+}
+
+.docmd-kbd {
+    background-color: var(--retro-primary-light);
+    color: var(--accent-color);
+    border: 1px solid var(--border-color);
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+.docmd-options-menu .theme-toggle-button,
+.docmd-options-menu .sponsor-link-button,
+.docmd-options-menu .docmd-search-trigger {
+    border-radius: 3px;
+}
+
+.docmd-options-menu .sponsor-link-button:hover {
+    background-color: var(--bg-color);
+}
+
+.toc-sidebar {
+    top: 1em;
+}

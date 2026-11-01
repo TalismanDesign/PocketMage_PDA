@@ -1,6 +1,104 @@
-/*!
- * docmd (v0.8.17)
- * Copyright (c) 2025-present docmd.io
- * License: MIT
+/**
+ * --------------------------------------------------------------------
+ * docmd : the zero-config documentation engine.
+ *
+ * @package     @docmd/core (and ecosystem)
+ * @website     https://docmd.io
+ * @repository  https://github.com/docmd-io/docmd
+ * @license     MIT
+ * @copyright   Copyright (c) 2025-present docmd.io
+ *
+ * [docmd-source] - Please do not remove this header.
+ * --------------------------------------------------------------------
  */
-document.addEventListener("DOMContentLoaded",function(){const t=document.createElement("div");t.className="docmd-lightbox";const o=document.createElement("div");o.className="docmd-lightbox-content";const n=document.createElement("img");n.src="",n.alt="";const l=document.createElement("div");l.className="docmd-lightbox-caption",o.appendChild(n),o.appendChild(l);const c=document.createElement("div");c.className="docmd-lightbox-close",c.innerHTML="&times;",t.appendChild(o),t.appendChild(c),document.body.appendChild(t);const r=t.querySelector("img"),m=t.querySelector(".docmd-lightbox-caption"),g=t.querySelector(".docmd-lightbox-close");document.querySelectorAll("img.lightbox, .image-gallery img").forEach(function(e){e.style.cursor="zoom-in",e.addEventListener("click",function(){const u=this.getAttribute("src");let d=this.getAttribute("alt")||"";const s=this.closest("figure");if(s){const a=s.querySelector("figcaption");a&&(d=a.textContent)}r.setAttribute("src",u),m.textContent=d,t.style.display="flex",document.body.style.overflow="hidden"})}),g.addEventListener("click",i),t.addEventListener("click",function(e){e.target===t&&i()}),document.addEventListener("keydown",function(e){e.key==="Escape"&&t.style.display==="flex"&&i()});function i(){t.style.display="none",document.body.style.overflow=""}});
+
+/* 
+ * A simple lightbox implementation for gallery images
+ */
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Create lightbox elements
+  const lightbox = document.createElement('div');
+  lightbox.className = 'docmd-lightbox';
+  const content = document.createElement('div');
+  content.className = 'docmd-lightbox-content';
+  const img = document.createElement('img');
+  img.src = '';
+  img.alt = '';
+  const caption = document.createElement('div');
+  caption.className = 'docmd-lightbox-caption';
+  content.appendChild(img);
+  content.appendChild(caption);
+
+  const close = document.createElement('button');
+  close.className = 'docmd-lightbox-close';
+  close.setAttribute('aria-label', 'Close lightbox');
+  close.innerHTML = '&times;'; // Hardcoded entity is safe
+
+  // Place close button inside content so it positions relative to the image box
+  content.appendChild(close);
+  lightbox.appendChild(content);
+  document.body.appendChild(lightbox);
+
+  const lightboxImg = lightbox.querySelector('img');
+  const lightboxCaption = lightbox.querySelector('.docmd-lightbox-caption');
+  const lightboxClose = lightbox.querySelector('.docmd-lightbox-close');
+
+  // Apply zoom-in cursor to all current lightbox images
+  function applyLightboxCursor() {
+    document.querySelectorAll('img.lightbox, .image-gallery img').forEach(function (img) {
+      img.style.cursor = 'zoom-in';
+    });
+  }
+
+  // Apply cursor on initial load and after each SPA navigation
+  applyLightboxCursor();
+  document.addEventListener('docmd:page-mounted', applyLightboxCursor);
+
+  // Use event delegation so lightbox works after SPA navigation without re-binding
+  document.addEventListener('click', function (e) {
+    const img = e.target.closest('img.lightbox, .image-gallery img');
+    if (!img) return;
+
+    // Get the image source and caption
+    const src = img.getAttribute('src');
+    let caption = img.getAttribute('alt') || '';
+
+    // If image is inside a figure with figcaption, use that caption
+    const figure = img.closest('figure');
+    if (figure) {
+      const figcaption = figure.querySelector('figcaption');
+      if (figcaption) {
+        caption = figcaption.textContent;
+      }
+    }
+
+    // Set the lightbox content
+    lightboxImg.setAttribute('src', src);
+    lightboxCaption.textContent = caption;
+
+    // Show the lightbox
+    lightbox.style.display = 'flex';
+    document.body.style.overflow = 'hidden'; // Prevent scrolling
+  });
+
+  // Close lightbox when clicking the close button or outside the image
+  lightboxClose.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', function (e) {
+    if (e.target === lightbox) {
+      closeLightbox();
+    }
+  });
+
+  // Close lightbox when pressing Escape key
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lightbox.style.display === 'flex') {
+      closeLightbox();
+    }
+  });
+
+  function closeLightbox() {
+    lightbox.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scrolling
+  }
+}); 

@@ -4,10 +4,10 @@ title: "Format a MicroSD Card for PocketMage"
 description: "Guide to formatting SD cards for compatibility with PocketMage."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/format-micro-sd/"
 path: /tutorials/format-micro-sd/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.731Z"
+  generated_at: "2026-11-01T04:07:11.654Z"
 ---
 ---
 title: "Format a MicroSD Card for PocketMage"
@@ -16,47 +16,48 @@ description: "Guide to formatting SD cards for compatibility with PocketMage."
 
 # PocketMage SD Card Formatting Guide
 
-**WARNING**  
-These steps will ERASE the SD card. Back up your data first.
+::: callout danger "These steps erase the card" Everything on the card is destroyed. Back up your data before you start, and double-check the disk identifier at every step so you do not wipe the wrong device.
+:::
 
-This guide ensures SD cards are formatted in a way that is compatible with the PocketMage device.
-
----
+This guide formats an SD card so PocketMage can mount it. The device reads a single FAT32 primary partition on an MBR partition table with 32 KB clusters; anything else is not detected reliably.
 
 ## Supported SD card requirements
 
-- **Card size:** 2 GB - 32 GB microSD recommended. The slot supports up to 2 TB, but cards above 32 GB must be forced to FAT32 + MBR and are not recommended.
+- **Card size:** 2 GB to 32 GB microSD recommended. The slot accepts up to 2 TB, but cards above 32 GB must be forced to FAT32 and MBR and are not recommended.
 - **Filesystem:** FAT32
 - **Partition scheme:** MBR (Master Boot Record)
-- **Partitions:** Single primary partition
+- **Partitions:** a single primary partition
 - **Cluster (allocation unit) size:** 32 KB
 - **Sector size:** 512 bytes (default)
 
-X exFAT is NOT supported  
-X GPT partition tables are NOT supported  
-X 64 GB+ cards are NOT recommended unless you explicitly force FAT32 + MBR
+Not supported: exFAT, GPT partition tables, and 64 GB or larger cards unless you explicitly force FAT32 and MBR.
 
----
-
-## Windows (Recommended)
+## Windows (recommended)
 
 ### Step 1: Open diskpart
 
-1. Insert the SD card
-2. Open **Command Prompt as Administrator**
-3. Run:
-   diskpart
+Insert the card, open **Command Prompt as Administrator**, and run:
 
-### Step 2: Identify the SD card
+```bat
+diskpart
+```
 
+### Step 2: Identify the card
+
+```text
 list disk
+```
 
-Find the disk number that matches your SD card size.
+Find the disk number that matches your card size.
 
-**Make sure you select the correct disk.**
+::: callout warning "Select the correct disk" The next step wipes the disk you select. Confirm the number against the card size before continuing.
+:::
 
 ### Step 3: Format the card (MBR + FAT32)
 
+Replace `X` with your disk number, then run each line in the `diskpart` prompt:
+
+```text
 select disk X
 clean
 convert mbr
@@ -64,86 +65,91 @@ create partition primary
 format fs=fat32 unit=32k quick
 assign
 exit
+```
 
 ### Step 4: Verify (optional)
 
-- Open **Disk Management**
-- Right-click the disk → Properties → Volumes
-- Partition style must say **Master Boot Record (MBR)**
+Open **Disk Management**, right-click the disk, and open Properties then Volumes. The partition style must read **Master Boot Record (MBR)**.
 
----
+## macOS (Terminal, not Disk Utility)
 
-## macOS (Terminal, NOT Disk Utility)
+Disk Utility often creates GPT layouts that do not work. Use the terminal.
 
-macOS Disk Utility often creates GPT layouts that do not work.
+### Step 1: Identify the card
 
-### Step 1: Identify the SD card
-
+```sh
 diskutil list
+```
 
-Find the disk number (example: disk2).
+Find the disk number (for example, `disk2`).
 
 ### Step 2: Erase and create MBR + FAT32
 
+```sh
 diskutil eraseDisk FAT32 PM_SD MBRFormat /dev/disk2
+```
 
 ### Step 3: Force 32 KB cluster size
 
+```sh
 sudo newfs_msdos -F 32 -c 64 /dev/disk2s1
+```
 
-Explanation:  
--c 64 = 64 × 512-byte sectors = 32 KB clusters
+`-c 64` sets 64 sectors per cluster; at 512 bytes per sector that is a 32 KB cluster.
 
 ### Step 4: Verify
 
+```sh
 diskutil info /dev/disk2 | grep "Partition Map"
+```
 
-Must say:
-Partition Map Scheme: Master Boot Record
-
----
+The output must read `Partition Map Scheme: Master Boot Record`.
 
 ## Linux
 
-### Step 1: Identify the SD card
+### Step 1: Identify the card
 
+```sh
 lsblk
+```
 
-Example device: /dev/sdb
+Example device: `/dev/sdb`.
 
 ### Step 2: Remove existing partition data
 
+```sh
 sudo wipefs -a /dev/sdb
+```
 
-### Step 3: Create MBR partition table
+### Step 3: Create the MBR partition table
 
+```sh
 sudo parted /dev/sdb --script mklabel msdos
 sudo parted /dev/sdb --script mkpart primary fat32 1MiB 100%
+```
 
 ### Step 4: Format FAT32 with 32 KB clusters
 
+```sh
 sudo mkfs.fat -F 32 -s 64 /dev/sdb1
+```
 
 ### Step 5: Verify
 
+```sh
 lsblk -o NAME,SIZE,PTTYPE
+```
 
-PTTYPE must be dos.
+`PTTYPE` must read `dos`.
 
----
-
-## Final Checklist
+## Final checklist
 
 Before using the card in PocketMage, confirm:
 
 - FAT32 filesystem
 - MBR partition table (not GPT)
-- One primary partition
+- one primary partition
 - 32 KB cluster size
-- Card size ≤32 GB
+- card size 32 GB or smaller
 
-If any of these are incorrect, the card may not be detected.
-
----
-
-If issues persist after following this guide, the SD card itself may be incompatible.
+If any of these are wrong, the card may not be detected. If problems persist after following this guide, the card itself may be incompatible.

@@ -1,6 +1,250 @@
-/*!
- * docmd (v0.8.17)
- * Copyright (c) 2025-present docmd.io
- * License: MIT
+/**
+ * --------------------------------------------------------------------
+ * docmd : the zero-config documentation engine.
+ *
+ * @package     @docmd/core (and ecosystem)
+ * @website     https://docmd.io
+ * @repository  https://github.com/docmd-io/docmd
+ * @license     MIT
+ * @copyright   Copyright (c) 2025-present docmd.io
+ *
+ * [docmd-source] - Please do not remove this header.
+ * --------------------------------------------------------------------
  */
-:root{--sky-primary: #0097ff}:root[data-theme=light]{--accent-color: #0097ff;--sky-primary: #0097ff;--sky-primary-light: #8acdff33;--sky-primary-dark: #00497b;--sky-text: #1a1f36;--sky-text-light: #4a5568;--sky-background: #ffffff;--sky-background-alt: #f9fafb;--sky-border: #e2e8f0;--bg-color: var(--sky-background);--text-color: var(--sky-text);--text-heading: var(--sky-text);--text-muted: var(--sky-text-light);--sidebar-bg: #f7fafc;--sidebar-text: var(--sky-text-light);--sidebar-link-active-bg: var(--sky-primary-light);--sidebar-link-active-text: var(--sky-primary);--link-color: var(--sky-primary);--border-color: #6dabff57;--header-bg: var(--sky-background);--header-border: var(--sky-border);--code-bg: var(--sky-primary-light);--code-text: var(--sky-primary-dark)}:root[data-theme=dark]{--sky-primary: #3b82f6;--sky-primary-light: #1e293b;--sky-primary-dark: #60a5fa;--sky-text: #f1f5f9;--sky-text-light: #cbd5e1;--sky-background: #0f172a;--sky-background-alt: #1e293b;--sky-border: #334155;--bg-color: var(--sky-background);--text-color: var(--sky-text);--text-heading: var(--sky-text);--text-muted: var(--sky-text-light);--sidebar-bg: #0f172a;--sidebar-text: var(--sky-text-light);--sidebar-link-active-bg: #1e293b;--sidebar-link-active-text: var(--sky-primary);--link-color: var(--sky-primary);--border-color: var(--sky-border);--header-bg: var(--sky-background);--header-border: var(--sky-border);--code-bg: var(--sky-primary-light);--code-text: var(--sky-text)}.callout-info .callout-title:before{content:"\2139\fe0f  "}.callout-warning .callout-title:before{content:"\26a0\fe0f  "}.callout-tip .callout-title:before{content:"\1f4a1  "}.callout-danger .callout-title:before{content:"\274c  "}.callout-success .callout-title:before{content:"\2705  "}.content-area .button{background-color:var(--sky-primary);color:#fff;border-radius:var(--radius-md)}.content-area .button:hover{background-color:var(--sky-primary-dark)}figure.polaroid{background:#fff;padding:10px 10px 30px;box-shadow:var(--shadow-md);border-radius:var(--radius-sm)}figure.polaroid figcaption{background:#fff;color:var(--sky-text);font-size:1.1rem;font-style:italic}[data-theme=dark] figure.polaroid,[data-theme=dark] figure.polaroid figcaption{background:#1e293b;color:var(--sky-text)}.page-header,.docmd-menubar{background-color:var(--sidebar-bg);border:0}body.has-menubar-top:not(.no-header){--sticky-top-offset: calc(var(--header-h))}.sidebar{border-right:0;padding-left:.25em}body{background-color:var(--sidebar-bg)}.content-theme-cover{position:fixed;overflow:scroll;height:100%;border:1px solid var(--sky-border);margin-top:calc(var(--sticky-top-offset) + 5px);border-radius:1.5em 0 0;background-color:var(--bg-color)}.version-dropdown-toggle{width:80%;margin:0 auto;border-radius:1rem;background-color:var(--sky-primary-light)}.sidebar nav li.nav-group{background-color:var(--sky-primary-light);border-radius:10px}.sidebar nav .submenu{border:0;background-color:var(--sky-primary-light);margin:0 .5em .5em;padding:.25em;border-radius:10px}.sidebar nav li a,.sidebar nav li .nav-label{color:var(--sky-primary-dark)}.sidebar nav li{margin:.25rem}.copy-code-button:hover,.docmd-tabs-nav-item:hover,.sidebar nav li a.active,.sidebar nav li a:hover,.theme-toggle-button:hover{background-color:var(--sky-primary-light)}.sidebar nav li a.active{color:var(--sky-primary-dark)}.toc-sidebar{top:1rem}.version-dropdown-menu{width:80%;margin:0 auto}.version-dropdown-toggle:hover{border-color:var(--sky-primary)}.footer-complete{background-color:var(--bg-color);padding:0;margin:0 var(--space-8);padding:var(--space-12) 0 var(--space-6)}.page-footer-actions,.footer-complete-bottom{border-top:0}.docmd-kbd{background-color:var(--sky-primary-light);color:var(--sky-primary)}.docmd-search-trigger .search-label,.docmd-options-menu .lucide-icon{color:var(--sky-primary-dark)}.docmd-options-menu .sponsor-link-button:hover,.docmd-options-menu .sponsor-link-button:hover svg,.docmd-options-menu button:hover:not(.docmd-search-trigger){background-color:var(--sky-primary);color:var(--sky-primary-dark);border:initial;transition:.2s}.docmd-options-menu .theme-toggle-button,.docmd-options-menu .sponsor-link-button{border-radius:50%}
+
+/* 
+ * Sky Theme
+ * Inspired by the clear blue sky
+ * Features: Blue tones, clean lines, subtle gradients
+ */
+
+:root {
+    --sky-primary: #0097ff;
+}
+
+:root[data-theme=light] {
+    --accent-color: #0097ff;
+    --sky-primary: #0097ff;
+    --sky-primary-light: #8acdff33;
+    --sky-primary-dark: #00497b;
+    --sky-text: #1a1f36;
+    --sky-text-light: #4a5568;
+    --sky-background: #ffffff;
+    --sky-background-alt: #f9fafb;
+    --sky-border: #e2e8f0;
+    --bg-color: var(--sky-background);
+    --text-color: var(--sky-text);
+    --text-heading: var(--sky-text);
+    --text-muted: var(--sky-text-light);
+    --sidebar-bg: #f7fafc;
+    --sidebar-text: var(--sky-text-light);
+    --sidebar-link-active-bg: var(--sky-primary-light);
+    --sidebar-link-active-text: var(--sky-primary);
+    --link-color: var(--sky-primary);
+    --border-color: #6dabff57;
+    --header-bg: var(--sky-background);
+    --header-border: var(--sky-border);
+    --code-bg: var(--sky-primary-light);
+    --code-text: var(--sky-primary-dark);
+}
+
+:root[data-theme=dark] {
+    --sky-primary: #3b82f6;
+    --sky-primary-light: #1e293b;
+    --sky-primary-dark: #60a5fa;
+    --sky-text: #f1f5f9;
+    --sky-text-light: #cbd5e1;
+    --sky-background: #0f172a;
+    --sky-background-alt: #1e293b;
+    --sky-border: #334155;
+
+    --bg-color: var(--sky-background);
+    --text-color: var(--sky-text);
+    --text-heading: var(--sky-text);
+    --text-muted: var(--sky-text-light);
+    --sidebar-bg: #0f172a;
+    --sidebar-text: var(--sky-text-light);
+    --sidebar-link-active-bg: #1e293b;
+    --sidebar-link-active-text: var(--sky-primary);
+    --link-color: var(--sky-primary);
+    --border-color: var(--sky-border);
+    --header-bg: var(--sky-background);
+    --header-border: var(--sky-border);
+    --code-bg: var(--sky-primary-light);
+    --code-text: var(--sky-text);
+}
+
+/* Theme-specific overrides */
+
+.callout-info .callout-title::before {
+    content: "ℹ️ ";
+}
+
+.callout-warning .callout-title::before {
+    content: "⚠️ ";
+}
+
+.callout-tip .callout-title::before {
+    content: "💡 ";
+}
+
+.callout-danger .callout-title::before {
+    content: "❌ ";
+}
+
+.callout-success .callout-title::before {
+    content: "✅ ";
+}
+
+.content-area .button {
+    background-color: var(--sky-primary);
+    color: #ffffff;
+    border-radius: var(--radius-md);
+}
+
+.content-area .button:hover {
+    background-color: var(--sky-primary-dark);
+}
+
+/* Polaroid effect */
+figure.polaroid {
+    background: #ffffff;
+    padding: 10px 10px 30px;
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-sm);
+}
+
+figure.polaroid figcaption {
+    background: #ffffff;
+    color: var(--sky-text);
+    font-size: 1.1rem;
+    font-style: italic;
+}
+
+[data-theme=dark] figure.polaroid,
+[data-theme=dark] figure.polaroid figcaption {
+    background: #1e293b;
+    color: var(--sky-text);
+}
+
+.page-header,
+.docmd-menubar {
+    background-color: var(--sidebar-bg);
+    border: 0;
+}
+
+body.has-menubar-top:not(.no-header) {
+    --sticky-top-offset: calc(var(--header-h));
+}
+
+.sidebar {
+    border-right: 0;
+    padding-left: .25em;
+}
+
+body {
+    background-color: var(--sidebar-bg);
+}
+
+.content-theme-cover {
+    position: fixed;
+    overflow: scroll;
+    height: 100%;
+    border: 1px solid var(--sky-border);
+    margin-top: calc(var(--sticky-top-offset) + 5px);
+    border-radius: 1.5em 0 0 0;
+    background-color: var(--bg-color);
+}
+
+.version-dropdown-toggle {
+    width: 80%;
+    margin: 0 auto;
+    border-radius: 1rem;
+    background-color: var(--sky-primary-light);
+}
+
+.sidebar nav li.nav-group {
+    background-color: var(--sky-primary-light);
+    border-radius: 10px;
+}
+
+.sidebar nav .submenu {
+    border: 0;
+    background-color: var(--sky-primary-light);
+    margin: 0 .5em .5em;
+    padding: .25em;
+    border-radius: 10px;
+}
+
+.sidebar nav li a,
+.sidebar nav li .nav-label {
+    color: var(--sky-primary-dark);
+}
+
+.sidebar nav li {
+    margin: .25rem;
+}
+
+.copy-code-button:hover,
+.docmd-tabs-nav-item:hover,
+.sidebar nav li a.active,
+.sidebar nav li a:hover,
+.theme-toggle-button:hover {
+    background-color: var(--sky-primary-light);
+}
+
+.sidebar nav li a.active {
+    color: var(--sky-primary-dark);
+}
+
+.toc-sidebar {
+    top: 1rem;
+}
+
+.version-dropdown-menu {
+    width: 80%;
+    margin: 0 auto;
+}
+
+.version-dropdown-toggle:hover {
+    border-color: var(--sky-primary);
+}
+
+.footer-complete {
+    background-color: var(--bg-color);
+    padding: 0;
+    margin: 0 var(--space-8);
+    padding: var(--space-12) 0 var(--space-6);
+}
+
+.page-footer-actions {
+    border-top: 0;
+}
+
+.footer-complete-bottom {
+    border-top: 0;
+}
+
+.docmd-kbd {
+    background-color: var(--sky-primary-light);
+    color: var(--sky-primary);
+}
+
+.docmd-search-trigger .search-label,
+.docmd-options-menu .lucide-icon {
+    color: var(--sky-primary-dark);
+}
+
+.docmd-options-menu .sponsor-link-button:hover,
+.docmd-options-menu .sponsor-link-button:hover svg,
+.docmd-options-menu button:hover:not(.docmd-search-trigger) {
+    background-color: var(--sky-primary);
+    color: var(--sky-primary-dark);
+    border: initial;
+    transition: 0.2s;
+}
+
+.docmd-options-menu .theme-toggle-button,
+.docmd-options-menu .sponsor-link-button {
+    border-radius: 50%;
+}

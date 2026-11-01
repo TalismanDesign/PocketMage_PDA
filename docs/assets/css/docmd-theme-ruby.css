@@ -1,6 +1,143 @@
-/*!
- * docmd (v0.8.17)
- * Copyright (c) 2025-present docmd.io
- * License: MIT
+/**
+ * --------------------------------------------------------------------
+ * docmd : the zero-config documentation engine.
+ *
+ * @package     @docmd/core (and ecosystem)
+ * @website     https://docmd.io
+ * @repository  https://github.com/docmd-io/docmd
+ * @license     MIT
+ * @copyright   Copyright (c) 2025-present docmd.io
+ *
+ * [docmd-source] - Please do not remove this header.
+ * --------------------------------------------------------------------
  */
-@import"https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap";:root{--ruby-font-family-sans: "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;--ruby-font-family-serif: "Playfair Display", Georgia, "Times New Roman", serif}:root[data-theme=light]{--ruby-primary: #b30000;--ruby-primary-light: #ffebee;--ruby-primary-dark: #8e0000;--ruby-accent: #7b1fa2;--ruby-text: #2d2d2d;--ruby-background: #ffffff;--ruby-border: #e0e0e0;--bg-color: var(--ruby-background);--text-color: var(--ruby-text);--text-heading: var(--ruby-text);--text-muted: #5a5a5a;--sidebar-bg: #f8f5f5;--sidebar-text: #5a5a5a;--sidebar-link-active-bg: #f8e7e7;--sidebar-link-active-text: var(--ruby-primary);--link-color: var(--ruby-primary);--border-color: var(--ruby-border);--header-bg: var(--ruby-background);--header-border: var(--ruby-border);--code-bg: var(--ruby-primary-light);--code-text: var(--ruby-primary-dark);--font-family-sans: var(--ruby-font-family-sans)}:root[data-theme=dark]{--ruby-primary: #ff5252;--ruby-primary-light: #3c1a1a;--ruby-primary-dark: #ff7b7b;--ruby-accent: #ce93d8;--ruby-text: #f0f0f0;--ruby-background: #1a0a0a;--ruby-border: #3a2020;--bg-color: var(--ruby-background);--text-color: var(--ruby-text);--text-heading: var(--ruby-text);--text-muted: silver;--sidebar-bg: #1a0a0a;--sidebar-text: silver;--sidebar-link-active-bg: #2a1515;--sidebar-link-active-text: var(--ruby-primary);--link-color: var(--ruby-primary);--border-color: var(--ruby-border);--header-bg: var(--ruby-background);--header-border: var(--ruby-border);--code-bg: var(--ruby-primary-light);--code-text: var(--ruby-text);--font-family-sans: var(--ruby-font-family-sans)}h1,h2,h3,h4,h5,h6{font-family:var(--ruby-font-family-serif)}h1:after{content:"";display:block;width:60px;height:3px;background:linear-gradient(90deg,var(--ruby-primary),var(--ruby-accent));margin-top:var(--space-2);border-radius:var(--radius-sm)}.content-area a:not(.button):not(.copy-code-button){position:relative}.content-area a:not(.button):not(.copy-code-button):after{content:"";position:absolute;width:100%;height:1px;bottom:0;left:0;background:linear-gradient(90deg,var(--ruby-primary),var(--ruby-accent));transform:scaleX(0);transform-origin:right bottom;transition:transform .3s}.content-area a:not(.button):not(.copy-code-button):hover:after{transform:scaleX(1);transform-origin:left bottom}.docmd-container{border-top:3px solid var(--ruby-primary)}.button,button:not(.theme-toggle-button):not(.copy-code-button):not(.docmd-search-trigger):not(.sidebar-toggle-button){background:linear-gradient(135deg,var(--ruby-primary) 0%,var(--ruby-accent) 100%);color:#fff;border:none;border-radius:var(--radius-md);font-weight:600}.button:hover,button:not(.theme-toggle-button):not(.copy-code-button):not(.docmd-search-trigger):not(.sidebar-toggle-button):hover{filter:brightness(110%);transform:translateY(-1px);box-shadow:var(--shadow-md)}.docmd-options-menu .docmd-search-trigger{background-color:transparent}
+
+/* 
+ * Ruby Theme
+ * Inspired by the beauty of gemstones
+ * Features: Deep ruby red, elegant serif fonts, subtle gem-like effects
+ */
+
+@import "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap";
+
+:root {
+    --ruby-font-family-sans: "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --ruby-font-family-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+}
+
+:root[data-theme=light] {
+    --ruby-primary: #b30000;
+    --ruby-primary-light: #ffebee;
+    --ruby-primary-dark: #8e0000;
+    --ruby-accent: #7b1fa2;
+    --ruby-text: #2d2d2d;
+    --ruby-background: #ffffff;
+    --ruby-border: #e0e0e0;
+
+    --bg-color: var(--ruby-background);
+    --text-color: var(--ruby-text);
+    --text-heading: var(--ruby-text);
+    --text-muted: #5a5a5a;
+    --sidebar-bg: #f8f5f5;
+    --sidebar-text: #5a5a5a;
+    --sidebar-link-active-bg: #f8e7e7;
+    --sidebar-link-active-text: var(--ruby-primary);
+    --link-color: var(--ruby-primary);
+    --border-color: var(--ruby-border);
+    --header-bg: var(--ruby-background);
+    --header-border: var(--ruby-border);
+    --code-bg: var(--ruby-primary-light);
+    --code-text: var(--ruby-primary-dark);
+    --font-family-sans: var(--ruby-font-family-sans);
+}
+
+:root[data-theme=dark] {
+    --ruby-primary: #ff5252;
+    --ruby-primary-light: #3c1a1a;
+    --ruby-primary-dark: #ff7b7b;
+    --ruby-accent: #ce93d8;
+    --ruby-text: #f0f0f0;
+    --ruby-background: #1a0a0a;
+    --ruby-border: #3a2020;
+
+    --bg-color: var(--ruby-background);
+    --text-color: var(--ruby-text);
+    --text-heading: var(--ruby-text);
+    --text-muted: silver;
+    --sidebar-bg: #1a0a0a;
+    --sidebar-text: silver;
+    --sidebar-link-active-bg: #2a1515;
+    --sidebar-link-active-text: var(--ruby-primary);
+    --link-color: var(--ruby-primary);
+    --border-color: var(--ruby-border);
+    --header-bg: var(--ruby-background);
+    --header-border: var(--ruby-border);
+    --code-bg: var(--ruby-primary-light);
+    --code-text: var(--ruby-text);
+    --font-family-sans: var(--ruby-font-family-sans);
+}
+
+/* Theme-specific overrides */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--ruby-font-family-serif);
+}
+
+h1::after {
+    content: "";
+    display: block;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--ruby-primary), var(--ruby-accent));
+    margin-top: var(--space-2);
+    border-radius: var(--radius-sm);
+}
+
+.content-area a:not(.button):not(.copy-code-button) {
+    position: relative;
+}
+
+.content-area a:not(.button):not(.copy-code-button)::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 1px;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(90deg, var(--ruby-primary), var(--ruby-accent));
+    transform: scaleX(0);
+    transform-origin: right bottom;
+    transition: transform 0.3s;
+}
+
+.content-area a:not(.button):not(.copy-code-button):hover::after {
+    transform: scaleX(1);
+    transform-origin: left bottom;
+}
+
+.docmd-container {
+    border-top: 3px solid var(--ruby-primary);
+}
+
+.button, button:not(.theme-toggle-button):not(.copy-code-button):not(.docmd-search-trigger):not(.sidebar-toggle-button) {
+    background: linear-gradient(135deg, var(--ruby-primary) 0%, var(--ruby-accent) 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+}
+
+.button:hover, button:not(.theme-toggle-button):not(.copy-code-button):not(.docmd-search-trigger):not(.sidebar-toggle-button):hover {
+    filter: brightness(110%);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.docmd-options-menu .docmd-search-trigger {
+    background-color: transparent;
+}

@@ -4,10 +4,10 @@ title: Guides
 description: "Practical guides for building apps and working with PocketMage."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/guides/"
 path: /guides/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.719Z"
+  generated_at: "2026-11-01T04:07:11.652Z"
 ---
 ---
 title: "Guides"
@@ -20,7 +20,7 @@ How to build apps on PocketMageOS, use the PocketMage Library, and work through 
 
 ::: tag "App workflow"
 ::: tag "Native apps"
-::: tag "OTA apps"
+::: tag "ELF apps"
 ::: tag "Scripting"
 
 ## Guides
@@ -28,7 +28,7 @@ How to build apps on PocketMageOS, use the PocketMage Library, and work through 
 ::: grids
 ::: grid
 ::: card "Making Apps" icon:code
-The app workflow, the template, and the choice between native and OTA apps.
+The app workflow, the template, and the choice between native and ELF apps.
 
 ::: button "Open" ./making-apps.md icon:arrow-right
 :::
@@ -41,10 +41,10 @@ How PocketMageOS apps are structured and wired into the OS.
 :::
 :::
 ::: grid
-::: card "OTA Apps" icon:package
-How third-party apps fit into the OTA loader and shared library layer.
+::: card "ELF Apps" icon:package
+How third-party apps fit into the runtime loader and shared library layer.
 
-::: button "Open" ./ota-apps.md icon:arrow-right
+::: button "Open" ./elf-apps.md icon:arrow-right
 :::
 :::
 ::: grid
@@ -58,6 +58,5 @@ The Wrench terminal app and its examples.
 
 ## Best fit
 
-::: callout tip "Pick the right page"
-Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **OTA Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
+::: callout tip "Pick the right page" Use **Making Apps** for the full path, **Native Apps** if you are changing the OS, **ELF Apps** if you are shipping third-party code, and **Scripting** if you want to automate from the terminal app.
 :::

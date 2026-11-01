@@ -4,10 +4,10 @@ title: "PocketMage Tutorials"
 description: "Step-by-step guides for PocketMage setup and configuration."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/tutorials/"
 path: /tutorials/
-updated: 2026-09-25
+updated: 2026-11-01
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-09-25T23:16:06.733Z"
+  generated_at: "2026-11-01T04:07:11.655Z"
 ---
 ---
 title: "PocketMage Tutorials"
@@ -25,7 +25,7 @@ These pages cover hands-on setup tasks.
 ## Development
 
 - [Build Environments & PlatformIO Setup](../development/build-environments.md)
-- [OTA App Template](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp)
+- [App Template (PM_TARGET_APP scaffold)](https://github.com/TalismanDesign/PocketMage_PDA/blob/main/Code/PocketMageOS/src/APP_TEMPLATE.cpp)
 
 ## Scripting
 

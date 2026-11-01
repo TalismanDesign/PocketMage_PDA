@@ -3,124 +3,129 @@
   "model": "Xenova/all-MiniLM-L6-v2",
   "dimensions": 384,
   "status": "complete",
-  "totalFiles": 23,
-  "indexedFiles": 23,
-  "totalChunks": 261,
+  "totalFiles": 24,
+  "indexedFiles": 24,
+  "totalChunks": 270,
   "batchCount": 2,
   "files": {
     "command-manual/index.md": {
-      "mtime": 1790378130761.1914,
+      "mtime": 1793505994447.0684,
       "size": 15246,
       "batches": []
     },
+    "development/architecture.md": {
+      "mtime": 1793505994447.0684,
+      "size": 7069,
+      "batches": []
+    },
     "development/build-environments.md": {
-      "mtime": 1790378130761.1914,
-      "size": 3996,
+      "mtime": 1793505994447.2173,
+      "size": 3265,
       "batches": []
     },
     "development/index.md": {
-      "mtime": 1790378130761.388,
-      "size": 4799,
+      "mtime": 1793505994447.2173,
+      "size": 5585,
       "batches": []
     },
     "faq/index.md": {
-      "mtime": 1790378130761.388,
+      "mtime": 1793505994447.2173,
       "size": 5277,
       "batches": []
     },
     "features/index.md": {
-      "mtime": 1790378130761.388,
-      "size": 3467,
+      "mtime": 1793505994447.2173,
+      "size": 3470,
       "batches": []
     },
     "getting-started/index.md": {
-      "mtime": 1790378130761.388,
-      "size": 1606,
+      "mtime": 1793505994447.2173,
+      "size": 1913,
       "batches": []
     },
     "getting-started/what-is-pocketmage.md": {
-      "mtime": 1790378130761.6724,
-      "size": 3718,
+      "mtime": 1793505994447.467,
+      "size": 4012,
+      "batches": []
+    },
+    "guides/elf-apps.md": {
+      "mtime": 1793505994447.467,
+      "size": 3915,
       "batches": []
     },
     "guides/index.md": {
-      "mtime": 1790378130761.6724,
-      "size": 1253,
+      "mtime": 1793505994447.562,
+      "size": 1257,
       "batches": []
     },
     "guides/making-apps.md": {
-      "mtime": 1790378130761.7961,
-      "size": 4143,
+      "mtime": 1793505994447.562,
+      "size": 4202,
       "batches": []
     },
     "guides/native-apps.md": {
-      "mtime": 1790378130761.7961,
+      "mtime": 1793505994447.562,
       "size": 2903,
       "batches": []
     },
-    "guides/ota-apps.md": {
-      "mtime": 1790378130761.7961,
-      "size": 2312,
-      "batches": []
-    },
     "index.md": {
-      "mtime": 1790378130761.7961,
-      "size": 1996,
+      "mtime": 1793505994447.562,
+      "size": 2759,
       "batches": []
     },
     "reference/app-api.md": {
-      "mtime": 1790378130761.7961,
-      "size": 4713,
+      "mtime": 1793505994447.562,
+      "size": 4838,
       "batches": []
     },
     "reference/index.md": {
-      "mtime": 1790378130762.0542,
-      "size": 1693,
+      "mtime": 1793505994447.7622,
+      "size": 1697,
       "batches": []
     },
     "reference/pocketmage-library.md": {
-      "mtime": 1790378130762.0542,
-      "size": 6210,
+      "mtime": 1793505994447.7622,
+      "size": 6558,
       "batches": []
     },
     "reference/system-state.md": {
-      "mtime": 1790378130762.0542,
-      "size": 3162,
+      "mtime": 1793505994447.7622,
+      "size": 3173,
       "batches": []
     },
     "scripting/example-c.md": {
-      "mtime": 1790378130762.0542,
+      "mtime": 1793505994447.7622,
       "size": 1476,
       "batches": []
     },
     "scripting/fullPotionCommandList.md": {
-      "mtime": 1790378130762.287,
+      "mtime": 1793505994447.9133,
       "size": 9463,
       "batches": []
     },
     "scripting/index.md": {
-      "mtime": 1790378130762.287,
+      "mtime": 1793505994447.9133,
       "size": 3538,
       "batches": []
     },
     "scripting/ink-c.md": {
-      "mtime": 1790378130762.287,
+      "mtime": 1793505994447.9133,
       "size": 1663,
       "batches": []
     },
     "scripting/oled-c.md": {
-      "mtime": 1790378130762.287,
+      "mtime": 1793505994447.9133,
       "size": 1666,
       "batches": []
     },
     "tutorials/format-micro-sd.md": {
-      "mtime": 1790378130762.287,
-      "size": 2838,
+      "mtime": 1793505994447.9133,
+      "size": 3388,
       "batches": []
     },
     "tutorials/index.md": {
-      "mtime": 1790378130762.558,
-      "size": 571,
+      "mtime": 1793505994448.1118,
+      "size": 592,
       "batches": []
     }
   }
