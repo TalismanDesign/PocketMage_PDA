@@ -8,9 +8,24 @@ pocketmage_sdk_version
 
 
 # app-facing C ABI (pm_sdk_app.h)
+pm_audio_begin
+pm_audio_stop
+pm_audio_play
+pm_audio_stop_playback
+pm_audio_pause
+pm_audio_resume
+pm_audio_set_volume
+pm_audio_get_state
+pm_audio_is_playing
+pm_audio_owns_pin
+pm_audio_get_current_path
+pm_audio_get_last_error
+pm_audio_get_volume
+pm_audio_dispatch_events
 pm_bz_begin
 pm_bz_end
 pm_bz_play_jingle
+pm_bz_drain_pending
 pm_clock_begin
 pm_clock_set_time_from_string
 pm_clock_valid

@@ -296,6 +296,7 @@ int _read_r();
 int _realloc_r();
 int _reclaim_reent();
 int _rename_r();
+int _rewind_r();
 int _sbrk_r();
 int _sfread_r();
 int _stat_r();
@@ -326,6 +327,7 @@ int bzero();
 int calloc();
 int ceil();
 int cfree();
+int clearerr();
 int clock_gettime();
 int close();
 int closedir();
@@ -414,6 +416,7 @@ int read();
 int readdir();
 int realloc();
 int rename();
+int rewind();
 int rewinddir();
 int roundf();
 int scalbnf();
@@ -792,6 +795,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_realloc_r),
     ESP_ELFSYM_EXPORT(_reclaim_reent),
     ESP_ELFSYM_EXPORT(_rename_r),
+    ESP_ELFSYM_EXPORT(_rewind_r),
     ESP_ELFSYM_EXPORT(_sbrk_r),
     ESP_ELFSYM_EXPORT(_sfread_r),
     ESP_ELFSYM_EXPORT(_stat_r),
@@ -822,6 +826,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(calloc),
     ESP_ELFSYM_EXPORT(ceil),
     ESP_ELFSYM_EXPORT(cfree),
+    ESP_ELFSYM_EXPORT(clearerr),
     ESP_ELFSYM_EXPORT(clock_gettime),
     ESP_ELFSYM_EXPORT(close),
     ESP_ELFSYM_EXPORT(closedir),
@@ -902,7 +907,22 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(open),
     ESP_ELFSYM_EXPORT(opendir),
     ESP_ELFSYM_EXPORT(pm_app_abi),
+    ESP_ELFSYM_EXPORT(pm_audio_begin),
+    ESP_ELFSYM_EXPORT(pm_audio_dispatch_events),
+    ESP_ELFSYM_EXPORT(pm_audio_get_current_path),
+    ESP_ELFSYM_EXPORT(pm_audio_get_last_error),
+    ESP_ELFSYM_EXPORT(pm_audio_get_state),
+    ESP_ELFSYM_EXPORT(pm_audio_get_volume),
+    ESP_ELFSYM_EXPORT(pm_audio_is_playing),
+    ESP_ELFSYM_EXPORT(pm_audio_owns_pin),
+    ESP_ELFSYM_EXPORT(pm_audio_pause),
+    ESP_ELFSYM_EXPORT(pm_audio_play),
+    ESP_ELFSYM_EXPORT(pm_audio_resume),
+    ESP_ELFSYM_EXPORT(pm_audio_set_volume),
+    ESP_ELFSYM_EXPORT(pm_audio_stop),
+    ESP_ELFSYM_EXPORT(pm_audio_stop_playback),
     ESP_ELFSYM_EXPORT(pm_bz_begin),
+    ESP_ELFSYM_EXPORT(pm_bz_drain_pending),
     ESP_ELFSYM_EXPORT(pm_bz_end),
     ESP_ELFSYM_EXPORT(pm_bz_play_jingle),
     ESP_ELFSYM_EXPORT(pm_clock_begin),
@@ -1046,6 +1066,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(readdir),
     ESP_ELFSYM_EXPORT(realloc),
     ESP_ELFSYM_EXPORT(rename),
+    ESP_ELFSYM_EXPORT(rewind),
     ESP_ELFSYM_EXPORT(rewinddir),
     ESP_ELFSYM_EXPORT(roundf),
     ESP_ELFSYM_EXPORT(scalbnf),

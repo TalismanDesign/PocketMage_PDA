@@ -76,6 +76,16 @@ static_assert(static_cast<int>(EinkRefresh::Normal) == PM_REFRESH_NORMAL,
               "PM_REFRESH_NORMAL parity: EinkRefresh::Normal");
 static_assert(static_cast<int>(EinkRefresh::ForceFull) == PM_REFRESH_FORCE_FULL,
               "PM_REFRESH_FORCE_FULL parity: EinkRefresh::ForceFull");
+static_assert(static_cast<int>(AudioState::Idle) == PM_AUDIO_STATE_IDLE,
+              "PM_AUDIO_STATE_IDLE parity: AudioState::Idle");
+static_assert(static_cast<int>(AudioState::Opening) == PM_AUDIO_STATE_OPENING,
+              "PM_AUDIO_STATE_OPENING parity: AudioState::Opening");
+static_assert(static_cast<int>(AudioState::Playing) == PM_AUDIO_STATE_PLAYING,
+              "PM_AUDIO_STATE_PLAYING parity: AudioState::Playing");
+static_assert(static_cast<int>(AudioState::Paused) == PM_AUDIO_STATE_PAUSED,
+              "PM_AUDIO_STATE_PAUSED parity: AudioState::Paused");
+static_assert(static_cast<int>(AudioState::Stopping) == PM_AUDIO_STATE_STOPPING,
+              "PM_AUDIO_STATE_STOPPING parity: AudioState::Stopping");
 extern const Jingle* const pm_jingle_table[] = {
   &Jingles::Startup,
   &Jingles::Shutdown,
@@ -127,12 +137,72 @@ const char* pm_host_sdk_version(void) {
   return pocketmage_sdk_version;
 }
 
+void pm_audio_begin() {
+  P_AUDIO.begin();
+}
+
+void pm_audio_stop() {
+  P_AUDIO.stop();
+}
+
+void pm_audio_play(const char* a0) {
+  P_AUDIO.play(a0);
+}
+
+void pm_audio_stop_playback() {
+  P_AUDIO.stopPlayback();
+}
+
+void pm_audio_pause() {
+  P_AUDIO.pause();
+}
+
+void pm_audio_resume() {
+  P_AUDIO.resume();
+}
+
+void pm_audio_set_volume(int8_t a0) {
+  P_AUDIO.setVolume(a0);
+}
+
+int pm_audio_get_state() {
+  return static_cast<int>(P_AUDIO.getState());
+}
+
+bool pm_audio_is_playing() {
+  return P_AUDIO.isPlaying();
+}
+
+bool pm_audio_owns_pin() {
+  return P_AUDIO.ownsPin();
+}
+
+const char* pm_audio_get_current_path() {
+  return pool_string(P_AUDIO.getCurrentPath());
+}
+
+const char* pm_audio_get_last_error() {
+  return pool_string(P_AUDIO.getLastError());
+}
+
+int8_t pm_audio_get_volume() {
+  return P_AUDIO.getVolume();
+}
+
+void pm_audio_dispatch_events() {
+  P_AUDIO.dispatchEvents();
+}
+
 bool pm_bz_begin(int a0) {
   return BZ().begin(a0);
 }
 
 void pm_bz_end() {
   BZ().end();
+}
+
+void pm_bz_drain_pending() {
+  BZ().drainPending();
 }
 
 bool pm_clock_begin() {
