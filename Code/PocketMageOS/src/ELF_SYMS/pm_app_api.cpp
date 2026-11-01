@@ -4,6 +4,7 @@
 #include <globals.h>
 
 #include <pm_app_api.h>
+#include <pocketmage_audio/pocketmage_audio.h>
 #include <pocketmage_image/pocketmage_image.h>
 
 // Jingle pointers in SDK declaration order, generated into pm_sdk_app.cpp.
@@ -269,4 +270,12 @@ bool pm_image_probe(const char* path, int* width, int* height, int* format) {
   *height = info.height;
   *format = static_cast<int>(info.format);
   return true;
+}
+
+// Select the audio output sink. output=0 is piezo (PWM on BZ_PIN, default),
+// output=1 is USB UAC host speaker. If usb is selected but no device is
+// connected, playback falls back to piezo.
+void pm_audio_set_output(int output) {
+  // 0 = Piezo, 1 = Usb (matches AudioOutput enum order).
+  P_AUDIO.setOutput(static_cast<AudioOutput>(output));
 }

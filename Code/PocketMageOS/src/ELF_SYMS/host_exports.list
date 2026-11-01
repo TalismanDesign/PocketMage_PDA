@@ -21,6 +21,7 @@ pm_audio_owns_pin
 pm_audio_get_current_path
 pm_audio_get_last_error
 pm_audio_get_volume
+pm_audio_usb_connected
 pm_audio_dispatch_events
 pm_bz_begin
 pm_bz_end
@@ -146,6 +147,7 @@ pm_wifi_clear_saved_credentials
 pm_wifi_dispatch_events
 delay
 pm_app_abi
+pm_audio_set_output
 pm_clock_epoch
 pm_clock_timestamp
 pm_eink_clear
