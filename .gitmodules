@@ -12,3 +12,6 @@
 [submodule "Code/PocketMageOS/lib/esp-adf-libs"]
 	path = Code/PocketMageOS/lib/esp-adf-libs
 	url = https://github.com/espressif/esp-adf-libs
+[submodule "Code/PocketMageOS/lib/microtar"]
+	path = Code/PocketMageOS/lib/microtar/microtar
+	url = https://github.com/rxi/microtar

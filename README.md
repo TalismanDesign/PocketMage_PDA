@@ -1,7 +1,10 @@
 # PocketMage PDA
-PocketMage is available on Crowd Supply! Check it out [here](https://pocketmage.org/back)!
+
+PocketMage is available on Crowd Supply! Check it out [there](https://pocketmage.org/back)!
 
 @Ashtf 2025
+
+<!-- markdownlint-disable MD033 -->
 
 <img width="1245" height="882" alt="Screenshot 2025-09-10 203805" src="https://github.com/user-attachments/assets/f021dc66-12d8-489f-9078-9c7eeeb4ad03" />
 

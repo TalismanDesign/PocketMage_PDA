@@ -2,7 +2,6 @@
 // Each wrapper is extern "C", so SDK mangling stays local to this file.
 
 #include <globals.h>
-
 #include <pm_sdk_app.h>
 
 // Fail the build if an SDK enumerator moves under a C constant.
@@ -87,8 +86,8 @@ static_assert(static_cast<int>(AudioState::Paused) == PM_AUDIO_STATE_PAUSED,
 static_assert(static_cast<int>(AudioState::Stopping) == PM_AUDIO_STATE_STOPPING,
               "PM_AUDIO_STATE_STOPPING parity: AudioState::Stopping");
 extern const Jingle* const pm_jingle_table[] = {
-  &Jingles::Startup,
-  &Jingles::Shutdown,
+    &Jingles::Startup,
+    &Jingles::Shutdown,
 };
 static_assert(sizeof(pm_jingle_table) / sizeof(pm_jingle_table[0]) == PM_JINGLE_COUNT,
               "PM_JINGLE_COUNT parity: Jingles");
@@ -131,7 +130,9 @@ char* pool_borrowed(const char* value) {
 
 extern "C" {
 
-uint32_t pm_app_abi(void) { return PM_APP_API_ABI; }
+uint32_t pm_app_abi(void) {
+  return PM_APP_API_ABI;
+}
 
 const char* pm_host_sdk_version(void) {
   return pocketmage_sdk_version;
@@ -258,15 +259,18 @@ void pm_eink_force_slow_full_update(bool a0) {
 }
 
 int pm_font_engine_char_width(int a0, uint16_t a1, int a2) {
-  return static_cast<int>(FontEngine::charWidth(static_cast<DisplayTarget>(a0), a1, static_cast<FontStyle>(a2)));
+  return static_cast<int>(
+      FontEngine::charWidth(static_cast<DisplayTarget>(a0), a1, static_cast<FontStyle>(a2)));
 }
 
 int pm_font_engine_font_ascent(int a0, int a1) {
-  return static_cast<int>(FontEngine::fontAscent(static_cast<DisplayTarget>(a0), static_cast<FontStyle>(a1)));
+  return static_cast<int>(
+      FontEngine::fontAscent(static_cast<DisplayTarget>(a0), static_cast<FontStyle>(a1)));
 }
 
 int pm_font_engine_font_descent(int a0, int a1) {
-  return static_cast<int>(FontEngine::fontDescent(static_cast<DisplayTarget>(a0), static_cast<FontStyle>(a1)));
+  return static_cast<int>(
+      FontEngine::fontDescent(static_cast<DisplayTarget>(a0), static_cast<FontStyle>(a1)));
 }
 
 int pm_font_engine_font_height_txt(uint8_t a0, uint8_t a1, uint8_t a2) {
@@ -334,14 +338,18 @@ int pm_io_split_string_count(const char* a0, char a1) {
 }
 
 int pm_io_split_string_get(const char* a0, char a1, int index, char* out, size_t out_size) {
-  { const auto& v = splitString(String(a0), a1);
-    if (index < 0 || static_cast<size_t>(index) >= v.size()) return -1;
+  {
+    const auto& v = splitString(String(a0), a1);
+    if (index < 0 || static_cast<size_t>(index) >= v.size())
+      return -1;
     const String& s = v[index];
-    if (out_size == 0) return 0;
+    if (out_size == 0)
+      return 0;
     const size_t n = s.length() < out_size - 1 ? s.length() : out_size - 1;
     memcpy(out, s.c_str(), n);
     out[n] = 0;
-    return static_cast<int>(n); }
+    return static_cast<int>(n);
+  }
 }
 
 const char* pm_io_join_string(const char* const* a0_items, int a0_count, char a1) {
@@ -385,22 +393,28 @@ size_t pm_layout_slice_that_fits(const char* a0, size_t a1, int a2, int a3) {
 }
 
 const char* pm_layout_truncate_with_ellipsis(const char* a0, int a1, int a2, int a3) {
-  return pool_string(truncateWithEllipsis(String(a0), a1, static_cast<FontStyle>(a2), static_cast<DisplayTarget>(a3)));
+  return pool_string(truncateWithEllipsis(String(a0), a1, static_cast<FontStyle>(a2),
+                                          static_cast<DisplayTarget>(a3)));
 }
 
 int pm_layout_word_wrap_count(const char* a0, int a1, int a2) {
-  return static_cast<int>(static_cast<int>(wordWrap(String(a0), a1, static_cast<FontStyle>(a2)).size()));
+  return static_cast<int>(
+      static_cast<int>(wordWrap(String(a0), a1, static_cast<FontStyle>(a2)).size()));
 }
 
 int pm_layout_word_wrap_get(const char* a0, int a1, int a2, int index, char* out, size_t out_size) {
-  { const auto& v = wordWrap(String(a0), a1, static_cast<FontStyle>(a2));
-    if (index < 0 || static_cast<size_t>(index) >= v.size()) return -1;
+  {
+    const auto& v = wordWrap(String(a0), a1, static_cast<FontStyle>(a2));
+    if (index < 0 || static_cast<size_t>(index) >= v.size())
+      return -1;
     const String& s = v[index];
-    if (out_size == 0) return 0;
+    if (out_size == 0)
+      return 0;
     const size_t n = s.length() < out_size - 1 ? s.length() : out_size - 1;
     memcpy(out, s.c_str(), n);
     out[n] = 0;
-    return static_cast<int>(n); }
+    return static_cast<int>(n);
+  }
 }
 
 void pm_oled_oled_word(const char* a0, bool a1, bool a2, const char* a3) {
@@ -428,7 +442,7 @@ void pm_sd_save_file() {
 }
 
 void pm_sd_write_metadata(const char* a0) {
-  PM_SD().writeMetadata(String(a0));
+  PM_SD().writeMetadata(a0);
 }
 
 void pm_sd_load_file(bool a0) {
@@ -436,27 +450,27 @@ void pm_sd_load_file(bool a0) {
 }
 
 void pm_sd_del_file(const char* a0) {
-  PM_SD().delFile(String(a0));
+  PM_SD().delFile(a0);
 }
 
 void pm_sd_delete_metadata(const char* a0) {
-  PM_SD().deleteMetadata(String(a0));
+  PM_SD().deleteMetadata(a0);
 }
 
 void pm_sd_ren_file(const char* a0, const char* a1) {
-  PM_SD().renFile(String(a0), String(a1));
+  PM_SD().renFile(a0, a1);
 }
 
 void pm_sd_ren_metadata(const char* a0, const char* a1) {
-  PM_SD().renMetadata(String(a0), String(a1));
+  PM_SD().renMetadata(a0, a1);
 }
 
 void pm_sd_copy_file(const char* a0, const char* a1) {
-  PM_SD().copyFile(String(a0), String(a1));
+  PM_SD().copyFile(a0, a1);
 }
 
 void pm_sd_append_to_file(const char* a0, const char* a1) {
-  PM_SD().appendToFile(String(a0), String(a1));
+  PM_SD().appendToFile(a0, a1);
 }
 
 void pm_sd_begin_io() {
@@ -484,31 +498,31 @@ const char* pm_sd_get_files_list_index(int a0) {
 }
 
 void pm_sd_list_dir(const char* a1) {
-  PM_SD().listDir(*global_fs, a1);
+  PM_SD().listDir(a1);
 }
 
 void pm_sd_read_file(const char* a1) {
-  PM_SD().readFile(*global_fs, a1);
+  PM_SD().readFile(a1);
 }
 
 const char* pm_sd_read_file_to_string(const char* a1) {
-  return pool_string(PM_SD().readFileToString(*global_fs, a1));
+  return pool_string(PM_SD().readFileToString(a1));
 }
 
 void pm_sd_write_file(const char* a1, const char* a2) {
-  PM_SD().writeFile(*global_fs, a1, a2);
+  PM_SD().writeFile(a1, a2);
 }
 
 void pm_sd_append_file(const char* a1, const char* a2) {
-  PM_SD().appendFile(*global_fs, a1, a2);
+  PM_SD().appendFile(a1, a2);
 }
 
 void pm_sd_rename_file(const char* a1, const char* a2) {
-  PM_SD().renameFile(*global_fs, a1, a2);
+  PM_SD().renameFile(a1, a2);
 }
 
 void pm_sd_delete_file(const char* a1) {
-  PM_SD().deleteFile(*global_fs, a1);
+  PM_SD().deleteFile(a1);
 }
 
 bool pm_sd_read_binary_file(const char* a0, uint8_t* a1, size_t a2) {
@@ -551,7 +565,8 @@ int pm_touch_get_diff() {
   return static_cast<int>(TOUCH().getDiff());
 }
 
-void pm_ui_draw_scrollbar(int a0, int a1, int a2, int a3, int a4, int a5, int a6, bool a7, uint16_t a8, uint16_t a9) {
+void pm_ui_draw_scrollbar(int a0, int a1, int a2, int a3, int a4, int a5, int a6, bool a7,
+                          uint16_t a8, uint16_t a9) {
   drawScrollbar(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 
@@ -567,8 +582,10 @@ void pm_ui_draw_list_item(int a0, int a1, const char* a2, int a3) {
   drawListItem(a0, a1, String(a2), a3);
 }
 
-int pm_ui_draw_chip_text(int a0, int a1, const char* a2, int a3, int a4, bool a5, int a6, int a7, int a8, int a9) {
-  return static_cast<int>(drawChipText(a0, a1, String(a2), static_cast<FontStyle>(a3), a4, a5, a6, a7, a8, a9));
+int pm_ui_draw_chip_text(int a0, int a1, const char* a2, int a3, int a4, bool a5, int a6, int a7,
+                         int a8, int a9) {
+  return static_cast<int>(
+      drawChipText(a0, a1, String(a2), static_cast<FontStyle>(a3), a4, a5, a6, a7, a8, a9));
 }
 
 void pm_wifi_begin() {

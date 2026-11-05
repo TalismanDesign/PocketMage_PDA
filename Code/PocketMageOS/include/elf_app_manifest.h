@@ -23,11 +23,11 @@ struct ElfAppScope {
 
 // Parses app.properties text into out. Blank lines, lines starting with '#' or
 // ';', and unknown keys are ignored.
-int elfManifestParse(const char *text, size_t len, ElfAppManifest &out);
+int elfManifestParse(const char* text, size_t len, ElfAppManifest& out);
 
 // Resolves a scope string into the prefixes it gates.
-void elfScopeFromManifest(const char *scope, ElfAppScope &out);
+void elfScopeFromManifest(const char* scope, ElfAppScope& out);
 
 // Reports whether sym_name is visible to an app with this scope. Only pm_*
 // symbols are gated, so libc, libstdc++ and ESP-IDF stay reachable regardless.
-bool elfScopeAllows(const ElfAppScope &scope, const char *sym_name);
+bool elfScopeAllows(const ElfAppScope& scope, const char* sym_name);

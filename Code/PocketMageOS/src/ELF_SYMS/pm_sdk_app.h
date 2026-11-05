@@ -184,11 +184,13 @@ size_t pm_layout_slice_that_fits(const char* a0, size_t a1, int a2, int a3);
 const char* pm_layout_truncate_with_ellipsis(const char* a0, int a1, int a2, int a3);
 int pm_layout_word_wrap_count(const char* a0, int a1, int a2);
 int pm_layout_word_wrap_get(const char* a0, int a1, int a2, int index, char* out, size_t out_size);
-void pm_ui_draw_scrollbar(int a0, int a1, int a2, int a3, int a4, int a5, int a6, bool a7, uint16_t a8, uint16_t a9);
+void pm_ui_draw_scrollbar(int a0, int a1, int a2, int a3, int a4, int a5, int a6, bool a7,
+                          uint16_t a8, uint16_t a9);
 void pm_ui_begin_eink_screen(bool a0);
 void pm_ui_end_eink_screen(const char* a0, int a1);
 void pm_ui_draw_list_item(int a0, int a1, const char* a2, int a3);
-int pm_ui_draw_chip_text(int a0, int a1, const char* a2, int a3, int a4, bool a5, int a6, int a7, int a8, int a9);
+int pm_ui_draw_chip_text(int a0, int a1, const char* a2, int a3, int a4, bool a5, int a6, int a7,
+                         int a8, int a9);
 
 // oled
 

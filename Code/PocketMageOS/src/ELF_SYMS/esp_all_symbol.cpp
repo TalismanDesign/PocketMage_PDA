@@ -7,12 +7,11 @@
  * DO NOT EDIT: regenerate with tools/symbols.py.
  */
 
+#include <pm_app_api.h>
+#include <pm_sdk_app.h>
 #include <stddef.h>
 
 #include "private/elf_symbol.h"
-
-#include <pm_app_api.h>
-#include <pm_sdk_app.h>
 
 /* Runtime symbols: unmangled prototypes so the emitted reference is
  * the literal archive symbol, whatever its real C++ type. The
@@ -229,6 +228,7 @@ int __sseek();
 int __ssprint_r();
 int __ssrefill_r();
 int __ssvfiscanf_r();
+int __ssvfscanf_r();
 int __stack_chk_fail();
 int __strtok_r();
 int __subdf3();
@@ -250,31 +250,17 @@ int __xtensa_libgcc_window_spill();
 int __xtensa_nonlocal_goto();
 int __xtensa_sync_caches();
 int _calloc_r();
-int _close_r();
 int _dtoa_r();
 int _exit();
-int _fclose_r();
-int _fcntl_r();
-int _fdopen_r();
 int _fflush_r();
-int _fgets_r();
 int _findenv_r();
-int _fopen_r();
-int _fputc_r();
-int _fputs_r();
-int _fread_r();
 int _free_r();
-int _fseek_r();
-int _fseeko_r();
 int _fstat_r();
-int _ftello_r();
 int _fwalk_sglue();
-int _fwrite_r();
 int _getenv_r();
 int _getpid_r();
 int _gettimeofday_r();
 int _kill_r();
-int _link_r();
 int _localeconv_r();
 int _lock_acquire();
 int _lock_acquire_recursive();
@@ -288,20 +274,18 @@ int _lock_try_acquire_recursive();
 int _lseek_r();
 int _malloc_r();
 int _mbrtowc_r();
-int _open_r();
 int _putc_r();
 int _puts_r();
 int _raise_r();
 int _read_r();
 int _realloc_r();
 int _reclaim_reent();
-int _rename_r();
-int _rewind_r();
+int _remove_r();
 int _sbrk_r();
 int _sfread_r();
-int _stat_r();
 int _strerror_r();
 int _strtod_l();
+int _strtod_r();
 int _strtol_r();
 int _strtoll_r();
 int _strtoul_r();
@@ -309,11 +293,9 @@ int _strtoull_r();
 int _sungetc_r();
 int _svfiprintf_r();
 int _svfprintf_r();
-int _system_r();
 int _times_r();
 int _tzset_unlocked();
 int _tzset_unlocked_r();
-int _unlink_r();
 int _user_strerror();
 int _vfprintf_r();
 int _vsnprintf_r();
@@ -327,10 +309,7 @@ int bzero();
 int calloc();
 int ceil();
 int cfree();
-int clearerr();
 int clock_gettime();
-int close();
-int closedir();
 int cosf();
 int div();
 int esp_libc_include_assert_impl();
@@ -359,26 +338,12 @@ int esp_time_impl_set_boot_time();
 int exit();
 int explicit_bzero();
 int fabsf();
-int fclose();
-int fcntl();
-int fdopen();
-int feof();
 int fflush();
-int fgets();
-int fileno();
 int floorf();
-int fopen();
 int fprintf();
-int fputc();
-int fputs();
-int fread();
 int free();
 int frexp();
-int fseek();
-int fstat();
 int fsync();
-int ftell();
-int fwrite();
 int getenv();
 int getopt_long();
 int gettimeofday();
@@ -404,23 +369,16 @@ int memmove();
 int memset();
 int mktime();
 int nan();
-int open();
-int opendir();
+int nanf();
 int printf();
 int putchar();
 int puts();
 int pvalloc();
 int qsort();
 int rand();
-int read();
-int readdir();
 int realloc();
-int rename();
-int rewind();
-int rewinddir();
 int roundf();
 int scalbnf();
-int seekdir();
 int setjmp();
 int settimeofday();
 int setvbuf();
@@ -432,7 +390,7 @@ int snprintf();
 int sprintf();
 int sqrtf();
 int srand();
-int stat();
+int sscanf();
 int strcasecmp();
 int strcasestr();
 int strcat();
@@ -468,14 +426,12 @@ int strtoull();
 int time();
 int tolower();
 int toupper();
-int unlink();
 int usleep();
 int utoa();
 int valloc();
 int vfprintf();
 int vprintf();
 int vsnprintf();
-int write();
 }
 #pragma GCC diagnostic pop
 
@@ -487,7 +443,9 @@ int pm_elfsym___atomic_compare_exchange_4() asm("__atomic_compare_exchange_4");
 int pm_elfsym___atomic_exchange_4() asm("__atomic_exchange_4");
 int pm_elfsym___atomic_fetch_add_2() asm("__atomic_fetch_add_2");
 int pm_elfsym___atomic_fetch_add_4() asm("__atomic_fetch_add_4");
+int pm_elfsym___atomic_fetch_and_4() asm("__atomic_fetch_and_4");
 int pm_elfsym___atomic_fetch_and_8() asm("__atomic_fetch_and_8");
+int pm_elfsym___atomic_fetch_or_4() asm("__atomic_fetch_or_4");
 int pm_elfsym___atomic_fetch_or_8() asm("__atomic_fetch_or_8");
 int pm_elfsym___atomic_fetch_sub_4() asm("__atomic_fetch_sub_4");
 int pm_elfsym___atomic_s32c1i_compare_exchange_1() asm("__atomic_s32c1i_compare_exchange_1");
@@ -495,6 +453,8 @@ int pm_elfsym___atomic_s32c1i_compare_exchange_4() asm("__atomic_s32c1i_compare_
 int pm_elfsym___atomic_s32c1i_exchange_4() asm("__atomic_s32c1i_exchange_4");
 int pm_elfsym___atomic_s32c1i_fetch_add_2() asm("__atomic_s32c1i_fetch_add_2");
 int pm_elfsym___atomic_s32c1i_fetch_add_4() asm("__atomic_s32c1i_fetch_add_4");
+int pm_elfsym___atomic_s32c1i_fetch_and_4() asm("__atomic_s32c1i_fetch_and_4");
+int pm_elfsym___atomic_s32c1i_fetch_or_4() asm("__atomic_s32c1i_fetch_or_4");
 int pm_elfsym___atomic_s32c1i_fetch_sub_4() asm("__atomic_s32c1i_fetch_sub_4");
 }
 
@@ -535,13 +495,18 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_ZN10__cxxabiv120__si_class_type_infoD1Ev),
     ESP_ELFSYM_EXPORT(_ZN10__cxxabiv120__si_class_type_infoD2Ev),
     ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv117__class_type_info10__do_catchEPKSt9type_infoPPvj),
-    ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PKvRNS0_15__upcast_resultE),
+    ESP_ELFSYM_EXPORT(
+        _ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PKvRNS0_15__upcast_resultE),
     ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv117__class_type_info11__do_upcastEPKS0_PPv),
-    ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv117__class_type_info12__do_dyncastEiNS0_10__sub_kindEPKS0_PKvS3_S5_RNS0_16__dyncast_resultE),
+    ESP_ELFSYM_EXPORT(
+        _ZNK10__cxxabiv117__class_type_info12__do_dyncastEiNS0_10__sub_kindEPKS0_PKvS3_S5_RNS0_16__dyncast_resultE),
     ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv117__class_type_info20__do_find_public_srcEiPKvPKS0_S2_),
-    ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv120__si_class_type_info11__do_upcastEPKNS_17__class_type_infoEPKvRNS1_15__upcast_resultE),
-    ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv120__si_class_type_info12__do_dyncastEiNS_17__class_type_info10__sub_kindEPKS1_PKvS4_S6_RNS1_16__dyncast_resultE),
-    ESP_ELFSYM_EXPORT(_ZNK10__cxxabiv120__si_class_type_info20__do_find_public_srcEiPKvPKNS_17__class_type_infoES2_),
+    ESP_ELFSYM_EXPORT(
+        _ZNK10__cxxabiv120__si_class_type_info11__do_upcastEPKNS_17__class_type_infoEPKvRNS1_15__upcast_resultE),
+    ESP_ELFSYM_EXPORT(
+        _ZNK10__cxxabiv120__si_class_type_info12__do_dyncastEiNS_17__class_type_info10__sub_kindEPKS1_PKvS4_S6_RNS1_16__dyncast_resultE),
+    ESP_ELFSYM_EXPORT(
+        _ZNK10__cxxabiv120__si_class_type_info20__do_find_public_srcEiPKvPKNS_17__class_type_infoES2_),
     ESP_ELFSYM_EXPORT(_ZNKSt11logic_error4whatEv),
     ESP_ELFSYM_EXPORT(_ZNKSt13runtime_error4whatEv),
     ESP_ELFSYM_EXPORT(_ZNKSt17bad_function_call4whatEv),
@@ -603,20 +568,24 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__ascii_wctomb),
     ESP_ELFSYM_EXPORT(__ashldi3),
     ESP_ELFSYM_EXPORT(__assert_func),
-    { "__atomic_compare_exchange_1", (void*)&pm_elfsym___atomic_compare_exchange_1 },
-    { "__atomic_compare_exchange_4", (void*)&pm_elfsym___atomic_compare_exchange_4 },
-    { "__atomic_exchange_4", (void*)&pm_elfsym___atomic_exchange_4 },
-    { "__atomic_fetch_add_2", (void*)&pm_elfsym___atomic_fetch_add_2 },
-    { "__atomic_fetch_add_4", (void*)&pm_elfsym___atomic_fetch_add_4 },
-    { "__atomic_fetch_and_8", (void*)&pm_elfsym___atomic_fetch_and_8 },
-    { "__atomic_fetch_or_8", (void*)&pm_elfsym___atomic_fetch_or_8 },
-    { "__atomic_fetch_sub_4", (void*)&pm_elfsym___atomic_fetch_sub_4 },
-    { "__atomic_s32c1i_compare_exchange_1", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_1 },
-    { "__atomic_s32c1i_compare_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_4 },
-    { "__atomic_s32c1i_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_exchange_4 },
-    { "__atomic_s32c1i_fetch_add_2", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_2 },
-    { "__atomic_s32c1i_fetch_add_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_4 },
-    { "__atomic_s32c1i_fetch_sub_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_sub_4 },
+    {"__atomic_compare_exchange_1", (void*)&pm_elfsym___atomic_compare_exchange_1},
+    {"__atomic_compare_exchange_4", (void*)&pm_elfsym___atomic_compare_exchange_4},
+    {"__atomic_exchange_4", (void*)&pm_elfsym___atomic_exchange_4},
+    {"__atomic_fetch_add_2", (void*)&pm_elfsym___atomic_fetch_add_2},
+    {"__atomic_fetch_add_4", (void*)&pm_elfsym___atomic_fetch_add_4},
+    {"__atomic_fetch_and_4", (void*)&pm_elfsym___atomic_fetch_and_4},
+    {"__atomic_fetch_and_8", (void*)&pm_elfsym___atomic_fetch_and_8},
+    {"__atomic_fetch_or_4", (void*)&pm_elfsym___atomic_fetch_or_4},
+    {"__atomic_fetch_or_8", (void*)&pm_elfsym___atomic_fetch_or_8},
+    {"__atomic_fetch_sub_4", (void*)&pm_elfsym___atomic_fetch_sub_4},
+    {"__atomic_s32c1i_compare_exchange_1", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_1},
+    {"__atomic_s32c1i_compare_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_4},
+    {"__atomic_s32c1i_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_exchange_4},
+    {"__atomic_s32c1i_fetch_add_2", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_2},
+    {"__atomic_s32c1i_fetch_add_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_4},
+    {"__atomic_s32c1i_fetch_and_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_and_4},
+    {"__atomic_s32c1i_fetch_or_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_or_4},
+    {"__atomic_s32c1i_fetch_sub_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_sub_4},
     ESP_ELFSYM_EXPORT(__b2d),
     ESP_ELFSYM_EXPORT(__bswapdi2),
     ESP_ELFSYM_EXPORT(__bswapsi2),
@@ -728,6 +697,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__ssprint_r),
     ESP_ELFSYM_EXPORT(__ssrefill_r),
     ESP_ELFSYM_EXPORT(__ssvfiscanf_r),
+    ESP_ELFSYM_EXPORT(__ssvfscanf_r),
     ESP_ELFSYM_EXPORT(__stack_chk_fail),
     ESP_ELFSYM_EXPORT(__strtok_r),
     ESP_ELFSYM_EXPORT(__subdf3),
@@ -749,31 +719,17 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__xtensa_nonlocal_goto),
     ESP_ELFSYM_EXPORT(__xtensa_sync_caches),
     ESP_ELFSYM_EXPORT(_calloc_r),
-    ESP_ELFSYM_EXPORT(_close_r),
     ESP_ELFSYM_EXPORT(_dtoa_r),
     ESP_ELFSYM_EXPORT(_exit),
-    ESP_ELFSYM_EXPORT(_fclose_r),
-    ESP_ELFSYM_EXPORT(_fcntl_r),
-    ESP_ELFSYM_EXPORT(_fdopen_r),
     ESP_ELFSYM_EXPORT(_fflush_r),
-    ESP_ELFSYM_EXPORT(_fgets_r),
     ESP_ELFSYM_EXPORT(_findenv_r),
-    ESP_ELFSYM_EXPORT(_fopen_r),
-    ESP_ELFSYM_EXPORT(_fputc_r),
-    ESP_ELFSYM_EXPORT(_fputs_r),
-    ESP_ELFSYM_EXPORT(_fread_r),
     ESP_ELFSYM_EXPORT(_free_r),
-    ESP_ELFSYM_EXPORT(_fseek_r),
-    ESP_ELFSYM_EXPORT(_fseeko_r),
     ESP_ELFSYM_EXPORT(_fstat_r),
-    ESP_ELFSYM_EXPORT(_ftello_r),
     ESP_ELFSYM_EXPORT(_fwalk_sglue),
-    ESP_ELFSYM_EXPORT(_fwrite_r),
     ESP_ELFSYM_EXPORT(_getenv_r),
     ESP_ELFSYM_EXPORT(_getpid_r),
     ESP_ELFSYM_EXPORT(_gettimeofday_r),
     ESP_ELFSYM_EXPORT(_kill_r),
-    ESP_ELFSYM_EXPORT(_link_r),
     ESP_ELFSYM_EXPORT(_localeconv_r),
     ESP_ELFSYM_EXPORT(_lock_acquire),
     ESP_ELFSYM_EXPORT(_lock_acquire_recursive),
@@ -787,20 +743,18 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_lseek_r),
     ESP_ELFSYM_EXPORT(_malloc_r),
     ESP_ELFSYM_EXPORT(_mbrtowc_r),
-    ESP_ELFSYM_EXPORT(_open_r),
     ESP_ELFSYM_EXPORT(_putc_r),
     ESP_ELFSYM_EXPORT(_puts_r),
     ESP_ELFSYM_EXPORT(_raise_r),
     ESP_ELFSYM_EXPORT(_read_r),
     ESP_ELFSYM_EXPORT(_realloc_r),
     ESP_ELFSYM_EXPORT(_reclaim_reent),
-    ESP_ELFSYM_EXPORT(_rename_r),
-    ESP_ELFSYM_EXPORT(_rewind_r),
+    ESP_ELFSYM_EXPORT(_remove_r),
     ESP_ELFSYM_EXPORT(_sbrk_r),
     ESP_ELFSYM_EXPORT(_sfread_r),
-    ESP_ELFSYM_EXPORT(_stat_r),
     ESP_ELFSYM_EXPORT(_strerror_r),
     ESP_ELFSYM_EXPORT(_strtod_l),
+    ESP_ELFSYM_EXPORT(_strtod_r),
     ESP_ELFSYM_EXPORT(_strtol_r),
     ESP_ELFSYM_EXPORT(_strtoll_r),
     ESP_ELFSYM_EXPORT(_strtoul_r),
@@ -808,11 +762,9 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_sungetc_r),
     ESP_ELFSYM_EXPORT(_svfiprintf_r),
     ESP_ELFSYM_EXPORT(_svfprintf_r),
-    ESP_ELFSYM_EXPORT(_system_r),
     ESP_ELFSYM_EXPORT(_times_r),
     ESP_ELFSYM_EXPORT(_tzset_unlocked),
     ESP_ELFSYM_EXPORT(_tzset_unlocked_r),
-    ESP_ELFSYM_EXPORT(_unlink_r),
     ESP_ELFSYM_EXPORT(_user_strerror),
     ESP_ELFSYM_EXPORT(_vfprintf_r),
     ESP_ELFSYM_EXPORT(_vsnprintf_r),
@@ -826,10 +778,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(calloc),
     ESP_ELFSYM_EXPORT(ceil),
     ESP_ELFSYM_EXPORT(cfree),
-    ESP_ELFSYM_EXPORT(clearerr),
     ESP_ELFSYM_EXPORT(clock_gettime),
-    ESP_ELFSYM_EXPORT(close),
-    ESP_ELFSYM_EXPORT(closedir),
     ESP_ELFSYM_EXPORT(cosf),
     ESP_ELFSYM_EXPORT(delay),
     ESP_ELFSYM_EXPORT(div),
@@ -859,26 +808,12 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(exit),
     ESP_ELFSYM_EXPORT(explicit_bzero),
     ESP_ELFSYM_EXPORT(fabsf),
-    ESP_ELFSYM_EXPORT(fclose),
-    ESP_ELFSYM_EXPORT(fcntl),
-    ESP_ELFSYM_EXPORT(fdopen),
-    ESP_ELFSYM_EXPORT(feof),
     ESP_ELFSYM_EXPORT(fflush),
-    ESP_ELFSYM_EXPORT(fgets),
-    ESP_ELFSYM_EXPORT(fileno),
     ESP_ELFSYM_EXPORT(floorf),
-    ESP_ELFSYM_EXPORT(fopen),
     ESP_ELFSYM_EXPORT(fprintf),
-    ESP_ELFSYM_EXPORT(fputc),
-    ESP_ELFSYM_EXPORT(fputs),
-    ESP_ELFSYM_EXPORT(fread),
     ESP_ELFSYM_EXPORT(free),
     ESP_ELFSYM_EXPORT(frexp),
-    ESP_ELFSYM_EXPORT(fseek),
-    ESP_ELFSYM_EXPORT(fstat),
     ESP_ELFSYM_EXPORT(fsync),
-    ESP_ELFSYM_EXPORT(ftell),
-    ESP_ELFSYM_EXPORT(fwrite),
     ESP_ELFSYM_EXPORT(getenv),
     ESP_ELFSYM_EXPORT(getopt_long),
     ESP_ELFSYM_EXPORT(gettimeofday),
@@ -904,8 +839,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(memset),
     ESP_ELFSYM_EXPORT(mktime),
     ESP_ELFSYM_EXPORT(nan),
-    ESP_ELFSYM_EXPORT(open),
-    ESP_ELFSYM_EXPORT(opendir),
+    ESP_ELFSYM_EXPORT(nanf),
     ESP_ELFSYM_EXPORT(pm_app_abi),
     ESP_ELFSYM_EXPORT(pm_audio_begin),
     ESP_ELFSYM_EXPORT(pm_audio_dispatch_events),
@@ -949,6 +883,10 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_eink_set_fast_full_refresh),
     ESP_ELFSYM_EXPORT(pm_eink_status_bar),
     ESP_ELFSYM_EXPORT(pm_eink_width),
+    ESP_ELFSYM_EXPORT(pm_elfo_close),
+    ESP_ELFSYM_EXPORT(pm_elfo_open),
+    ESP_ELFSYM_EXPORT(pm_elfo_read),
+    ESP_ELFSYM_EXPORT(pm_elfo_size),
     ESP_ELFSYM_EXPORT(pm_font_engine_char_width),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_ascent),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_descent),
@@ -988,6 +926,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_layout_truncate_with_ellipsis),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_count),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_get),
+    ESP_ELFSYM_EXPORT(pm_oled_clear),
     ESP_ELFSYM_EXPORT(pm_oled_info_bar),
     ESP_ELFSYM_EXPORT(pm_oled_oled_line),
     ESP_ELFSYM_EXPORT(pm_oled_oled_scroll),
@@ -996,6 +935,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_oled_send),
     ESP_ELFSYM_EXPORT(pm_oled_set_power_save),
     ESP_ELFSYM_EXPORT(pm_oled_sysmsg),
+    ESP_ELFSYM_EXPORT(pm_sd_append_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_append_file),
     ESP_ELFSYM_EXPORT(pm_sd_append_to_file),
     ESP_ELFSYM_EXPORT(pm_sd_begin_io),
@@ -1070,15 +1010,9 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pvalloc),
     ESP_ELFSYM_EXPORT(qsort),
     ESP_ELFSYM_EXPORT(rand),
-    ESP_ELFSYM_EXPORT(read),
-    ESP_ELFSYM_EXPORT(readdir),
     ESP_ELFSYM_EXPORT(realloc),
-    ESP_ELFSYM_EXPORT(rename),
-    ESP_ELFSYM_EXPORT(rewind),
-    ESP_ELFSYM_EXPORT(rewinddir),
     ESP_ELFSYM_EXPORT(roundf),
     ESP_ELFSYM_EXPORT(scalbnf),
-    ESP_ELFSYM_EXPORT(seekdir),
     ESP_ELFSYM_EXPORT(setjmp),
     ESP_ELFSYM_EXPORT(settimeofday),
     ESP_ELFSYM_EXPORT(setvbuf),
@@ -1090,7 +1024,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(sprintf),
     ESP_ELFSYM_EXPORT(sqrtf),
     ESP_ELFSYM_EXPORT(srand),
-    ESP_ELFSYM_EXPORT(stat),
+    ESP_ELFSYM_EXPORT(sscanf),
     ESP_ELFSYM_EXPORT(strcasecmp),
     ESP_ELFSYM_EXPORT(strcasestr),
     ESP_ELFSYM_EXPORT(strcat),
@@ -1126,14 +1060,11 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(time),
     ESP_ELFSYM_EXPORT(tolower),
     ESP_ELFSYM_EXPORT(toupper),
-    ESP_ELFSYM_EXPORT(unlink),
     ESP_ELFSYM_EXPORT(usleep),
     ESP_ELFSYM_EXPORT(utoa),
     ESP_ELFSYM_EXPORT(valloc),
     ESP_ELFSYM_EXPORT(vfprintf),
     ESP_ELFSYM_EXPORT(vprintf),
     ESP_ELFSYM_EXPORT(vsnprintf),
-    ESP_ELFSYM_EXPORT(write),
-    ESP_ELFSYM_END
-};
+    ESP_ELFSYM_END};
 }

@@ -41,11 +41,11 @@ void checkTimeout() {
         if (KB().updateKeypress() != 0) {
           OLED().oledWord(TR(STR_GOOD_SAVE));
           delay(500);
-          CLOCK().setPrevTimeMillis(millis()); // Reset system idle timer
+          CLOCK().setPrevTimeMillis(millis());  // Reset system idle timer
           keypad.flush();
           return;
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Prevent watchdog starvation during this while loop
+        vTaskDelay(pdMS_TO_TICKS(10));  // Prevent watchdog starvation during this while loop
       }
 
       display.setFullWindow();
@@ -68,7 +68,7 @@ void checkTimeout() {
   }
 }
 
-#else // OS APPLICATION
+#else  // OS APPLICATION
 void checkTimeout() {
   int randomScreenSaver = 0;
   CLOCK().setTimeoutMillis(millis());
@@ -88,11 +88,11 @@ void checkTimeout() {
         if (KB().updateKeypress() != 0) {
           OLED().oledWord(TR(STR_GOOD_SAVE));
           delay(500);
-          CLOCK().setPrevTimeMillis(millis()); // Reset system idle timer
+          CLOCK().setPrevTimeMillis(millis());  // Reset system idle timer
           keypad.flush();
           return;
         }
-        vTaskDelay(pdMS_TO_TICKS(10)); // Prevent watchdog starvation during this while loop
+        vTaskDelay(pdMS_TO_TICKS(10));  // Prevent watchdog starvation during this while loop
       }
 
       saveEditingFile();
@@ -133,7 +133,7 @@ void checkTimeout() {
 
       updateTaskArray();
       sortTasksByDueDate(tasks);
-      
+
       u8g2.clearBuffer();
       OLED().oledWord(" ");
       OLED().setPowerSave(true);
@@ -158,7 +158,7 @@ void checkTimeout() {
 
             display.fillRect(0, display.height() - 26, display.width(), 26, GxEPD_WHITE);
             display.drawRect(0, display.height() - 20, display.width(), 20, GxEPD_BLACK);
-            
+
             EINK().statusBar(PM_SDAUTO().getEditingFile(), true);
 
             display.fillRect(320 - 86, 240 - 52, 87, 52, GxEPD_WHITE);
@@ -202,7 +202,8 @@ void wakeFromNowlater(char bootKey) {
 
   // While locked, keep the NOWLATER frame on the panel so the PIN prompt does
   // not appear over a blank flash; the home screen draws after unlocking.
-  if (deviceLocked) return;
+  if (deviceLocked)
+    return;
 
   display.fillScreen(GxEPD_WHITE);
   EINK().refresh();
@@ -214,18 +215,30 @@ void wakeFromNowlater(char bootKey) {
 // TODO: This should be i18n-ed?
 AppState bootShortcutApp(char inchar) {
   switch (inchar) {
-    case 'h': return HOME;
-    case 'u': return USB_APP;
-    case 'f': return FILEWIZ;
-    case 't': return TASKS;
-    case 'n': return TXT;
-    case 's': return SETTINGS;
-    case 'c': return CALENDAR;
-    case 'j': return JOURNAL;
-    case 'd': return LEXICON;
-    case 'x': return TERMINAL;
-    case 'l': return APPLOADER;
-    default:  return CurrentAppState;
+    case 'h':
+      return HOME;
+    case 'u':
+      return USB_APP;
+    case 'f':
+      return FILEWIZ;
+    case 't':
+      return TASKS;
+    case 'n':
+      return TXT;
+    case 's':
+      return SETTINGS;
+    case 'c':
+      return CALENDAR;
+    case 'j':
+      return JOURNAL;
+    case 'd':
+      return LEXICON;
+    case 'x':
+      return TERMINAL;
+    case 'l':
+      return APPLOADER;
+    default:
+      return CurrentAppState;
   }
 }
 
@@ -249,10 +262,10 @@ void loadState(bool changeState, char bootKey) {
   MUTE_BUZZER = prefs.getBool("MUTE_BUZZER", false);
   I18n::setLanguage(static_cast<Lang>(prefs.getInt("Language", static_cast<int>(Lang::English))));
 
-  // Every boot/wake starts locked when a PIN is configured
-  #if PM_TARGET_HOST  // POCKETMAGE_OS
+// Every boot/wake starts locked when a PIN is configured
+#if PM_TARGET_HOST  // POCKETMAGE_OS
   deviceLocked = prefs.getBool("LOCK_ENABLED", false);
-  #endif  // POCKETMAGE_OS
+#endif  // POCKETMAGE_OS
 
   if (!changeState) {
     prefs.end();
@@ -286,19 +299,45 @@ void loadState(bool changeState, char bootKey) {
 
     // Initialize boot app if needed
     switch (CurrentAppState) {
-      case HOME:      HOME_INIT(); break;
-      case TXT:       TXT_INIT(); break; 
-      case FILEWIZ:   FILEWIZ_INIT(); break;
-      case SETTINGS:  SETTINGS_INIT(); break;
-      case TASKS:     TASKS_INIT(); break;
-      case USB_APP:   HOME_INIT(); break;
-      case COMM:      COMM_INIT(); break;
-      case CALENDAR:  CALENDAR_INIT(); break;
-      case LEXICON:   LEXICON_INIT(); break;
-      case JOURNAL:   JOURNAL_INIT(); break;
-      case TERMINAL:  TERMINAL_INIT(); break;
-      case APPLOADER: APPLOADER_INIT(); break;
-      default:        HOME_INIT(); break;
+      case HOME:
+        HOME_INIT();
+        break;
+      case TXT:
+        TXT_INIT();
+        break;
+      case FILEWIZ:
+        FILEWIZ_INIT();
+        break;
+      case SETTINGS:
+        SETTINGS_INIT();
+        break;
+      case TASKS:
+        TASKS_INIT();
+        break;
+      case USB_APP:
+        HOME_INIT();
+        break;
+      case COMM:
+        COMM_INIT();
+        break;
+      case CALENDAR:
+        CALENDAR_INIT();
+        break;
+      case LEXICON:
+        LEXICON_INIT();
+        break;
+      case JOURNAL:
+        JOURNAL_INIT();
+        break;
+      case TERMINAL:
+        TERMINAL_INIT();
+        break;
+      case APPLOADER:
+        APPLOADER_INIT();
+        break;
+      default:
+        HOME_INIT();
+        break;
     }
   }
 #endif  // POCKETMAGE_OS
@@ -310,12 +349,12 @@ void updateBattState() {
 
   // Moving average smoothing
   static float filteredVoltage = rawVoltage;
-  const float alpha = 0.1;  
+  const float alpha = 0.1;
   filteredVoltage = alpha * rawVoltage + (1.0 - alpha) * filteredVoltage;
 
   static float prevVoltage = 0.0;
-  static int prevBattState = -1;  
-  const float threshold = 0.05;   
+  static int prevBattState = -1;
+  const float threshold = 0.05;
 
   int newState = battState;
 
@@ -330,7 +369,7 @@ void updateBattState() {
     bool low;
     if (PowerSystem.isBatteryLow(low)) {
       if (low) {
-        OLED().sysMessage(TR(STR_UTILS_BATT_CRITICAL),1000);
+        OLED().sysMessage(TR(STR_UTILS_BATT_CRITICAL), 1000);
 
 #if PM_TARGET_HOST
         saveEditingFile();
@@ -363,20 +402,23 @@ void updateBattState() {
 
 #pragma region Basic Inputs
 // Prompt the user for text input, return the text
-#if PM_TARGET_HOST // PocketMage OS Only
+#if PM_TARGET_HOST  // PocketMage OS Only
 String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
   String currentLine = "";
   int cursor_pos = 0;
-  long lastInput = CLOCK().getPrevTimeMillis(); // Sync to system idle
-  bool redraw = true; 
+  long lastInput = CLOCK().getPrevTimeMillis();  // Sync to system idle
+  bool redraw = true;
 
   for (;;) {
-    #if PM_TARGET_HOST 
-      if (!noTimeout)  checkTimeout();
-      if (DEBUG_VERBOSE) printDebug();
-      if (CurrentHOMEState == NOWLATER) return "_RETURN_";
-    #endif
-    
+#if PM_TARGET_HOST
+    if (!noTimeout)
+      checkTimeout();
+    if (DEBUG_VERBOSE)
+      printDebug();
+    if (CurrentHOMEState == NOWLATER)
+      return "_RETURN_";
+#endif
+
     updateBattState();
     KB().checkUSBKB();
 
@@ -392,8 +434,8 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
 
     unsigned long currentSystemTime = CLOCK().getPrevTimeMillis();
     if (currentSystemTime > lastInput) {
-        lastInput = currentSystemTime;
-        redraw = true;
+      lastInput = currentSystemTime;
+      redraw = true;
     }
 
     char inchar = KB().updateKeypress();
@@ -401,19 +443,17 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
     if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
       if (inchar != 0) {
         lastInput = millis();
-        KBBounceMillis = currentMillis; 
+        KBBounceMillis = currentMillis;
         redraw = true;
 
         // HANDLE INPUTS
         if (inchar == 23) {
           currentLine = "_RETURN_";
           break;
-        }
-        else if (inchar == 13) {
+        } else if (inchar == 13) {
           cursor_pos = 0;
           break;
-        }
-        else if (inchar == 17) {
+        } else if (inchar == 17) {
           if (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) {
             KB().setKeyboardState(NORMAL);
           } else if (KB().getKeyboardState() == FUNC) {
@@ -421,8 +461,7 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
           } else {
             KB().setKeyboardState(SHIFT);
           }
-        }
-        else if (inchar == 18) {
+        } else if (inchar == 18) {
           if (KB().getKeyboardState() == FUNC || KB().getKeyboardState() == FN_SHIFT) {
             KB().setKeyboardState(NORMAL);
           } else if (KB().getKeyboardState() == SHIFT) {
@@ -430,62 +469,54 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
           } else {
             KB().setKeyboardState(FUNC);
           }
-        }
-        else if (inchar == 8) {
+        } else if (inchar == 8) {
           if (currentLine.length() > 0 && cursor_pos != 0) {
             int old_cursor = cursor_pos;
-            do { cursor_pos--; } while (cursor_pos > 0 && (currentLine[cursor_pos] & 0xC0) == 0x80);
+            do {
+              cursor_pos--;
+            } while (cursor_pos > 0 && (currentLine[cursor_pos] & 0xC0) == 0x80);
             int bytesToDelete = old_cursor - cursor_pos;
             currentLine.remove(cursor_pos, bytesToDelete);
           }
-        }
-        else if (inchar == 19) {
+        } else if (inchar == 19) {
           if (cursor_pos > 0) {
-            do { cursor_pos--; } while (cursor_pos > 0 && (currentLine[cursor_pos] & 0xC0) == 0x80);
+            do {
+              cursor_pos--;
+            } while (cursor_pos > 0 && (currentLine[cursor_pos] & 0xC0) == 0x80);
           }
-        }
-        else if (inchar == 21) {
+        } else if (inchar == 21) {
           if (cursor_pos < currentLine.length()) {
-            do { cursor_pos++; } while (cursor_pos < currentLine.length() && (currentLine[cursor_pos] & 0xC0) == 0x80);
+            do {
+              cursor_pos++;
+            } while (cursor_pos < currentLine.length() && (currentLine[cursor_pos] & 0xC0) == 0x80);
           }
-        }
-        else if (inchar == 20) {
+        } else if (inchar == 20) {
           currentLine = "_CENTER_";
           break;
-        }
-        else if (inchar == 28) {
+        } else if (inchar == 28) {
           cursor_pos = 0;
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 30) {
+        } else if (inchar == 30) {
           cursor_pos = currentLine.length();
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 29) {
+        } else if (inchar == 29) {
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 12) {
+        } else if (inchar == 12) {
           currentLine = "_EXIT_";
           break;
-        }
-        else if (inchar == 6) {
+        } else if (inchar == 6) {
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 7) {
+        } else if (inchar == 7) {
           currentLine = "";
           cursor_pos = 0;
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 24) {
+        } else if (inchar == 24) {
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 26) {
+        } else if (inchar == 26) {
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 25) {
+        } else if (inchar == 25) {
           KB().setKeyboardState(NORMAL);
-        }
-        else if (inchar == 9 || inchar == 14) {
+        } else if (inchar == 9 || inchar == 14) {
           KB().setKeyboardState(NORMAL);
         } else {
           String chStr = String(inchar);
@@ -500,8 +531,7 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
           }
           cursor_pos++;
           if (inchar >= 48 && inchar <= 57) {
-          } 
-          else if (KB().getKeyboardState() != NORMAL) {
+          } else if (KB().getKeyboardState() != NORMAL) {
             KB().setKeyboardState(NORMAL);
           }
         }
@@ -511,14 +541,14 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
     // Handle idle state transitions
     bool isIdle = (millis() - lastInput > IDLE_TIME);
     static bool wasIdle = false;
-    
+
     // If we just woke up from being idle, reset the mage and force a text redraw
     if (isIdle != wasIdle) {
-       wasIdle = isIdle;
-       if (!isIdle) {
-           resetIdle();
-           redraw = true; 
-       }
+      wasIdle = isIdle;
+      if (!isIdle) {
+        resetIdle();
+        redraw = true;
+      }
     }
 
     // Display Update Loop (Runs at OLED_MAX_FPS)
@@ -527,28 +557,31 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
         // Continuously update the idle animation frames while idle
         OLEDFPSMillis = currentMillis;
         // The lock prompt must stay on screen: never yield to the mage animation
-        if (!lockGlyph) mageIdle(true);
-      } 
-      else if (redraw) {
+        if (!lockGlyph)
+          mageIdle(true);
+      } else if (redraw) {
         // Only redraw the text prompt if the user typed or moved the cursor
         OLEDFPSMillis = currentMillis;
         redraw = false;
-        
+
         // Mask password input without losing cursor position
         String displayLine = currentLine;
         if (mask) {
-          for (int i = 0; i < displayLine.length(); i++) displayLine[i] = '*';
+          for (int i = 0; i < displayLine.length(); i++)
+            displayLine[i] = '*';
         }
         // Lock screen: draw text + glyph into one frame and send a single buffer,
         // so the glyph never strobes against a separate text-only send
         if (lockGlyph) {
-          OLED().oledLine(prefix + displayLine, cursor_pos + prefix.length(), false, promptText, true);
-          u8g2.drawXBMP(u8g2.getDisplayWidth() - kOledLockGlyphX, kOledLockGlyphY,
-                        kOledLockGlyphW, kOledLockGlyphH, _lockIcon);
+          OLED().oledLine(prefix + displayLine, cursor_pos + prefix.length(), false, promptText,
+                          true);
+          u8g2.drawXBMP(u8g2.getDisplayWidth() - kOledLockGlyphX, kOledLockGlyphY, kOledLockGlyphW,
+                        kOledLockGlyphH, _lockIcon);
           u8g2.sendBuffer();
-        }
-        else if (prefix != "") OLED().oledLine(prefix + displayLine, cursor_pos + prefix.length(), false, promptText);
-        else OLED().oledLine(displayLine, cursor_pos, false, promptText);
+        } else if (prefix != "")
+          OLED().oledLine(prefix + displayLine, cursor_pos + prefix.length(), false, promptText);
+        else
+          OLED().oledLine(displayLine, cursor_pos, false, promptText);
       }
     }
 
@@ -561,44 +594,40 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
 
 int boolPrompt(String promptText) {
   KB().setKeyboardState(NORMAL);
-  pocketmage::setCpuSpeed(240); // Boost clock for smooth animation
+  pocketmage::setCpuSpeed(240);  // Boost clock for smooth animation
 
   String msg = promptText + TR(STR_UTILS_YN_SUFFIX);
   u8g2.clearBuffer();
   const uint16_t dw = u8g2.getDisplayWidth();
   const uint16_t dh = u8g2.getDisplayHeight();
-  
+
   int y_offset = 0;
   int x_offset = 0;
   FontStyle activeStyle;
 
   int w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::OledWord);
-  if (w < dw-8) {
+  if (w < dw - 8) {
     y_offset = 16 + 3 + 5;
     x_offset = (dw - w) / 2;
     activeStyle = FontStyle::OledWord;
-  } 
-  else {
+  } else {
     w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::Heading3);
-    if (w < dw-8) {
+    if (w < dw - 8) {
       y_offset = 16 + 2 + 5;
       x_offset = (dw - w) / 2;
       activeStyle = FontStyle::Heading3;
-    } 
-    else {
+    } else {
       w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::BodyBold);
-      if (w < dw-8) {
+      if (w < dw - 8) {
         y_offset = 16 + 1 + 5;
         x_offset = (dw - w) / 2;
         activeStyle = FontStyle::BodyBold;
-      } 
-      else {
+      } else {
         w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::Caption);
-        if (w < dw-8) {
+        if (w < dw - 8) {
           y_offset = 16 + 5;
           x_offset = (dw - w) / 2;
-        } 
-        else {
+        } else {
           y_offset = 16 + 5;
           x_offset = dw - w;
         }
@@ -607,7 +636,7 @@ int boolPrompt(String promptText) {
     }
   }
 
-  for (int y = dh; y > 0; y-=2) {
+  for (int y = dh; y > 0; y -= 2) {
     u8g2.clearBuffer();
     FontEngine::drawText(DisplayTarget::OLED, x_offset, y + y_offset, msg, activeStyle);
     u8g2.drawRFrame(0, y, dw, dh + 16, 10);
@@ -615,27 +644,30 @@ int boolPrompt(String promptText) {
     delay(5);
   }
 
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 
   unsigned long lastSystemTime = CLOCK().getPrevTimeMillis();
   int retVal = -1;
 
   for (;;) {
-    #if PM_TARGET_HOST 
-      if (!noTimeout)  checkTimeout();
-      if (DEBUG_VERBOSE) printDebug();
-    #endif
+#if PM_TARGET_HOST
+    if (!noTimeout)
+      checkTimeout();
+    if (DEBUG_VERBOSE)
+      printDebug();
+#endif
 
     CLOCK().setPrevTimeMillis(millis());
     updateBattState();
 
     unsigned long currentSystemTime = CLOCK().getPrevTimeMillis();
     if (currentSystemTime > lastSystemTime) {
-        lastSystemTime = currentSystemTime;
-        u8g2.clearBuffer();
-        FontEngine::drawText(DisplayTarget::OLED, x_offset, y_offset, msg, activeStyle);
-        u8g2.drawRFrame(0, 0, dw, dh + 16, 10);
-        u8g2.sendBuffer();
+      lastSystemTime = currentSystemTime;
+      u8g2.clearBuffer();
+      FontEngine::drawText(DisplayTarget::OLED, x_offset, y_offset, msg, activeStyle);
+      u8g2.drawRFrame(0, 0, dw, dh + 16, 10);
+      u8g2.sendBuffer();
     }
 
     int currentMillis = millis();
@@ -643,17 +675,15 @@ int boolPrompt(String promptText) {
 
     if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
       if (inchar != 0) {
-        KBBounceMillis = currentMillis; 
-        
+        KBBounceMillis = currentMillis;
+
         if (inchar == 'y' || inchar == 'Y') {
           retVal = 1;
           break;
-        }
-        else if (inchar == 'n' || inchar == 'N') {
+        } else if (inchar == 'n' || inchar == 'N') {
           retVal = 0;
           break;
-        }
-        else if (inchar == 23) {
+        } else if (inchar == 23) {
           retVal = 0;
           break;
         }
@@ -666,7 +696,7 @@ int boolPrompt(String promptText) {
 
   pocketmage::setCpuSpeed(240);
 
-  for (int y = 0; y <= dh; y+=2) {
+  for (int y = 0; y <= dh; y += 2) {
     u8g2.clearBuffer();
     FontEngine::drawText(DisplayTarget::OLED, x_offset, y + y_offset, msg, activeStyle);
     u8g2.drawRFrame(0, y, dw, dh + 16, 10);
@@ -674,12 +704,13 @@ int boolPrompt(String promptText) {
     delay(5);
   }
 
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
   return retVal;
 }
 
 int timePrompt(int defaultTime) {
-  uint8_t digits[4] = {0,0,0,0};
+  uint8_t digits[4] = {0, 0, 0, 0};
   ulong currentIndex = 0;
 
   // If a valid time is passed (e.g., 1430), extract it into the digits array
@@ -694,25 +725,28 @@ int timePrompt(int defaultTime) {
   const int tX[4] = {93, 110, 131, 148};
 
   for (;;) {
-    #if PM_TARGET_HOST 
-      if (!noTimeout)  checkTimeout();
-      if (DEBUG_VERBOSE) printDebug();
-    #endif
+#if PM_TARGET_HOST
+    if (!noTimeout)
+      checkTimeout();
+    if (DEBUG_VERBOSE)
+      printDebug();
+#endif
 
     // Update scroll
     int scrollVec = TOUCH().getScrollVector();
     if (scrollVec != 0) {
-      
       if (currentIndex == 0) {
         // Isolate the Tens of Hours digit to prevent base-24 modulo bleeding
         int d0 = digits[0] + scrollVec;
-        if (d0 > 2) d0 = 0;
-        if (d0 < 0) d0 = 2;
+        if (d0 > 2)
+          d0 = 0;
+        if (d0 < 0)
+          d0 = 2;
         digits[0] = d0;
-        
+
         // Reverse Clamp: If we wrapped to 2, ensure the hours digit isn't sitting at 4-9
         if (digits[0] == 2 && digits[1] > 3) {
-           digits[1] = 3; 
+          digits[1] = 3;
         }
       } else {
         // Convert current digits to total minutes for smooth carry-over
@@ -720,35 +754,41 @@ int timePrompt(int defaultTime) {
 
         // Apply the scroll vector based on cursor position
         switch (currentIndex) {
-          case 1: total_mins += scrollVec * 60;  break; // +/- 1 hour
-          case 2: total_mins += scrollVec * 10;  break; // +/- 10 minutes
-          case 3: total_mins += scrollVec * 1;   break; // +/- 1 minute
+          case 1:
+            total_mins += scrollVec * 60;
+            break;  // +/- 1 hour
+          case 2:
+            total_mins += scrollVec * 10;
+            break;  // +/- 10 minutes
+          case 3:
+            total_mins += scrollVec * 1;
+            break;  // +/- 1 minute
         }
 
         // Wrap-around logic for 24-hour format (1440 minutes in a day)
         total_mins = total_mins % 1440;
         if (total_mins < 0) {
-            total_mins += 1440; // Wrap backwards (e.g. 00:00 - 1 min = 23:59)
+          total_mins += 1440;  // Wrap backwards (e.g. 00:00 - 1 min = 23:59)
         }
 
         // Convert total minutes back to individual digits
         int h = total_mins / 60;
         int m = total_mins % 60;
-        
+
         digits[0] = h / 10;
         digits[1] = h % 10;
         digits[2] = m / 10;
         digits[3] = m % 10;
       }
     }
-    
+
     // Update system state
     updateBattState();
     KB().checkUSBKB();
 
     // Handle keyboard inputs
     KB().setKeyboardState(FUNC);
-    
+
     int currentMillis = millis();
     char inchar = KB().updateKeypress();
 
@@ -760,7 +800,7 @@ int timePrompt(int defaultTime) {
         if (inchar == 12 || inchar == 8) {
           if (currentIndex > 0) {
             currentIndex--;
-          } 
+          }
         }
         // Right arrow
         else if (inchar == 6) {
@@ -770,51 +810,51 @@ int timePrompt(int defaultTime) {
         }
         // Direct Numeric Entry (0-9)
         else if (inchar >= '0' && inchar <= '9') {
-          int val = inchar - '0'; // Convert ASCII char to integer
-          
+          int val = inchar - '0';  // Convert ASCII char to integer
+
           switch (currentIndex) {
-            case 0: // Tens of Hours (Max 2)
+            case 0:  // Tens of Hours (Max 2)
               digits[0] = (val > 2) ? 2 : val;
               // Reverse Clamp: If we just set it to 2, ensure the hours digit isn't sitting at 4-9
               if (digits[0] == 2 && digits[1] > 3) {
-                 digits[1] = 3; 
+                digits[1] = 3;
               }
               break;
-              
-            case 1: // Hours (Max 3 if Tens is 2, otherwise Max 9)
+
+            case 1:  // Hours (Max 3 if Tens is 2, otherwise Max 9)
               if (digits[0] == 2) {
                 digits[1] = (val > 3) ? 3 : val;
               } else {
                 digits[1] = val;
               }
               break;
-              
-            case 2: // Tens of Minutes (Max 5)
+
+            case 2:  // Tens of Minutes (Max 5)
               digits[2] = (val > 5) ? 5 : val;
               break;
-              
-            case 3: // Minutes (Max 9)
+
+            case 3:  // Minutes (Max 9)
               digits[3] = val;
               break;
           }
-          
+
           // Auto-advance cursor for natural typing flow
           if (currentIndex < 3) {
             currentIndex++;
           }
         }
-        // Enter 
+        // Enter
         else if (inchar == 13) {
           int returnInt = 0;
-          returnInt += digits[3]*1;
-          returnInt += digits[2]*10;
-          returnInt += digits[1]*100;
-          returnInt += digits[0]*1000;
+          returnInt += digits[3] * 1;
+          returnInt += digits[2] * 10;
+          returnInt += digits[1] * 100;
+          returnInt += digits[0] * 1000;
 
-          // Because of our modulo math and strict clamping, the digits can 
+          // Because of our modulo math and strict clamping, the digits can
           // physically never exceed 23:59. But we clamp just in case.
           if (returnInt >= 2400) {
-              returnInt = 0;
+            returnInt = 0;
           }
 
           return returnInt;
@@ -823,24 +863,24 @@ int timePrompt(int defaultTime) {
     }
 
     // Draw interface
-    u8g2.clearBuffer(); // Required so text doesn't smear endlessly
+    u8g2.clearBuffer();  // Required so text doesn't smear endlessly
 
     // Draw background
-    u8g2.drawXBMP(0,0,256,32,timeInput);
+    u8g2.drawXBMP(0, 0, 256, 32, timeInput);
 
     // Draw indicator
     switch (currentIndex) {
       case 0:
-        u8g2.drawXBMP(89,21,24,11,leftRightIndicator0);
+        u8g2.drawXBMP(89, 21, 24, 11, leftRightIndicator0);
         break;
       case 1:
-        u8g2.drawXBMP(106,21,24,11,leftRightIndicator1);
+        u8g2.drawXBMP(106, 21, 24, 11, leftRightIndicator1);
         break;
       case 2:
-        u8g2.drawXBMP(127,21,24,11,leftRightIndicator1);
+        u8g2.drawXBMP(127, 21, 24, 11, leftRightIndicator1);
         break;
       case 3:
-        u8g2.drawXBMP(144,21,24,11,leftRightIndicator2);
+        u8g2.drawXBMP(144, 21, 24, 11, leftRightIndicator2);
         break;
     }
 
@@ -848,16 +888,16 @@ int timePrompt(int defaultTime) {
     for (int i = 0; i < 4; i++) {
       if (i == currentIndex) {
         u8g2.setDrawColor(1);
-        u8g2.drawBox(tX[i], 0, 15, 20); // Draw white background block
-        u8g2.setDrawColor(0);               // Set text color to black
+        u8g2.drawBox(tX[i], 0, 15, 20);  // Draw white background block
+        u8g2.setDrawColor(0);            // Set text color to black
       } else {
-        u8g2.setDrawColor(1);               // Standard white text
+        u8g2.setDrawColor(1);  // Standard white text
       }
       FontEngine::drawGlyph(DisplayTarget::OLED, tX[i], 16, '0' + digits[i], FontStyle::ClockDigit);
     }
-    u8g2.setDrawColor(1); // Reset for next draw cycle
+    u8g2.setDrawColor(1);  // Reset for next draw cycle
 
-    u8g2.sendBuffer(); // Required to push the frame to the OLED
+    u8g2.sendBuffer();  // Required to push the frame to the OLED
 
     vTaskDelay(pdMS_TO_TICKS(10));
     yield();
@@ -870,17 +910,18 @@ static int getDaysInMonth(int month, int year) {
   if (month == 2) {
     return ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) ? 29 : 28;
   }
-  if (month == 4 || month == 6 || month == 9 || month == 11) return 30;
+  if (month == 4 || month == 6 || month == 9 || month == 11)
+    return 30;
   return 31;
 }
 
-#if PM_TARGET_HOST // PocketMage OS Only
+#if PM_TARGET_HOST  // PocketMage OS Only
 String datePrompt(String defaultYYYYMMDD) {
-  uint8_t digits[8] = {0,0,0,0,0,0,0,0};
+  uint8_t digits[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   ulong currentIndex = 0;
-  
+
   int d, m, y;
-  
+
   if (defaultYYYYMMDD.length() == 8) {
     y = defaultYYYYMMDD.substring(0, 4).toInt();
     m = defaultYYYYMMDD.substring(4, 6).toInt();
@@ -904,75 +945,103 @@ String datePrompt(String defaultYYYYMMDD) {
   const int dX[8] = {57, 74, 96, 113, 135, 152, 168, 185};
 
   for (;;) {
-    #if PM_TARGET_HOST 
-      if (!noTimeout)  checkTimeout();
-      if (DEBUG_VERBOSE) printDebug();
-    #endif
+#if PM_TARGET_HOST
+    if (!noTimeout)
+      checkTimeout();
+    if (DEBUG_VERBOSE)
+      printDebug();
+#endif
 
     int scrollVec = TOUCH().getScrollVector();
     if (scrollVec != 0) {
-      
       int d = digits[0] * 10 + digits[1];
       int m = digits[2] * 10 + digits[3];
       int y = digits[4] * 1000 + digits[5] * 100 + digits[6] * 10 + digits[7];
 
-      if (d == 0) d = 1;
-      if (m == 0) m = 1;
+      if (d == 0)
+        d = 1;
+      if (m == 0)
+        m = 1;
 
       if (currentIndex == 0) {
         int d_tens = digits[0] + scrollVec;
-        if (d_tens > 3) d_tens = 0;
-        if (d_tens < 0) d_tens = 3;
-        
+        if (d_tens > 3)
+          d_tens = 0;
+        if (d_tens < 0)
+          d_tens = 3;
+
         d = d_tens * 10 + digits[1];
         int maxDays = getDaysInMonth(m, y);
-        if (d > maxDays) d = maxDays;
-        if (d == 0) d = 1;
-      } 
-      else if (currentIndex == 1) {
+        if (d > maxDays)
+          d = maxDays;
+        if (d == 0)
+          d = 1;
+      } else if (currentIndex == 1) {
         d += scrollVec;
         while (d > getDaysInMonth(m, y)) {
           d -= getDaysInMonth(m, y);
           m++;
-          if (m > 12) { m = 1; y++; }
+          if (m > 12) {
+            m = 1;
+            y++;
+          }
         }
         while (d < 1) {
           m--;
-          if (m < 1) { m = 12; y--; }
+          if (m < 1) {
+            m = 12;
+            y--;
+          }
           d += getDaysInMonth(m, y);
         }
-      }
-      else if (currentIndex == 2) {
+      } else if (currentIndex == 2) {
         int m_tens = digits[2] + scrollVec;
-        if (m_tens > 1) m_tens = 0;
-        if (m_tens < 0) m_tens = 1;
-        
+        if (m_tens > 1)
+          m_tens = 0;
+        if (m_tens < 0)
+          m_tens = 1;
+
         m = m_tens * 10 + digits[3];
-        if (m > 12) m = 12;
-        if (m == 0) m = 1;
-        
+        if (m > 12)
+          m = 12;
+        if (m == 0)
+          m = 1;
+
         int maxDays = getDaysInMonth(m, y);
-        if (d > maxDays) d = maxDays;
-      }
-      else if (currentIndex == 3) {
+        if (d > maxDays)
+          d = maxDays;
+      } else if (currentIndex == 3) {
         m += scrollVec;
-        while (m > 12) { m -= 12; y++; }
-        while (m < 1) { m += 12; y--; }
-        
+        while (m > 12) {
+          m -= 12;
+          y++;
+        }
+        while (m < 1) {
+          m += 12;
+          y--;
+        }
+
         int maxDays = getDaysInMonth(m, y);
-        if (d > maxDays) d = maxDays;
-      }
-      else {
-        if (currentIndex == 4) y += scrollVec * 1000;
-        if (currentIndex == 5) y += scrollVec * 100;
-        if (currentIndex == 6) y += scrollVec * 10;
-        if (currentIndex == 7) y += scrollVec * 1;
-        
-        if (y < 2000) y = 2000;
-        if (y > 2199) y = 2199;
-        
+        if (d > maxDays)
+          d = maxDays;
+      } else {
+        if (currentIndex == 4)
+          y += scrollVec * 1000;
+        if (currentIndex == 5)
+          y += scrollVec * 100;
+        if (currentIndex == 6)
+          y += scrollVec * 10;
+        if (currentIndex == 7)
+          y += scrollVec * 1;
+
+        if (y < 2000)
+          y = 2000;
+        if (y > 2199)
+          y = 2199;
+
         int maxDays = getDaysInMonth(m, y);
-        if (d > maxDays) d = maxDays;
+        if (d > maxDays)
+          d = maxDays;
       }
 
       digits[0] = d / 10;
@@ -984,12 +1053,12 @@ String datePrompt(String defaultYYYYMMDD) {
       digits[6] = (y / 10) % 10;
       digits[7] = y % 10;
     }
-    
+
     updateBattState();
     KB().checkUSBKB();
 
     KB().setKeyboardState(FUNC);
-    
+
     int currentMillis = millis();
     char inchar = KB().updateKeypress();
 
@@ -1000,17 +1069,15 @@ String datePrompt(String defaultYYYYMMDD) {
         if (inchar == 9 || inchar == 14) {
           DateTime now = CLOCK().nowDT();
           char dateBuf[11];
-          snprintf(dateBuf, sizeof(dateBuf), "%02d/%02d/%04d", 
-                   now.day(), now.month(), now.year());
+          snprintf(dateBuf, sizeof(dateBuf), "%02d/%02d/%04d", now.day(), now.month(), now.year());
           return String(dateBuf);
-        }
-        else if (inchar == 12 || inchar == 8) {
-          if (currentIndex > 0) currentIndex--;
-        }
-        else if (inchar == 6) {
-          if (currentIndex < 7) currentIndex++;
-        }
-        else if (inchar >= '0' && inchar <= '9') {
+        } else if (inchar == 12 || inchar == 8) {
+          if (currentIndex > 0)
+            currentIndex--;
+        } else if (inchar == 6) {
+          if (currentIndex < 7)
+            currentIndex++;
+        } else if (inchar >= '0' && inchar <= '9') {
           int val = inchar - '0';
           digits[currentIndex] = val;
 
@@ -1018,12 +1085,16 @@ String datePrompt(String defaultYYYYMMDD) {
           int m = digits[2] * 10 + digits[3];
           int y = digits[4] * 1000 + digits[5] * 100 + digits[6] * 10 + digits[7];
 
-          if (m > 12) m = 12;
-          if (currentIndex > 1 && m == 0) m = 1; 
+          if (m > 12)
+            m = 12;
+          if (currentIndex > 1 && m == 0)
+            m = 1;
 
-          int maxDays = getDaysInMonth(m == 0 ? 1 : m, y); 
-          if (d > maxDays) d = maxDays;
-          if (currentIndex <= 1 && d == 0 && currentIndex == 1) d = 1; 
+          int maxDays = getDaysInMonth(m == 0 ? 1 : m, y);
+          if (d > maxDays)
+            d = maxDays;
+          if (currentIndex <= 1 && d == 0 && currentIndex == 1)
+            d = 1;
 
           digits[0] = d / 10;
           digits[1] = d % 10;
@@ -1034,15 +1105,14 @@ String datePrompt(String defaultYYYYMMDD) {
           digits[6] = (y / 10) % 10;
           digits[7] = y % 10;
 
-          if (currentIndex < 7) currentIndex++;
-        }
-        else if (inchar == 13) {
+          if (currentIndex < 7)
+            currentIndex++;
+        } else if (inchar == 13) {
           char dateBuf[11];
-          snprintf(dateBuf, sizeof(dateBuf), "%02d/%02d/%04d", 
-                   digits[0]*10 + digits[1], 
-                   digits[2]*10 + digits[3], 
-                   digits[4]*1000 + digits[5]*100 + digits[6]*10 + digits[7]);
-          
+          snprintf(dateBuf, sizeof(dateBuf), "%02d/%02d/%04d", digits[0] * 10 + digits[1],
+                   digits[2] * 10 + digits[3],
+                   digits[4] * 1000 + digits[5] * 100 + digits[6] * 10 + digits[7]);
+
           return String(dateBuf);
         }
       }
@@ -1052,26 +1122,28 @@ String datePrompt(String defaultYYYYMMDD) {
 
     u8g2.drawXBMP(0, 0, 256, 32, dateInput);
 
-    const uint8_t* ind = leftRightIndicator1; 
-    if (currentIndex == 0) ind = leftRightIndicator0;       
-    else if (currentIndex == 7) ind = leftRightIndicator2;  
-    
+    const uint8_t* ind = leftRightIndicator1;
+    if (currentIndex == 0)
+      ind = leftRightIndicator0;
+    else if (currentIndex == 7)
+      ind = leftRightIndicator2;
+
     u8g2.drawXBMP(dX[currentIndex] - 4, 21, 24, 11, ind);
 
     // Draw digits dynamically with inverted active block
     for (int i = 0; i < 8; i++) {
       if (i == currentIndex) {
         u8g2.setDrawColor(1);
-        u8g2.drawBox(dX[i], 0, 15, 20); // Draw white background block
-        u8g2.setDrawColor(0);               // Set text color to black
+        u8g2.drawBox(dX[i], 0, 15, 20);  // Draw white background block
+        u8g2.setDrawColor(0);            // Set text color to black
       } else {
-        u8g2.setDrawColor(1);               // Standard white text
+        u8g2.setDrawColor(1);  // Standard white text
       }
       FontEngine::drawGlyph(DisplayTarget::OLED, dX[i], 16, '0' + digits[i], FontStyle::ClockDigit);
     }
-    u8g2.setDrawColor(1); // Reset for next draw cycle
+    u8g2.setDrawColor(1);  // Reset for next draw cycle
 
-    u8g2.sendBuffer(); 
+    u8g2.sendBuffer();
 
     vTaskDelay(pdMS_TO_TICKS(10));
     yield();
@@ -1080,16 +1152,16 @@ String datePrompt(String defaultYYYYMMDD) {
 #endif
 
 void waitForKeypress(String message) {
-  KB().setKeyboardState(NORMAL); 
-  pocketmage::setCpuSpeed(240); // Boost clock for smooth animation
+  KB().setKeyboardState(NORMAL);
+  pocketmage::setCpuSpeed(240);  // Boost clock for smooth animation
 
   String msg = message;
   String bottomMsg = TR(STR_UTILS_PRESS_KEY);
-  
+
   u8g2.clearBuffer();
   const uint16_t dw = u8g2.getDisplayWidth();
   const uint16_t dh = u8g2.getDisplayHeight();
-  
+
   int y_offset = 0;
   int x_offset = 0;
   FontStyle activeStyle;
@@ -1099,28 +1171,24 @@ void waitForKeypress(String message) {
     y_offset = 16 + 3;
     x_offset = (dw - w) / 2;
     activeStyle = FontStyle::OledWord;
-  } 
-  else {
+  } else {
     w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::Heading3);
     if (w < dw) {
       y_offset = 16 + 2;
       x_offset = (dw - w) / 2;
       activeStyle = FontStyle::Heading3;
-    } 
-    else {
+    } else {
       w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::BodyBold);
       if (w < dw) {
         y_offset = 16 + 1;
         x_offset = (dw - w) / 2;
         activeStyle = FontStyle::BodyBold;
-      } 
-      else {
+      } else {
         w = FontEngine::textWidth(DisplayTarget::OLED, msg, FontStyle::Caption);
         if (w < dw) {
           y_offset = 16;
           x_offset = (dw - w) / 2;
-        } 
-        else {
+        } else {
           y_offset = 16;
           x_offset = dw - w;
         }
@@ -1129,39 +1197,48 @@ void waitForKeypress(String message) {
     }
   }
 
-  for (int y = dh; y > 0; y-=2) {
+  for (int y = dh; y > 0; y -= 2) {
     u8g2.clearBuffer();
-    
+
     FontEngine::drawText(DisplayTarget::OLED, x_offset, y + y_offset, msg, activeStyle);
-    FontEngine::drawText(DisplayTarget::OLED, (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2, y + dh - 2, bottomMsg, FontStyle::Tiny);
-    
+    FontEngine::drawText(
+        DisplayTarget::OLED,
+        (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2,
+        y + dh - 2, bottomMsg, FontStyle::Tiny);
+
     u8g2.drawRFrame(0, y, dw, dh + 16, 10);
     u8g2.sendBuffer();
     delay(5);
   }
 
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 
   unsigned long lastSystemTime = CLOCK().getPrevTimeMillis();
 
   for (;;) {
-    #if PM_TARGET_HOST 
-      if (!noTimeout)  checkTimeout();
-      if (DEBUG_VERBOSE) printDebug();
-    #endif
-    
+#if PM_TARGET_HOST
+    if (!noTimeout)
+      checkTimeout();
+    if (DEBUG_VERBOSE)
+      printDebug();
+#endif
+
     updateBattState();
 
     unsigned long currentSystemTime = CLOCK().getPrevTimeMillis();
     if (currentSystemTime > lastSystemTime) {
-        lastSystemTime = currentSystemTime;
-        
-        u8g2.clearBuffer();
-        FontEngine::drawText(DisplayTarget::OLED, x_offset, y_offset, msg, activeStyle);
-        FontEngine::drawText(DisplayTarget::OLED, (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2, dh - 2, bottomMsg, FontStyle::Tiny);
-        
-        u8g2.drawRFrame(0, 0, dw, dh + 16, 10);
-        u8g2.sendBuffer();
+      lastSystemTime = currentSystemTime;
+
+      u8g2.clearBuffer();
+      FontEngine::drawText(DisplayTarget::OLED, x_offset, y_offset, msg, activeStyle);
+      FontEngine::drawText(
+          DisplayTarget::OLED,
+          (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2, dh - 2,
+          bottomMsg, FontStyle::Tiny);
+
+      u8g2.drawRFrame(0, 0, dw, dh + 16, 10);
+      u8g2.sendBuffer();
     }
 
     int currentMillis = millis();
@@ -1169,7 +1246,7 @@ void waitForKeypress(String message) {
 
     if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
       if (inchar != 0) {
-        KBBounceMillis = currentMillis; 
+        KBBounceMillis = currentMillis;
         break;
       }
     }
@@ -1180,36 +1257,47 @@ void waitForKeypress(String message) {
 
   pocketmage::setCpuSpeed(240);
 
-  for (int y = 0; y <= dh; y+=2) {
+  for (int y = 0; y <= dh; y += 2) {
     u8g2.clearBuffer();
-    
+
     FontEngine::drawText(DisplayTarget::OLED, x_offset, y + y_offset, msg, activeStyle);
-    FontEngine::drawText(DisplayTarget::OLED, (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2, y + dh - 2, bottomMsg, FontStyle::Tiny);
-    
+    FontEngine::drawText(
+        DisplayTarget::OLED,
+        (dw - FontEngine::textWidth(DisplayTarget::OLED, bottomMsg, FontStyle::Tiny)) / 2,
+        y + dh - 2, bottomMsg, FontStyle::Tiny);
+
     u8g2.drawRFrame(0, y, dw, dh + 16, 10);
     u8g2.sendBuffer();
     delay(5);
   }
 
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void checkCrashState() {
   esp_reset_reason_t reset_reason = esp_reset_reason();
 
-  if (reset_reason == ESP_RST_PANIC || 
-      reset_reason == ESP_RST_WDT || 
-      reset_reason == ESP_RST_TASK_WDT || 
-      reset_reason == ESP_RST_INT_WDT) {
-    
+  if (reset_reason == ESP_RST_PANIC || reset_reason == ESP_RST_WDT ||
+      reset_reason == ESP_RST_TASK_WDT || reset_reason == ESP_RST_INT_WDT) {
     String crashMsg = TR(STR_UTILS_CRASH_PREFIX);
 
     switch (reset_reason) {
-      case ESP_RST_PANIC:    crashMsg += TR(STR_UTILS_CRASH_PANIC); break;
-      case ESP_RST_WDT:      crashMsg += TR(STR_UTILS_CRASH_WDT); break;
-      case ESP_RST_TASK_WDT: crashMsg += TR(STR_UTILS_CRASH_TASK_WDT); break;
-      case ESP_RST_INT_WDT:  crashMsg += TR(STR_UTILS_CRASH_INT_WDT); break;
-      default:               crashMsg += TR(STR_UTILS_CRASH_UNKNOWN); break;
+      case ESP_RST_PANIC:
+        crashMsg += TR(STR_UTILS_CRASH_PANIC);
+        break;
+      case ESP_RST_WDT:
+        crashMsg += TR(STR_UTILS_CRASH_WDT);
+        break;
+      case ESP_RST_TASK_WDT:
+        crashMsg += TR(STR_UTILS_CRASH_TASK_WDT);
+        break;
+      case ESP_RST_INT_WDT:
+        crashMsg += TR(STR_UTILS_CRASH_INT_WDT);
+        break;
+      default:
+        crashMsg += TR(STR_UTILS_CRASH_UNKNOWN);
+        break;
     }
 
     int romReason = (int)esp_rom_get_reset_reason(0);
@@ -1305,14 +1393,14 @@ void checkRTCPowerLoss() {
 
 #if PM_TARGET_HOST
 void saveEditingFile() {
-    OLED().oledWord(TR(STR_UTILS_SAVING_WORK));
-    String savePath = PM_SDAUTO().getEditingFile();
-    if (savePath != "" && savePath != "-" && savePath != "/temp.txt" && fileLoaded) {
-      if (!savePath.startsWith("/"))
-        savePath = "/" + savePath;
-      ESP_LOGI(TAG, "Saving MarkdownFile");
-      saveMarkdownFile(savePath);
-      ESP_LOGI(TAG, "Done saving MarkdownFile");
-    }
+  OLED().oledWord(TR(STR_UTILS_SAVING_WORK));
+  String savePath = PM_SDAUTO().getEditingFile();
+  if (savePath != "" && savePath != "-" && savePath != "/temp.txt" && fileLoaded) {
+    if (!savePath.startsWith("/"))
+      savePath = "/" + savePath;
+    ESP_LOGI(TAG, "Saving MarkdownFile");
+    saveMarkdownFile(savePath);
+    ESP_LOGI(TAG, "Done saving MarkdownFile");
+  }
 }
 #endif
