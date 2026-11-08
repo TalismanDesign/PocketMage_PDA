@@ -14,6 +14,3 @@
 [submodule "Code/PocketMageOS/lib/microtar"]
 	path = Code/PocketMageOS/lib/microtar/microtar
 	url = https://github.com/rxi/microtar
-[submodule "Code/PocketMageOS/lib/esp-gmf"]
-	path = Code/PocketMageOS/lib/esp-gmf
-	url = https://github.com/espressif/esp-gmf
