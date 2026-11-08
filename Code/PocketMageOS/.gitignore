@@ -4,3 +4,9 @@
 .vscode/launch.json
 .vscode/ipch
 __pycache__/
+
+.dummy/
+managed_components/
+sdkconfig.PM_BETA
+sdkconfig.PM_PRODUCTION
+sdkconfig.defaults

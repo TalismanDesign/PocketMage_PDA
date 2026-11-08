@@ -2,6 +2,7 @@
 #include <pocketmage_sd/pocketmage_sd.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 #include <WiFi.h>
@@ -79,7 +80,7 @@ static bool meshReady = false;
 static CommState currentState = PEER_LIST;
 static ChatMode chatMode = LOCAL_CHAT;
 
-static ChatMsg msgs[MAX_CHAT_MSGS];
+static ChatMsg *msgs = nullptr;
 static int msgCount = 0;
 static bool autoScroll = true;
 
@@ -191,6 +192,14 @@ void COMM_INIT() {
   chatMode = LOCAL_CHAT;
   msgCount = 0;
   autoScroll = true;
+
+  // Lazily allocate chat message buffer so it doesn't sit in .bss when COMM is unused
+  free(msgs);
+  msgs = (ChatMsg *)calloc(MAX_CHAT_MSGS, sizeof(ChatMsg));
+  if (!msgs) {
+    msgCount = 0;
+    Serial.println("COMM: OOM allocating message buffer");
+  }
   selPeer = 0;
   prevSelPeer = 0;
   cursor_moved = false;

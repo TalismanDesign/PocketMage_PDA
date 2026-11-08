@@ -7,6 +7,7 @@
 #include <pocketmage_sd/pocketmage_sd.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 #if PM_TARGET_HOST  // PocketMage OS Only
 
@@ -61,10 +62,13 @@ struct SshAnswer {
 };
 
 // VT100 STATE
-static SshCell sshScreen[SSH_ROWS][SSH_COLS_MAX];
-static SshCell sshAltScreen[SSH_ROWS][SSH_COLS_MAX];
-static SshCell sshSnap[SSH_ROWS][SSH_COLS_MAX];
-static SshCell sshLastPainted[SSH_ROWS][SSH_COLS_MAX];
+struct SshState {
+  SshCell screen[SSH_ROWS][SSH_COLS_MAX];
+  SshCell altScreen[SSH_ROWS][SSH_COLS_MAX];
+  SshCell snap[SSH_ROWS][SSH_COLS_MAX];
+  SshCell lastPainted[SSH_ROWS][SSH_COLS_MAX];
+};
+static SshState *s_sshState = nullptr;
 static int sshAltSaveR = 0;  // cursor saved by DECSET 1049h; restored on 1049l.
 static int sshAltSaveC = 0;  // Separate from vt->saveR/saveC so the app's own
                              // DECSC/DECRC during the alt-screen session is
@@ -477,20 +481,20 @@ static void vtFeed(Vt* vt, char ch, int (*writeFn)(const char*, size_t)) {
             } else if (mode == 1047 || mode == 1049) {
               ESP_LOGI(kSshTag, "seq altScreen %s mode=%d cursor r=%d c=%d", on ? "on" : "off",
                        mode, vt->r, vt->c);
-              if (on && vt->screen != sshAltScreen) {
-                memcpy(sshAltScreen, vt->screen, sizeof(SshCell) * vt->rows * vt->cols);
+              if (on && vt->screen != s_sshState->altScreen) {
+                memcpy(s_sshState->altScreen, vt->screen, sizeof(SshCell) * vt->rows * vt->cols);
                 if (mode == 1049) {
                   sshAltSaveR = vt->r;
                   sshAltSaveC = vt->c;
                 }
-                vt->screen = sshAltScreen;
+                vt->screen = s_sshState->altScreen;
                 vtReset(vt);
-              } else if (!on && vt->screen == sshAltScreen) {
-                vt->screen = sshScreen;
+              } else if (!on && vt->screen == s_sshState->altScreen) {
+                vt->screen = s_sshState->screen;
                 // Restore the saved main screen instead of clearing it; a
                 // reset here blanks the display and leaves the shell prompt
                 // redrawn at the stale cursor row after the app exits.
-                memcpy(vt->screen, sshAltScreen, sizeof(SshCell) * vt->rows * vt->cols);
+                memcpy(vt->screen, s_sshState->altScreen, sizeof(SshCell) * vt->rows * vt->cols);
                 if (mode == 1049) {
                   vt->r = constrain(sshAltSaveR, 0, vt->rows - 1);
                   vt->c = constrain(sshAltSaveC, 0, vt->cols - 1);
@@ -755,7 +759,7 @@ static void sshTask(void* p) {
 
   Vt* vt = &sshVt;
   memset(vt, 0, sizeof(*vt));
-  vt->screen = sshScreen;
+  vt->screen = s_sshState->screen;
   vt->rows = SSH_ROWS;
   vt->cols = sshCols ? sshCols : 40;
   vt->top = 0;
@@ -1003,6 +1007,8 @@ static void sshTask(void* p) {
     sshSession = nullptr;
   }
 
+  free(s_sshState);
+  s_sshState = nullptr;
   sshBusyFlag = false;
   vTaskDelete(NULL);
 }
@@ -1023,6 +1029,14 @@ void sshStartSession(const String& host, const String& user, int port) {
   sshCols = (kEinkWidth - TERM_X) / advance;
   if (sshCols <= 0 || sshCols > SSH_COLS_MAX)
     sshCols = 40;
+
+  // Lazily allocate screen buffers so they don't sit in .bss when SSH is unused
+  free(s_sshState);
+  s_sshState = (SshState *)calloc(1, sizeof(SshState));
+  if (!s_sshState) {
+    sshExitMsg = TR(STR_SSH_NO_MEM);
+    return;
+  }
   sshTxQueue = xQueueCreate(64, sizeof(char));
   sshPromptQueue = xQueueCreate(4, sizeof(SshPrompt));
   sshAnswerQueue = xQueueCreate(4, sizeof(SshAnswer));
@@ -1192,27 +1206,27 @@ void sshEinkHandler() {
   }
   sshScreenDirty = false;
 
-  SshCell(*active)[SSH_COLS_MAX] = sshScreen;
+  SshCell(*active)[SSH_COLS_MAX] = s_sshState->screen;
   if (sshScreenMutex && xSemaphoreTake(sshScreenMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
-    active = sshVt.screen ? sshVt.screen : sshScreen;
-    memcpy(sshSnap, active, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX);
+    active = sshVt.screen ? sshVt.screen : s_sshState->screen;
+    memcpy(s_sshState->snap, active, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX);
     xSemaphoreGive(sshScreenMutex);
   }
 
   // Skip a refresh when the snapshot is byte-identical to the last painted
   // frame (e.g. the shell redraws the same prompt).  Avoids burning an e-ink
   // update for no visible change.
-  if (!force && memcmp(sshSnap, sshLastPainted, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX) == 0) {
+  if (!force && memcmp(s_sshState->snap, s_sshState->lastPainted, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX) == 0) {
     return;
   }
-  memcpy(sshLastPainted, sshSnap, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX);
+  memcpy(s_sshState->lastPainted, s_sshState->snap, sizeof(SshCell) * SSH_ROWS * SSH_COLS_MAX);
 
   int cols = sshCols ? sshCols : 40;
   bool blank = true;
   int firstRow = -1;
   for (int row = 0; row < SSH_ROWS; row++) {
     for (int x = 0; x < cols; x++) {
-      if (sshSnap[row][x].ch && sshSnap[row][x].ch != ' ') {
+      if (s_sshState->snap[row][x].ch && s_sshState->snap[row][x].ch != ' ') {
         blank = false;
         if (firstRow < 0)
           firstRow = row;
@@ -1251,9 +1265,9 @@ void sshEinkHandler() {
     for (int row = 0; row < SSH_ROWS; row++) {
       int y = TERM_SMALL_Y0 + row * TERM_SMALL_STEP;
       for (int x = 0; x < cols; x++) {
-        char ch = sshSnap[row][x].ch ? sshSnap[row][x].ch : ' ';
+        char ch = s_sshState->snap[row][x].ch ? s_sshState->snap[row][x].ch : ' ';
         int px = TERM_X + x * advance;
-        if (sshSnap[row][x].attr & 1) {
+        if (s_sshState->snap[row][x].attr & 1) {
           display.fillRect(px, y - ascent, advance, height, fgColor);
           u8g2f.setForegroundColor(bgColor);
         } else {
