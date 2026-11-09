@@ -26,6 +26,13 @@ bool style_valid(int style) {
 
 }  // namespace
 
+// Reinitialize the OLED display controller (call if another subsystem put it to sleep).
+extern void setupOled();
+
+void pm_oled_init(void) {
+  setupOled();
+}
+
 void pm_oled_send(void) {
   u8g2.sendBuffer();
 }
@@ -222,6 +229,35 @@ bool pm_image_probe(const char* path, int* width, int* height, int* format) {
   *height = info.height;
   *format = static_cast<int>(info.format);
   return true;
+}
+
+bool pm_image_decode_region_to_1bit(const char* path, uint32_t off, uint32_t len,
+                                    uint8_t* buf, int buf_w, int buf_h, int out_x,
+                                    int out_y, int max_size, bool fill) {
+  if (!path || !buf || buf_w <= 0 || buf_h <= 0 || max_size <= 0) {
+    return false;
+  }
+  return P_IMAGE.decodeRegionTo1Bit(path, off, len, buf, buf_w, buf_h, out_x,
+                                    out_y, max_size, fill);
+}
+
+int pm_sd_stream_open(const char* path) {
+  if (!path || !path[0]) {
+    return -1;
+  }
+  return PM_SD().streamOpen(path, 'r');
+}
+
+size_t pm_sd_stream_read(int s, void* buf, size_t n) {
+  return PM_SD().streamRead(s, buf, n);
+}
+
+bool pm_sd_stream_seek(int s, uint32_t off) {
+  return PM_SD().streamSeek(s, static_cast<long>(off), SEEK_SET);
+}
+
+void pm_sd_stream_close(int s) {
+  PM_SD().streamClose(s);
 }
 
 // Select the audio output sink. output=0 is piezo (PWM on BZ_PIN, default),

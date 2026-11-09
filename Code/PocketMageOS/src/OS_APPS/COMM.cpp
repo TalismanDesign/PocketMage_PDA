@@ -142,7 +142,7 @@ static void logToSD(const ChatMsg* m) {
 }
 
 // MESSAGE BUFFER
-static void addMsg(const char* sender, const char* content, bool local) {
+static void addMsg(const char* sender, const char* content, bool isLocal) {
   if (msgCount >= MAX_CHAT_MSGS) {
     int mv = MAX_CHAT_MSGS - 1;
     memmove(&msgs[0], &msgs[1], mv * sizeof(ChatMsg));
@@ -153,7 +153,7 @@ static void addMsg(const char* sender, const char* content, bool local) {
   m->sender[sizeof(m->sender) - 1] = '\0';
   strncpy(m->content, content, sizeof(m->content));
   m->content[sizeof(m->content) - 1] = '\0';
-  m->sentByLocal = local;
+  m->sentByLocal = isLocal;
 
   DateTime now = CLOCK().nowDT();
   m->timestamp = now.unixtime();
