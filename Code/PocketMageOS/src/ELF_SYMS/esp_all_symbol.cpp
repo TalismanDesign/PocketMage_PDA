@@ -7,11 +7,12 @@
  * DO NOT EDIT: regenerate with tools/symbols.py.
  */
 
-#include <pm_app_api.h>
-#include <pm_sdk_app.h>
 #include <stddef.h>
 
 #include "private/elf_symbol.h"
+
+#include <pm_app_api.h>
+#include <pm_sdk_app.h>
 
 /* Runtime symbols: unmangled prototypes so the emitted reference is
  * the literal archive symbol, whatever its real C++ type. The
@@ -60,6 +61,9 @@ int _ZNKSt11logic_error4whatEv();
 int _ZNKSt13runtime_error4whatEv();
 int _ZNKSt17bad_function_call4whatEv();
 int _ZNKSt20bad_array_new_length4whatEv();
+int _ZNKSt3_V214error_category10_M_messageB5cxx11Ei();
+int _ZNKSt3_V214error_category10equivalentERKSt10error_codei();
+int _ZNKSt3_V214error_category23default_error_conditionEi();
 int _ZNKSt9bad_alloc4whatEv();
 int _ZNKSt9type_info14__is_pointer_pEv();
 int _ZNKSt9type_info15__is_function_pEv();
@@ -68,6 +72,10 @@ int _ZNSt11logic_errorC2EPKc();
 int _ZNSt11logic_errorD0Ev();
 int _ZNSt11logic_errorD1Ev();
 int _ZNSt11logic_errorD2Ev();
+int _ZNSt12__cow_stringC1EPKcj();
+int _ZNSt12__cow_stringC1ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE();
+int _ZNSt12__cow_stringC2EPKcj();
+int _ZNSt12__cow_stringC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE();
 int _ZNSt12length_errorC1EPKc();
 int _ZNSt12length_errorC2EPKc();
 int _ZNSt12length_errorD0Ev();
@@ -78,6 +86,14 @@ int _ZNSt12out_of_rangeC2EPKc();
 int _ZNSt12out_of_rangeD0Ev();
 int _ZNSt12out_of_rangeD1Ev();
 int _ZNSt12out_of_rangeD2Ev();
+int _ZNSt12system_errorD0Ev();
+int _ZNSt12system_errorD1Ev();
+int _ZNSt12system_errorD2Ev();
+int _ZNSt13runtime_errorC1ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE();
+int _ZNSt13runtime_errorC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE();
+int _ZNSt13runtime_errorD0Ev();
+int _ZNSt13runtime_errorD1Ev();
+int _ZNSt13runtime_errorD2Ev();
 int _ZNSt17bad_function_callD0Ev();
 int _ZNSt17bad_function_callD1Ev();
 int _ZNSt17bad_function_callD2Ev();
@@ -100,6 +116,7 @@ int _ZSt17__throw_bad_allocv();
 int _ZSt19__throw_logic_errorPKc();
 int _ZSt20__throw_length_errorPKc();
 int _ZSt20__throw_out_of_rangePKc();
+int _ZSt20__throw_system_errori();
 int _ZSt24__throw_out_of_range_fmtPKcz();
 int _ZSt25__throw_bad_function_callv();
 int _ZSt28__throw_bad_array_new_lengthv();
@@ -170,6 +187,7 @@ int __hexdig_fun();
 int __hexnan();
 int __hi0bits();
 int __i2b();
+int __ieee754_powf();
 int __ieee754_rem_pio2f();
 int __ieee754_sqrtf();
 int __kernel_cosf();
@@ -339,6 +357,7 @@ int exit();
 int explicit_bzero();
 int fabsf();
 int fflush();
+int finitef();
 int floorf();
 int fprintf();
 int free();
@@ -370,6 +389,7 @@ int memset();
 int mktime();
 int nan();
 int nanf();
+int powf();
 int printf();
 int putchar();
 int puts();
@@ -440,6 +460,7 @@ int vsnprintf();
 extern "C" {
 int pm_elfsym___atomic_compare_exchange_1() asm("__atomic_compare_exchange_1");
 int pm_elfsym___atomic_compare_exchange_4() asm("__atomic_compare_exchange_4");
+int pm_elfsym___atomic_exchange_1() asm("__atomic_exchange_1");
 int pm_elfsym___atomic_exchange_4() asm("__atomic_exchange_4");
 int pm_elfsym___atomic_fetch_add_2() asm("__atomic_fetch_add_2");
 int pm_elfsym___atomic_fetch_add_4() asm("__atomic_fetch_add_4");
@@ -450,6 +471,7 @@ int pm_elfsym___atomic_fetch_or_8() asm("__atomic_fetch_or_8");
 int pm_elfsym___atomic_fetch_sub_4() asm("__atomic_fetch_sub_4");
 int pm_elfsym___atomic_s32c1i_compare_exchange_1() asm("__atomic_s32c1i_compare_exchange_1");
 int pm_elfsym___atomic_s32c1i_compare_exchange_4() asm("__atomic_s32c1i_compare_exchange_4");
+int pm_elfsym___atomic_s32c1i_exchange_1() asm("__atomic_s32c1i_exchange_1");
 int pm_elfsym___atomic_s32c1i_exchange_4() asm("__atomic_s32c1i_exchange_4");
 int pm_elfsym___atomic_s32c1i_fetch_add_2() asm("__atomic_s32c1i_fetch_add_2");
 int pm_elfsym___atomic_s32c1i_fetch_add_4() asm("__atomic_s32c1i_fetch_add_4");
@@ -506,6 +528,9 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_ZNKSt13runtime_error4whatEv),
     ESP_ELFSYM_EXPORT(_ZNKSt17bad_function_call4whatEv),
     ESP_ELFSYM_EXPORT(_ZNKSt20bad_array_new_length4whatEv),
+    ESP_ELFSYM_EXPORT(_ZNKSt3_V214error_category10_M_messageB5cxx11Ei),
+    ESP_ELFSYM_EXPORT(_ZNKSt3_V214error_category10equivalentERKSt10error_codei),
+    ESP_ELFSYM_EXPORT(_ZNKSt3_V214error_category23default_error_conditionEi),
     ESP_ELFSYM_EXPORT(_ZNKSt9bad_alloc4whatEv),
     ESP_ELFSYM_EXPORT(_ZNKSt9type_info14__is_pointer_pEv),
     ESP_ELFSYM_EXPORT(_ZNKSt9type_info15__is_function_pEv),
@@ -514,6 +539,10 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_ZNSt11logic_errorD0Ev),
     ESP_ELFSYM_EXPORT(_ZNSt11logic_errorD1Ev),
     ESP_ELFSYM_EXPORT(_ZNSt11logic_errorD2Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt12__cow_stringC1EPKcj),
+    ESP_ELFSYM_EXPORT(_ZNSt12__cow_stringC1ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE),
+    ESP_ELFSYM_EXPORT(_ZNSt12__cow_stringC2EPKcj),
+    ESP_ELFSYM_EXPORT(_ZNSt12__cow_stringC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE),
     ESP_ELFSYM_EXPORT(_ZNSt12length_errorC1EPKc),
     ESP_ELFSYM_EXPORT(_ZNSt12length_errorC2EPKc),
     ESP_ELFSYM_EXPORT(_ZNSt12length_errorD0Ev),
@@ -524,6 +553,14 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_ZNSt12out_of_rangeD0Ev),
     ESP_ELFSYM_EXPORT(_ZNSt12out_of_rangeD1Ev),
     ESP_ELFSYM_EXPORT(_ZNSt12out_of_rangeD2Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt12system_errorD0Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt12system_errorD1Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt12system_errorD2Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt13runtime_errorC1ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE),
+    ESP_ELFSYM_EXPORT(_ZNSt13runtime_errorC2ERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE),
+    ESP_ELFSYM_EXPORT(_ZNSt13runtime_errorD0Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt13runtime_errorD1Ev),
+    ESP_ELFSYM_EXPORT(_ZNSt13runtime_errorD2Ev),
     ESP_ELFSYM_EXPORT(_ZNSt17bad_function_callD0Ev),
     ESP_ELFSYM_EXPORT(_ZNSt17bad_function_callD1Ev),
     ESP_ELFSYM_EXPORT(_ZNSt17bad_function_callD2Ev),
@@ -546,6 +583,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(_ZSt19__throw_logic_errorPKc),
     ESP_ELFSYM_EXPORT(_ZSt20__throw_length_errorPKc),
     ESP_ELFSYM_EXPORT(_ZSt20__throw_out_of_rangePKc),
+    ESP_ELFSYM_EXPORT(_ZSt20__throw_system_errori),
     ESP_ELFSYM_EXPORT(_ZSt24__throw_out_of_range_fmtPKcz),
     ESP_ELFSYM_EXPORT(_ZSt25__throw_bad_function_callv),
     ESP_ELFSYM_EXPORT(_ZSt28__throw_bad_array_new_lengthv),
@@ -565,6 +603,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__assert_func),
     { "__atomic_compare_exchange_1", (void*)&pm_elfsym___atomic_compare_exchange_1 },
     { "__atomic_compare_exchange_4", (void*)&pm_elfsym___atomic_compare_exchange_4 },
+    { "__atomic_exchange_1", (void*)&pm_elfsym___atomic_exchange_1 },
     { "__atomic_exchange_4", (void*)&pm_elfsym___atomic_exchange_4 },
     { "__atomic_fetch_add_2", (void*)&pm_elfsym___atomic_fetch_add_2 },
     { "__atomic_fetch_add_4", (void*)&pm_elfsym___atomic_fetch_add_4 },
@@ -575,6 +614,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     { "__atomic_fetch_sub_4", (void*)&pm_elfsym___atomic_fetch_sub_4 },
     { "__atomic_s32c1i_compare_exchange_1", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_1 },
     { "__atomic_s32c1i_compare_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_compare_exchange_4 },
+    { "__atomic_s32c1i_exchange_1", (void*)&pm_elfsym___atomic_s32c1i_exchange_1 },
     { "__atomic_s32c1i_exchange_4", (void*)&pm_elfsym___atomic_s32c1i_exchange_4 },
     { "__atomic_s32c1i_fetch_add_2", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_2 },
     { "__atomic_s32c1i_fetch_add_4", (void*)&pm_elfsym___atomic_s32c1i_fetch_add_4 },
@@ -634,6 +674,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(__hexnan),
     ESP_ELFSYM_EXPORT(__hi0bits),
     ESP_ELFSYM_EXPORT(__i2b),
+    ESP_ELFSYM_EXPORT(__ieee754_powf),
     ESP_ELFSYM_EXPORT(__ieee754_rem_pio2f),
     ESP_ELFSYM_EXPORT(__ieee754_sqrtf),
     ESP_ELFSYM_EXPORT(__kernel_cosf),
@@ -804,6 +845,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(explicit_bzero),
     ESP_ELFSYM_EXPORT(fabsf),
     ESP_ELFSYM_EXPORT(fflush),
+    ESP_ELFSYM_EXPORT(finitef),
     ESP_ELFSYM_EXPORT(floorf),
     ESP_ELFSYM_EXPORT(fprintf),
     ESP_ELFSYM_EXPORT(free),
@@ -835,22 +877,37 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(mktime),
     ESP_ELFSYM_EXPORT(nan),
     ESP_ELFSYM_EXPORT(nanf),
+    ESP_ELFSYM_EXPORT(pm_activity),
     ESP_ELFSYM_EXPORT(pm_app_abi),
+    ESP_ELFSYM_EXPORT(pm_app_at_exit),
+    ESP_ELFSYM_EXPORT(pm_app_finalize_destructors),
+    ESP_ELFSYM_EXPORT(pm_app_register_destructor),
     ESP_ELFSYM_EXPORT(pm_audio_begin),
     ESP_ELFSYM_EXPORT(pm_audio_dispatch_events),
+    ESP_ELFSYM_EXPORT(pm_audio_get_active_output),
     ESP_ELFSYM_EXPORT(pm_audio_get_current_path),
     ESP_ELFSYM_EXPORT(pm_audio_get_last_error),
+    ESP_ELFSYM_EXPORT(pm_audio_get_output),
+    ESP_ELFSYM_EXPORT(pm_audio_get_playback_id),
+    ESP_ELFSYM_EXPORT(pm_audio_get_playback_result),
     ESP_ELFSYM_EXPORT(pm_audio_get_position),
+    ESP_ELFSYM_EXPORT(pm_audio_get_position_ms),
     ESP_ELFSYM_EXPORT(pm_audio_get_state),
     ESP_ELFSYM_EXPORT(pm_audio_get_volume),
+    ESP_ELFSYM_EXPORT(pm_audio_get_volume_level),
     ESP_ELFSYM_EXPORT(pm_audio_is_playing),
+    ESP_ELFSYM_EXPORT(pm_audio_load_settings),
     ESP_ELFSYM_EXPORT(pm_audio_owns_pin),
     ESP_ELFSYM_EXPORT(pm_audio_pause),
     ESP_ELFSYM_EXPORT(pm_audio_play),
+    ESP_ELFSYM_EXPORT(pm_audio_poll_usb),
     ESP_ELFSYM_EXPORT(pm_audio_resume),
+    ESP_ELFSYM_EXPORT(pm_audio_save_settings),
     ESP_ELFSYM_EXPORT(pm_audio_set_output),
     ESP_ELFSYM_EXPORT(pm_audio_set_volume),
+    ESP_ELFSYM_EXPORT(pm_audio_set_volume_level),
     ESP_ELFSYM_EXPORT(pm_audio_stop),
+    ESP_ELFSYM_EXPORT(pm_audio_stop_checked),
     ESP_ELFSYM_EXPORT(pm_audio_stop_playback),
     ESP_ELFSYM_EXPORT(pm_audio_usb_connected),
     ESP_ELFSYM_EXPORT(pm_bz_begin),
@@ -859,7 +916,9 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_bz_play_jingle),
     ESP_ELFSYM_EXPORT(pm_clock_begin),
     ESP_ELFSYM_EXPORT(pm_clock_epoch),
+    ESP_ELFSYM_EXPORT(pm_clock_set_prev_time_millis),
     ESP_ELFSYM_EXPORT(pm_clock_set_time_from_string),
+    ESP_ELFSYM_EXPORT(pm_clock_set_timeout_millis),
     ESP_ELFSYM_EXPORT(pm_clock_timestamp),
     ESP_ELFSYM_EXPORT(pm_clock_valid),
     ESP_ELFSYM_EXPORT(pm_eink_clear),
@@ -870,22 +929,31 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_eink_get_font_height),
     ESP_ELFSYM_EXPORT(pm_eink_get_line_spacing),
     ESP_ELFSYM_EXPORT(pm_eink_height),
+    ESP_ELFSYM_EXPORT(pm_eink_mark_panel_needs_full_refresh),
     ESP_ELFSYM_EXPORT(pm_eink_max_lines),
     ESP_ELFSYM_EXPORT(pm_eink_pixel),
     ESP_ELFSYM_EXPORT(pm_eink_rect),
     ESP_ELFSYM_EXPORT(pm_eink_refresh),
     ESP_ELFSYM_EXPORT(pm_eink_reset_display),
     ESP_ELFSYM_EXPORT(pm_eink_set_fast_full_refresh),
+    ESP_ELFSYM_EXPORT(pm_eink_set_full_refresh_after),
+    ESP_ELFSYM_EXPORT(pm_eink_set_line_spacing),
     ESP_ELFSYM_EXPORT(pm_eink_status_bar),
+    ESP_ELFSYM_EXPORT(pm_eink_triangle),
     ESP_ELFSYM_EXPORT(pm_eink_width),
     ESP_ELFSYM_EXPORT(pm_elfo_close),
     ESP_ELFSYM_EXPORT(pm_elfo_open),
     ESP_ELFSYM_EXPORT(pm_elfo_read),
     ESP_ELFSYM_EXPORT(pm_elfo_size),
     ESP_ELFSYM_EXPORT(pm_font_engine_char_width),
+    ESP_ELFSYM_EXPORT(pm_font_engine_char_width_txt),
+    ESP_ELFSYM_EXPORT(pm_font_engine_draw_glyph),
+    ESP_ELFSYM_EXPORT(pm_font_engine_draw_glyph_txt),
+    ESP_ELFSYM_EXPORT(pm_font_engine_draw_text_txt),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_ascent),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_descent),
     ESP_ELFSYM_EXPORT(pm_font_engine_font_height_txt),
+    ESP_ELFSYM_EXPORT(pm_font_engine_text_width_txt),
     ESP_ELFSYM_EXPORT(pm_font_height),
     ESP_ELFSYM_EXPORT(pm_host_sdk_version),
     ESP_ELFSYM_EXPORT(pm_i18n_app_name),
@@ -902,9 +970,13 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_i18n_normalize_command),
     ESP_ELFSYM_EXPORT(pm_i18n_set_language),
     ESP_ELFSYM_EXPORT(pm_i18n_set_language_by_code),
-    ESP_ELFSYM_EXPORT(pm_image_decode_to_1bit),
+    ESP_ELFSYM_EXPORT(pm_image_clear),
+    ESP_ELFSYM_EXPORT(pm_image_decode),
+    ESP_ELFSYM_EXPORT(pm_image_decode_from_file),
     ESP_ELFSYM_EXPORT(pm_image_decode_region_to_1bit),
+    ESP_ELFSYM_EXPORT(pm_image_decode_to_1bit),
     ESP_ELFSYM_EXPORT(pm_image_probe),
+    ESP_ELFSYM_EXPORT(pm_image_probe_region),
     ESP_ELFSYM_EXPORT(pm_io_join_string),
     ESP_ELFSYM_EXPORT(pm_io_remove_char),
     ESP_ELFSYM_EXPORT(pm_io_split_string_count),
@@ -914,6 +986,8 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_kb_check_usbkb),
     ESP_ELFSYM_EXPORT(pm_kb_flush),
     ESP_ELFSYM_EXPORT(pm_kb_read),
+    ESP_ELFSYM_EXPORT(pm_kb_set_keyboard_state),
+    ESP_ELFSYM_EXPORT(pm_kb_set_tca8418_event),
     ESP_ELFSYM_EXPORT(pm_kb_state),
     ESP_ELFSYM_EXPORT(pm_kb_toggle_fn),
     ESP_ELFSYM_EXPORT(pm_kb_toggle_shift),
@@ -922,7 +996,10 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_layout_truncate_with_ellipsis),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_count),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_get),
+    ESP_ELFSYM_EXPORT(pm_media_probe),
+    ESP_ELFSYM_EXPORT(pm_oled_box),
     ESP_ELFSYM_EXPORT(pm_oled_clear),
+    ESP_ELFSYM_EXPORT(pm_oled_height),
     ESP_ELFSYM_EXPORT(pm_oled_info_bar),
     ESP_ELFSYM_EXPORT(pm_oled_init),
     ESP_ELFSYM_EXPORT(pm_oled_oled_line),
@@ -932,11 +1009,14 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_oled_send),
     ESP_ELFSYM_EXPORT(pm_oled_set_power_save),
     ESP_ELFSYM_EXPORT(pm_oled_sysmsg),
+    ESP_ELFSYM_EXPORT(pm_oled_triangle),
+    ESP_ELFSYM_EXPORT(pm_oled_width),
     ESP_ELFSYM_EXPORT(pm_sd_append_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_append_file),
     ESP_ELFSYM_EXPORT(pm_sd_append_to_file),
     ESP_ELFSYM_EXPORT(pm_sd_begin_io),
     ESP_ELFSYM_EXPORT(pm_sd_copy_file),
+    ESP_ELFSYM_EXPORT(pm_sd_copy_file_raw),
     ESP_ELFSYM_EXPORT(pm_sd_del_file),
     ESP_ELFSYM_EXPORT(pm_sd_delete_file),
     ESP_ELFSYM_EXPORT(pm_sd_delete_metadata),
@@ -944,6 +1024,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_sd_dir_entry),
     ESP_ELFSYM_EXPORT(pm_sd_dir_open),
     ESP_ELFSYM_EXPORT(pm_sd_end_io),
+    ESP_ELFSYM_EXPORT(pm_sd_exists),
     ESP_ELFSYM_EXPORT(pm_sd_get_editing_file),
     ESP_ELFSYM_EXPORT(pm_sd_get_file_size),
     ESP_ELFSYM_EXPORT(pm_sd_get_files_list_index),
@@ -956,17 +1037,41 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_sd_read_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_read_file),
     ESP_ELFSYM_EXPORT(pm_sd_read_file_to_string),
+    ESP_ELFSYM_EXPORT(pm_sd_remove_file),
+    ESP_ELFSYM_EXPORT(pm_sd_remove_tree),
     ESP_ELFSYM_EXPORT(pm_sd_ren_file),
     ESP_ELFSYM_EXPORT(pm_sd_ren_metadata),
     ESP_ELFSYM_EXPORT(pm_sd_rename_file),
+    ESP_ELFSYM_EXPORT(pm_sd_rename_path),
     ESP_ELFSYM_EXPORT(pm_sd_save_file),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_exists),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_get_file_info),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_mkdir),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_path),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_remove),
+    ESP_ELFSYM_EXPORT(pm_sd_sd_rename),
+    ESP_ELFSYM_EXPORT(pm_sd_set_editing_file),
+    ESP_ELFSYM_EXPORT(pm_sd_set_files_list_index),
+    ESP_ELFSYM_EXPORT(pm_sd_set_mode),
+    ESP_ELFSYM_EXPORT(pm_sd_set_no_sd),
+    ESP_ELFSYM_EXPORT(pm_sd_set_working_file),
+    ESP_ELFSYM_EXPORT(pm_sd_stat_is_dir),
+    ESP_ELFSYM_EXPORT(pm_sd_stat_path),
     ESP_ELFSYM_EXPORT(pm_sd_stream_close),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_close_checked),
     ESP_ELFSYM_EXPORT(pm_sd_stream_open),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_open_mode),
     ESP_ELFSYM_EXPORT(pm_sd_stream_read),
     ESP_ELFSYM_EXPORT(pm_sd_stream_seek),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_seek_from),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_size),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_tell),
+    ESP_ELFSYM_EXPORT(pm_sd_stream_write),
     ESP_ELFSYM_EXPORT(pm_sd_write_binary_file),
     ESP_ELFSYM_EXPORT(pm_sd_write_file),
     ESP_ELFSYM_EXPORT(pm_sd_write_metadata),
+    ESP_ELFSYM_EXPORT(pm_sys_deep_sleep),
+    ESP_ELFSYM_EXPORT(pm_sys_set_cpu_speed),
     ESP_ELFSYM_EXPORT(pm_text),
     ESP_ELFSYM_EXPORT(pm_text_color),
     ESP_ELFSYM_EXPORT(pm_text_width),
@@ -976,12 +1081,18 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_touch_get_last_touch_time),
     ESP_ELFSYM_EXPORT(pm_touch_get_prev_dynamic_scroll),
     ESP_ELFSYM_EXPORT(pm_touch_get_scroll_vector),
+    ESP_ELFSYM_EXPORT(pm_touch_reset_last_touch),
+    ESP_ELFSYM_EXPORT(pm_touch_set_dynamic_scroll),
+    ESP_ELFSYM_EXPORT(pm_touch_set_last_touch),
+    ESP_ELFSYM_EXPORT(pm_touch_set_last_touch_time),
+    ESP_ELFSYM_EXPORT(pm_touch_set_prev_dynamic_scroll),
     ESP_ELFSYM_EXPORT(pm_touch_update_scroll),
     ESP_ELFSYM_EXPORT(pm_touch_update_scroll_from_touch),
     ESP_ELFSYM_EXPORT(pm_ui_begin_eink_screen),
     ESP_ELFSYM_EXPORT(pm_ui_draw_chip_text),
     ESP_ELFSYM_EXPORT(pm_ui_draw_list_item),
     ESP_ELFSYM_EXPORT(pm_ui_draw_scrollbar),
+    ESP_ELFSYM_EXPORT(pm_ui_draw_transport_icon),
     ESP_ELFSYM_EXPORT(pm_ui_end_eink_screen),
     ESP_ELFSYM_EXPORT(pm_wifi_begin),
     ESP_ELFSYM_EXPORT(pm_wifi_clear_saved_credentials),
@@ -1005,6 +1116,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_wifi_scan),
     ESP_ELFSYM_EXPORT(pm_wifi_stop),
     ESP_ELFSYM_EXPORT(pocketmage_sdk_version),
+    ESP_ELFSYM_EXPORT(powf),
     ESP_ELFSYM_EXPORT(printf),
     ESP_ELFSYM_EXPORT(putchar),
     ESP_ELFSYM_EXPORT(puts),

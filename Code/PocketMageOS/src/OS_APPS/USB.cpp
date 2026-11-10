@@ -1,91 +1,124 @@
 #include <USB.h>
 #include <USBMSC.h>
-#include <driver/sdmmc_defs.h>
-#include <driver/sdmmc_host.h>
+#include <atomic>
+#include <climits>
+#include <cstdlib>
+#include <elf_runner.h>
+#include <freertos/semphr.h>
 #include <globals.h>
+#include <pocketmage_kb/usb_keyboard.h>
+#include <pocketmage_sd/sd_gateway.h>
+#include <pocketmage_sys/usb_role.h>
 #include <sdmmc_cmd.h>
 
-#include "esp_private/periph_ctrl.h"
-#include "esp_vfs_fat.h"
-#include "soc/rtc_cntl_reg.h"
-#include "soc/usb_serial_jtag_reg.h"
 #if PM_TARGET_HOST  // POCKETMAGE_OS
-static String currentLine = "";
 static constexpr const char* TAG = "USB";
+static constexpr uint32_t kSectorBytes = 512;
+static constexpr uint32_t kOledFrameMs = 100;
 static USBMSC msc;
-static sdmmc_card_t* card = nullptr;  // SD card pointer
+static sdmmc_card_t* card = nullptr;
+static SemaphoreHandle_t ioMutex = nullptr;
+static bool initAttempted = false;
+static String startupError;
+enum class UsbStatus { Waiting, Connected, Suspended, Ejected };
+static std::atomic<UsbStatus> usbStatus{UsbStatus::Waiting};
+static std::atomic<bool> usb_is_shutting_down{false};
 
-static volatile bool usb_is_shutting_down = false;
+class UsbIoLock {
+ public:
+  UsbIoLock() : locked_(ioMutex && xSemaphoreTake(ioMutex, portMAX_DELAY) == pdTRUE) {
+    if (ioMutex && !locked_) {
+      ESP_LOGE(TAG, "USB I/O mutex acquisition failed");
+      std::abort();
+    }
+  }
+  ~UsbIoLock() {
+    if (locked_ && xSemaphoreGive(ioMutex) != pdTRUE) {
+      ESP_LOGE(TAG, "USB I/O mutex release failed");
+      std::abort();
+    }
+  }
+  bool ready() const { return locked_ && !usb_is_shutting_down && card; }
+  UsbIoLock(const UsbIoLock&) = delete;
+  UsbIoLock& operator=(const UsbIoLock&) = delete;
 
-static void switchPhyToSerialJtag() {
-  periph_module_reset(PERIPH_USB_MODULE);
-  periph_module_disable(PERIPH_USB_MODULE);
+ private:
+  bool locked_;
+};
 
-  CLEAR_PERI_REG_MASK(RTC_CNTL_USB_CONF_REG, RTC_CNTL_SW_HW_USB_PHY_SEL | RTC_CNTL_SW_USB_PHY_SEL |
-                                                 RTC_CNTL_USB_PAD_ENABLE);
-
-  CLEAR_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG, USB_SERIAL_JTAG_PHY_SEL);
-
-  CLEAR_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG,
-                      USB_SERIAL_JTAG_PAD_PULL_OVERRIDE | USB_SERIAL_JTAG_DP_PULLUP |
-                          USB_SERIAL_JTAG_DM_PULLUP | USB_SERIAL_JTAG_DP_PULLDOWN |
-                          USB_SERIAL_JTAG_DP_PULLDOWN);
-
-  SET_PERI_REG_MASK(USB_SERIAL_JTAG_CONF0_REG, USB_SERIAL_JTAG_USB_PAD_ENABLE);
+static bool validTransfer(uint32_t lba, uint32_t offset, const void* buffer, uint32_t bytes) {
+  if (!card || !buffer || bytes > INT32_MAX || offset >= kSectorBytes ||
+      card->csd.sector_size != kSectorBytes || lba >= card->csd.capacity)
+    return false;
+  const uint64_t remaining = (uint64_t(card->csd.capacity) - lba) * kSectorBytes - offset;
+  return bytes <= remaining;
 }
 
-void USBAppShutdown() {
-  if (!mscEnabled)
+static void drawUsbStatus() {
+  if (startupError.length()) {
+    OLED().oledWord(startupError);
     return;
-
-  usb_is_shutting_down = true;
-  ESP_LOGI(TAG, "Shutting down USB MSC...");
-
-  msc.mediaPresent(false);
-  delay(500);
-
-  // Stop MSC functionality and detach from USB host
-  msc.end();
-
-  // Free card struct
-  if (card) {
-    free(card);
-    card = nullptr;
   }
+  switch (usbStatus.load()) {
+    case UsbStatus::Waiting:
+      OLED().oledWord(TR(STR_USB_WAITING));
+      break;
+    case UsbStatus::Connected:
+      OLED().oledWord(TR(STR_USB_CONNECTED));
+      break;
+    case UsbStatus::Suspended:
+      OLED().oledWord(TR(STR_USB_SUSPENDED));
+      break;
+    case UsbStatus::Ejected:
+      OLED().oledWord(TR(STR_USB_EJECTED));
+      break;
+  }
+}
 
-  // Deinitialize SDMMC host to clean hardware state
-  sdmmc_host_deinit();
-
+static void failStartup(const String& message) {
+  startupError = message;
+  msc.mediaPresent(false);
   mscEnabled = false;
+  ESP_LOGE(TAG, "USB startup failed: %s", message.c_str());
+  drawUsbStatus();
+}
 
-  // The system is about to esp_restart(), so remounting the SD card
-  // right before a hardware reboot is dangerous and unnecessary.
-
-  if (SAVE_POWER)
-    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-  disableTimeout = false;
-
-  // Switch USB control back to ESP so serial can reconnect after reboot
+/** Revoke MSC media and drain in-flight I/O before the caller reboots. */
+void USBAppShutdown() {
+  usb_is_shutting_down = true;
+  UsbIoLock lock;
+  ESP_LOGI(TAG, "Shutting down USB MSC...");
+  msc.mediaPresent(false);
+  msc.end();
+  // The SD service owns this allocation and host. Its FAT volume stays
+  // unmounted until reboot; no filesystem caches may survive host writes.
+  card = nullptr;
+  mscEnabled = false;
   PowerSystem.setUSBControlESP();
 }
 
+/** Close USB transfer and reboot to Home so FAT and the USB PHY start cleanly. */
+void USB_EXIT() {
+  USBAppShutdown();
+  if (prefs.begin("PocketMage", false)) {
+    if (prefs.putInt("CurrentAppState", static_cast<int>(HOME)) != sizeof(int) ||
+        prefs.putBool("Seamless_Reboot", true) != sizeof(bool))
+      ESP_LOGE(TAG, "Could not persist USB exit state");
+    prefs.end();
+  } else {
+    ESP_LOGE(TAG, "Could not open preferences for USB exit");
+  }
+  pm_usb::restoreSerialForRestart();
+  esp_restart();
+}
+
 static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {
-  if (usb_is_shutting_down)
-    return -1;  // Safety Lock
+  UsbIoLock lock;
+  if (!lock.ready() || !validTransfer(lba, offset, buffer, bufsize))
+    return -1;
 
   PM_SDAUTO().beginIO();
-  if (!card || card->csd.sector_size == 0) {
-    PM_SDAUTO().endIO();
-    return -1;
-  }
-
-  uint32_t secSize = card->csd.sector_size;
-  uint64_t capacity = card->csd.capacity;
-  if (capacity == 0 || lba >= capacity ||
-      lba + (bufsize + offset + secSize - 1) / secSize > capacity + 1) {
-    PM_SDAUTO().endIO();
-    return -1;
-  }
+  constexpr uint32_t secSize = kSectorBytes;
 
   uint32_t written = 0;
 
@@ -136,22 +169,12 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t 
 }
 
 static int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {
-  if (usb_is_shutting_down)
-    return -1;  // Safety Lock
+  UsbIoLock lock;
+  if (!lock.ready() || !validTransfer(lba, offset, buffer, bufsize))
+    return -1;
 
   PM_SDAUTO().beginIO();
-  if (!card || card->csd.sector_size == 0) {
-    PM_SDAUTO().endIO();
-    return -1;
-  }
-
-  uint32_t secSize = card->csd.sector_size;
-  uint64_t capacity = card->csd.capacity;
-  if (capacity == 0 || lba >= capacity ||
-      lba + (bufsize + offset + secSize - 1) / secSize > capacity + 1) {
-    PM_SDAUTO().endIO();
-    return -1;
-  }
+  constexpr uint32_t secSize = kSectorBytes;
 
   uint8_t* buf = (uint8_t*)buffer;
   uint32_t read = 0;
@@ -196,6 +219,10 @@ static int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufs
 
 static bool onStartStop(uint8_t power_condition, bool start, bool eject) {
   ESP_LOGI(TAG, "MSC Start/Stop: power=%u, start=%d, eject=%d\n", power_condition, start, eject);
+  if (eject && !start)
+    usbStatus = UsbStatus::Ejected;
+  else if (start)
+    usbStatus = UsbStatus::Connected;
   return true;
 }
 
@@ -204,123 +231,74 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
   if (event_base == ARDUINO_USB_EVENTS) {
     switch (event_id) {
       case ARDUINO_USB_STARTED_EVENT:
+        usbStatus = UsbStatus::Connected;
         ESP_LOGI(TAG, "USB Connected");
         break;
       case ARDUINO_USB_STOPPED_EVENT:
+        usbStatus = UsbStatus::Waiting;
         ESP_LOGI(TAG, "USB Disconnected");
         break;
       case ARDUINO_USB_SUSPEND_EVENT:
+        usbStatus = UsbStatus::Suspended;
         ESP_LOGI(TAG, "USB Suspended");
         break;
       case ARDUINO_USB_RESUME_EVENT:
+        usbStatus = UsbStatus::Connected;
         ESP_LOGI(TAG, "USB Resumed");
         break;
     }
   }
 }
 
+/** Enter USB transfer; failures remain visible until the user exits and reboots. */
 void USB_INIT() {
+  if (initAttempted)
+    return;
+  // Boot selects USB before the lock prompt runs. Defer the hardware handoff
+  // until the OS input dispatcher reaches this app after unlocking.
+  if (deviceLocked || elfAppRunning())
+    return;
+  initAttempted = true;
+  CurrentAppState = USB_APP;
+  newState = true;
+  disableTimeout = true;
   usb_is_shutting_down = false;
-
-  // Switch USB contol to ESP
-  PowerSystem.setUSBControlESP();
-
-  // OPEN USB FILE TRANSFER
+  OLED().setPowerSave(false);
   OLED().oledWord(TR(STR_USB_INIT));
   pocketmage::setCpuSpeed(240);
-  delay(50);
 
-  disableTimeout = true;
-
-  if (mscEnabled)
+  // Both stacks use the S3 internal PHY. usb_streaming_stop() must release it
+  // before TinyUSB resets the device controller and acquires that PHY.
+  // https://docs.espressif.com/projects/esp-iot-solution/en/latest/usb/usb_host/usb_stream.html
+  if (!P_AUDIO.stopChecked()) {
+    failStartup(P_AUDIO.getLastError());
     return;
-
-  ESP_LOGI(TAG, "Unmounting SD card for USB MSC...");
-
-  esp_vfs_fat_sdmmc_unmount();
-  delay(200);  // Give the card hardware a moment to settle state
-
-  // Configure SDMMC host and slot manually
-  sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-  host.max_freq_khz = SDMMC_FREQ_DEFAULT;  // Force 20MHz for stability
-
-  sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-  slot_config.clk = (gpio_num_t)SD_CLK;
-  slot_config.cmd = (gpio_num_t)SD_CMD;
-  slot_config.d0 = (gpio_num_t)SD_D0;
-  slot_config.d1 = (gpio_num_t)0;
-  slot_config.d2 = (gpio_num_t)0;
-  slot_config.d3 = (gpio_num_t)0;
-  slot_config.width = 1;  // or 4 for 4-bit mode
-
-  // CRITICAL FIX: Force internal pull-ups to prevent ESP_ERR_TIMEOUT
-  slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
-
-  auto cleanup = [&]() {
-    disableTimeout = false;
-    PowerSystem.setUSBControlBMS();
-    if (SAVE_POWER)
-      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    // Remount filesystem
-    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-    slot_config.width = 1;
-    slot_config.clk = (gpio_num_t)SD_CLK;
-    slot_config.cmd = (gpio_num_t)SD_CMD;
-    slot_config.d0 = (gpio_num_t)SD_D0;
-    slot_config.d1 = (gpio_num_t)0;
-    slot_config.d2 = (gpio_num_t)0;
-    slot_config.d3 = (gpio_num_t)0;
-    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
-    esp_vfs_fat_sdmmc_mount_config_t mcfg = {};
-    mcfg.format_if_mount_failed = false;
-    mcfg.max_files = 5;
-    mcfg.allocation_unit_size = 16 * 1024;
-    sdmmc_card_t* tempCard = nullptr;
-    esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mcfg, &tempCard);
-  };
-
-  // Initialize host
-  esp_err_t err = sdmmc_host_init();
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Host init failed %s\n", esp_err_to_name(err));
-    OLED().sysMessage(TR(STR_USB_HOST_FAIL) + String(esp_err_to_name(err)), 2000);
-    cleanup();
+  }
+  if (!pm_keyboard::stopUsb()) {
+    failStartup(TR(STR_USB_DEVICE_FAIL));
+    return;
+  }
+  pm_usb::Lock usbLock;
+  if (!pm_usb::claim(pm_usb::Owner::Storage)) {
+    failStartup(TR(STR_USB_DEVICE_FAIL));
+    return;
+  }
+  if (!pm_sd_gateway::beginUsbAccess()) {
+    failStartup(TR(STR_USB_CARD_BUSY));
+    return;
+  }
+  card = getSdCard();
+  if (!card || card->csd.sector_size != kSectorBytes || card->csd.capacity == 0) {
+    failStartup(TR(STR_USB_CARD_FAIL));
+    return;
+  }
+  ioMutex = xSemaphoreCreateMutex();
+  if (!ioMutex) {
+    failStartup(TR(STR_USB_CARD_STRUCT_FAIL));
     return;
   }
 
-  err = sdmmc_host_init_slot(SDMMC_HOST_SLOT_1, &slot_config);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Slot init failed: %s\n", esp_err_to_name(err));
-    OLED().sysMessage(TR(STR_USB_SLOT_FAIL) + String(esp_err_to_name(err)), 2000);
-    sdmmc_host_deinit();
-    cleanup();
-    return;
-  }
-
-  // Allocate card object and mount
-  card = (sdmmc_card_t*)malloc(sizeof(sdmmc_card_t));
-  if (!card) {
-    ESP_LOGE(TAG, "Failed to allocate card struct\n");
-    OLED().sysMessage(TR(STR_USB_CARD_STRUCT_FAIL), 2000);
-    sdmmc_host_deinit();
-    cleanup();
-    return;
-  }
-
-  err = sdmmc_card_init(&host, card);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Card init failed: %s\n", esp_err_to_name(err));
-    OLED().sysMessage(TR(STR_USB_CARD_FAIL) + String(esp_err_to_name(err)), 2000);
-    OLED().sysMessage(TR(STR_USB_SDRESET), 2000);
-    free(card);
-    card = nullptr;
-    sdmmc_host_deinit();
-    cleanup();
-    return;
-  }
-
-  // Setup USB MSC
+  PowerSystem.setUSBControlESP();
   ESP_LOGI(TAG, "Initializing USB MSC...");
 
   msc.vendorID("ESP32");
@@ -329,23 +307,34 @@ void USB_INIT() {
   msc.onRead(onRead);
   msc.onWrite(onWrite);
   msc.onStartStop(onStartStop);
-  msc.mediaPresent(true);
-  msc.begin(card->csd.capacity, card->csd.sector_size);
+  msc.mediaPresent(false);
+  if (!msc.begin(card->csd.capacity, card->csd.sector_size)) {
+    failStartup(TR(STR_USB_MSC_FAIL));
+    return;
+  }
 
   USB.onEvent(usbEventCallback);
-  USB.begin();
+  if (!USB.begin()) {
+    msc.end();
+    failStartup(TR(STR_USB_DEVICE_FAIL));
+    return;
+  }
 
+  msc.mediaPresent(true);
   mscEnabled = true;
-  delay(50);
-
-  // INIT App
-  CurrentAppState = USB_APP;
+  keypad.flush();
   KB().setKeyboardState(NORMAL);
-  newState = true;
+  KBBounceMillis = millis();
+  drawUsbStatus();
 }
 
+/** Process exit input and refresh the OLED independently of USB event delivery. */
 void processKB_USB() {
-  int currentMillis = millis();
+  if (!initAttempted) {
+    USB_INIT();
+    return;
+  }
+  uint32_t currentMillis = millis();
   char inchar = 0;
 
   // 1. Drain the hardware buffer continuously at loop speed
@@ -359,27 +348,23 @@ void processKB_USB() {
       // HANDLE INPUTS
       // Home / Exit / App Switcher recieved
       if (inchar == 12 || inchar == 8 || inchar == 19 || inchar == 28 || inchar == 23) {
-        USBAppShutdown();
-        prefs.begin("PocketMage", false);
-        prefs.putInt("CurrentAppState", static_cast<int>(HOME));
-        prefs.putBool("Seamless_Reboot", true);
-        prefs.end();
-        switchPhyToSerialJtag();
-        esp_restart();
+        USB_EXIT();
+        return;
       }
     }
   }
 
   // 3. Update OLED at 10FPS, completely independent of keyboard bounce
   currentMillis = millis();
-  if (currentMillis - OLEDFPSMillis >= (1000 / 10 /*OLED_MAX_FPS*/)) {
+  if (currentMillis - OLEDFPSMillis >= kOledFrameMs) {
     OLEDFPSMillis = currentMillis;
-    OLED().oledLine(currentLine, currentLine.length(), false);
+    drawUsbStatus();
   }
 }
 
+/** Render the USB transfer instructions on entry. */
 void einkHandler_USB() {
-  if (newState) {
+  if (initAttempted && newState) {
     newState = false;
     beginEinkScreen();
     display.drawBitmap(0, 0, _usb, 320, 218, GxEPD_BLACK);

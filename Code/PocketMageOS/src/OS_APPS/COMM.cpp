@@ -185,6 +185,17 @@ static void meshRecvCb(const mesh_message_t* msg) {
 }
 
 // INIT
+static void commInitFailed(const char* operation, esp_err_t error) {
+  constexpr unsigned long kErrorMessageMs = 1500;
+  ESP_LOGE(TAG, "%s: %s", operation, esp_err_to_name(error));
+  free(msgs);
+  msgs = nullptr;
+  msgCount = 0;
+  HOME_INIT();
+  OLED().sysMessage(TR(STR_COMM_INIT_FAILED), kErrorMessageMs);
+}
+
+/** Open ESP-NOW chat; return home with an error message if startup fails. */
 void COMM_INIT() {
   setCpuFrequencyMhz(240);
   CurrentAppState = COMM;
@@ -197,8 +208,8 @@ void COMM_INIT() {
   free(msgs);
   msgs = (ChatMsg *)calloc(MAX_CHAT_MSGS, sizeof(ChatMsg));
   if (!msgs) {
-    msgCount = 0;
-    Serial.println("COMM: OOM allocating message buffer");
+    commInitFailed("Chat message allocation", ESP_ERR_NO_MEM);
+    return;
   }
   selPeer = 0;
   prevSelPeer = 0;
@@ -217,19 +228,50 @@ void COMM_INIT() {
     return;
   }
 
-  WiFi.mode(WIFI_AP_STA);
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
-
-  esp_read_mac(myMAC, ESP_MAC_WIFI_STA);
+  esp_err_t error = mesh_now_deinit();
+  if (error != ESP_OK) {
+    commInitFailed("Previous mesh cleanup", error);
+    return;
+  }
+  // Mesh-NOW sends through WIFI_IF_STA. Starting an unused SoftAP also enters
+  // ieee80211_hostap_attach, the null-dereference path in the reported panic.
+  // https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/network/esp_now.html
+  if (!WiFi.mode(WIFI_OFF) || !WiFi.mode(WIFI_STA)) {
+    commInitFailed("Station startup", ESP_FAIL);
+    return;
+  }
+  error = esp_wifi_set_ps(WIFI_PS_NONE);
+  if (error != ESP_OK) {
+    commInitFailed("Station power saving", error);
+    return;
+  }
+  error = esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+  if (error != ESP_OK) {
+    commInitFailed("Mesh channel", error);
+    return;
+  }
+  error = esp_read_mac(myMAC, ESP_MAC_WIFI_STA);
+  if (error != ESP_OK) {
+    commInitFailed("Station MAC", error);
+    return;
+  }
   macToStr(myMAC, myMacStr);
 
-  message_queue_init();
-  mesh_now_deinit();
-  if (mesh_now_init() == ESP_OK) {
-    mesh_now_set_receive_callback(meshRecvCb);
-    meshReady = true;
+  error = message_queue_init();
+  if (error != ESP_OK) {
+    commInitFailed("Receive queue", error);
+    return;
   }
+  error = mesh_now_init();
+  if (error != ESP_OK) {
+    const esp_err_t cleanup = mesh_now_deinit();
+    if (cleanup != ESP_OK)
+      ESP_LOGE(TAG, "Failed mesh cleanup: %s", esp_err_to_name(cleanup));
+    commInitFailed("Mesh startup", error);
+    return;
+  }
+  mesh_now_set_receive_callback(meshRecvCb);
+  meshReady = true;
 }
 
 // DRAIN INCOMING QUEUE

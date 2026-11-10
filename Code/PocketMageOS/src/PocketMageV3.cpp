@@ -159,13 +159,14 @@ void setup() {
 void loop() {
 // Run background tasks
 #if PM_TARGET_HOST  // POCKETMAGE_OS
-  // While a loaded .elf owns the UI, the OS must not drive input, repaint,
-  // time out, or yank state behind it. Battery sampling and the yield below
-  // keep running.
+  // A loaded ELF owns input and rendering; OS power management stays active.
   if (!elfAppRunning()) {
     if (resetRequested) {
       resetRequested = false;
-      HOME_INIT();
+      if (CurrentAppState == USB_APP)
+        USB_EXIT();
+      else
+        HOME_INIT();
     }
     // OS-level lock lifecycle: while a lock is required (boot/wake, NOWLATER
     // exit, mid-session "lock on"), block here on the PIN prompt so no app
@@ -173,12 +174,11 @@ void loop() {
     // NOWLATER shutdown screen is exempt: power-off must work while locked.
     if (deviceLocked && CurrentHOMEState != NOWLATER)
       lockEnsureUnlocked();
-    if (!noTimeout)
-      checkTimeout();
     if (DEBUG_VERBOSE)
       printDebug();
   }
 #endif
+  checkTimeout();
   updateBattState();
 
   if (!elfAppRunning())

@@ -1,4 +1,6 @@
+#include <elf_runner.h>
 #include <globals.h>
+#include <pocketmage_sd/sd_gateway.h>
 static constexpr const char* TAG = "UTILS";
 
 static uint8_t prevSec = 0;
@@ -21,39 +23,27 @@ void printDebug() {
   }
 }
 
+void pocketmage::checkIdleSleep() {
+  bool inhibited = !SAVE_POWER || disableTimeout || noTimeout ||
+                   pm_sd_gateway::streamsOpen() || CurrentAppState == USB_APP ||
+                   P_AUDIO.usbConnected() || P_AUDIO.getState() != AudioState::Idle;
+  if (!idleSleepDue(inhibited))
+    return;
+
+  ESP_LOGD(TAG, "Device idle... Deep sleeping");
+#if PM_TARGET_HOST
+  saveEditingFile();
+  bool textScreen = CurrentAppState == TXT && SLEEPMODE == "TEXT" &&
+                    PM_SDAUTO().getEditingFile() != "";
+  deepSleep(textScreen);
+#else
+  deepSleep();
+#endif
+}
+
 #if PM_TARGET_APP
 void checkTimeout() {
-  int randomScreenSaver = 0;
-  CLOCK().setTimeoutMillis(millis());
-  ESP_LOGV(TAG, "checking timeout");
-
-  // Trigger timeout deep sleep
-  if (!disableTimeout) {
-    if (CLOCK().getTimeDiff() >= TIMEOUT * 1000) {
-      ESP_LOGD(TAG, "Device idle... Deep sleeping");
-
-      // Give a chance to keep device awake
-      OLED().oledWord(TR(STR_UTILS_SLEEP));
-      unsigned long i = millis();
-      unsigned long j = millis();
-      while ((j - i) <= 4000) {  // 4 sec
-        j = millis();
-        if (KB().updateKeypress() != 0) {
-          OLED().oledWord(TR(STR_GOOD_SAVE));
-          delay(500);
-          CLOCK().setPrevTimeMillis(millis());  // Reset system idle timer
-          keypad.flush();
-          return;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));  // Prevent watchdog starvation during this while loop
-      }
-
-      display.setFullWindow();
-      pocketmage::deepSleep();
-    }
-  } else {
-    CLOCK().setPrevTimeMillis(millis());
-  }
+  pocketmage::checkIdleSleep();
 
   // Power Button Event sleep
   if (PWR_BTN_event && CurrentHOMEState != NOWLATER) {
@@ -70,48 +60,23 @@ void checkTimeout() {
 
 #else  // OS APPLICATION
 void checkTimeout() {
-  int randomScreenSaver = 0;
-  CLOCK().setTimeoutMillis(millis());
-  ESP_LOGV(TAG, "checking timeout");
+  pocketmage::checkIdleSleep();
 
-  // Trigger timeout deep sleep
-  if (!disableTimeout) {
-    if (CLOCK().getTimeDiff() >= TIMEOUT * 1000) {
-      ESP_LOGD(TAG, "Device idle... Deep sleeping");
+  // A USB-exported FAT volume can only be used again after a hardware reset.
+  // Deep sleep provides that reset on wake; NOWLATER resumes in-place.
+  if (PWR_BTN_event && CurrentAppState == USB_APP) {
+    PWR_BTN_event = false;
+    USBAppShutdown();
+    pocketmage::deepSleep();
+    return;
+  }
 
-      // Give a chance to keep device awake
-      OLED().oledWord(TR(STR_UTILS_SLEEP));
-      unsigned long i = millis();
-      unsigned long j = millis();
-      while ((j - i) <= 4000) {  // 4 sec
-        j = millis();
-        if (KB().updateKeypress() != 0) {
-          OLED().oledWord(TR(STR_GOOD_SAVE));
-          delay(500);
-          CLOCK().setPrevTimeMillis(millis());  // Reset system idle timer
-          keypad.flush();
-          return;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));  // Prevent watchdog starvation during this while loop
-      }
-
-      saveEditingFile();
-
-      switch (CurrentAppState) {
-        case TXT:
-          if (SLEEPMODE == "TEXT" && PM_SDAUTO().getEditingFile() != "") {
-            pocketmage::deepSleep(true);
-          } else {
-            pocketmage::deepSleep();
-          }
-          break;
-        default:
-          pocketmage::deepSleep();
-          break;
-      }
-    }
-  } else {
-    CLOCK().setPrevTimeMillis(millis());
+  // A running ELF owns the displays, so the charging HOME screen cannot take over.
+  if (PWR_BTN_event && elfAppRunning()) {
+    PWR_BTN_event = false;
+    saveEditingFile();
+    pocketmage::deepSleep();
+    return;
   }
 
   // Power Button Event sleep
@@ -191,7 +156,7 @@ void checkTimeout() {
 void wakeFromNowlater(char bootKey) {
   loadState(true, bootKey);
   keypad.flush();
-  disableTimeout = false;
+  disableTimeout = CurrentAppState == USB_APP;
 
   CurrentHOMEState = HOME_HOME;
   OLED().setPowerSave(false);
@@ -280,11 +245,9 @@ void loadState(bool changeState, char bootKey) {
     // saved app, boot shortcut, or HOME_ON_BOOT preference.
     CurrentAppState = ONBOARDING;
     ONBOARDING_INIT();
-  } else if (HOME_ON_BOOT) {
-    CurrentAppState = HOME;
-    HOME_INIT();
   } else {
-    CurrentAppState = static_cast<AppState>(prefs.getInt("CurrentAppState", HOME));
+    CurrentAppState = HOME_ON_BOOT ? HOME
+                                  : static_cast<AppState>(prefs.getInt("CurrentAppState", HOME));
 
     // Check boot keypress; a key captured by the NOWLATER wake path is passed
     // in so the shortcut letter opens its app without re-reading the keypad.
@@ -315,7 +278,7 @@ void loadState(bool changeState, char bootKey) {
         TASKS_INIT();
         break;
       case USB_APP:
-        HOME_INIT();
+        newState = false;
         break;
       case COMM:
         COMM_INIT();

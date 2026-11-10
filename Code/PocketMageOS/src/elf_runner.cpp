@@ -16,26 +16,11 @@
 #include <esp_heap_caps.h>
 #include <esp_idf_version.h>
 #include <globals.h>
+#include <pm_overlay_api.h>
+#include <pocketmage_sd/sd_gateway.h>
+#include "../lib/elf_loader/symbol_registry.h"
 
 #if PM_TARGET_HOST
-
-extern "C" int pm_elfo_open(const char* path) {
-  return PM_SD().streamOpen(path, 'r');
-}
-
-extern "C" int pm_elfo_read(int slot, size_t offset, void* buf, size_t len) {
-  if (!PM_SD().streamSeek(slot, (long)offset, SEEK_SET))
-    return -1;
-  return PM_SD().streamRead(slot, buf, len) == len ? 0 : -1;
-}
-
-extern "C" size_t pm_elfo_size(int slot) {
-  return PM_SD().streamSize(slot);
-}
-
-extern "C" void pm_elfo_close(int slot) {
-  PM_SD().streamClose(slot);
-}
 
 static volatile bool s_running = false;
 static TaskHandle_t s_task = NULL;
@@ -87,7 +72,7 @@ static uintptr_t scopedSymResolver(const char* sym_name) {
     return 0;
   if (!elfScopeAllows(s_scope, sym_name))
     return 0;
-  return elf_find_sym_default(sym_name);
+  return pm_elf_find_symbol(sym_name);
 }
 
 static String infoKey(int slot) {
@@ -156,6 +141,43 @@ static int elfFileSourceRead(void* ctx, size_t offset, void* buf, size_t len) {
   return PM_SD().streamRead(s->slot, buf, len) == len ? 0 : -EIO;
 }
 
+static void finalizeElf(esp_elf_t* elf) {
+  if (!elf->init_done)
+    return;
+  // Separate finalization from deallocation so fini hooks can register exit work.
+  // Match esp_elf_deinit's array order and legacy sentinel handling without
+  // changing upstream: components/elf_loader/src/esp_elf.c in esp-iot-solution.
+  elf->init_done = false;
+  for (uint32_t i = 0; i < elf->fini_count; ++i) {
+    void (*callback)() = elf->fini_array[elf->fini_reverse ? elf->fini_count - i - 1 : i];
+    if (callback && reinterpret_cast<uintptr_t>(callback) != UINTPTR_MAX)
+      callback();
+  }
+}
+
+static void stopAppAudio() {
+  // Retain the image while a decoder or USB worker can still reference app state.
+  while (!P_AUDIO.stopChecked()) {
+    Serial.println("[ELF] audio shutdown incomplete; retaining app and retrying");
+    delay(100);
+  }
+}
+
+static bool executeLoadedElf(esp_elf_t* elf, int argc, char** argv) {
+  if (!P_APP.beginSession())
+    return false;
+  const int result = esp_elf_request(elf, 0, argc, argv);
+  stopAppAudio();
+  finalizeElf(elf);
+  P_APP.finishSession();
+  // Exit hooks may have started audio or opened another stream.
+  stopAppAudio();
+  const bool closed = pm_sd_gateway::closeCallerResources();
+  if (!closed)
+    Serial.println("[ELF] app stream flush failed during cleanup");
+  return result == 0 && closed;
+}
+
 static void elfAppTask(void* param) {
   ElfRunParams* p = (ElfRunParams*)param;
   bool ok = false;
@@ -199,7 +221,7 @@ static void elfAppTask(void* param) {
           .ctx = &fileSrc,
       };
 
-      esp_elf_t elf;
+      esp_elf_t elf{};
       uint32_t t1 = millis();
       int ire = esp_elf_init(&elf);
 
@@ -262,6 +284,10 @@ static void elfAppTask(void* param) {
       }
 
       int rre = (ire == 0) ? esp_elf_relocate_source(&elf, &src) : ire;
+      const bool sourceClosed = PM_SD().streamClose(slot);
+      slot = -1;
+      if (!sourceClosed && rre == 0)
+        rre = -EIO;
       Serial.printf("[ELF] init=%d relocate=%d entry=%p t=%u\n", ire, rre, (void*)elf.entry,
                     (unsigned)(millis() - t1));
       if (ire == 0 && rre == 0) {
@@ -290,27 +316,26 @@ static void elfAppTask(void* param) {
             }
           }
         }
-        esp_elf_request(&elf, 0, 4, argv);
+        ok = executeLoadedElf(&elf, 4, argv);
         FAST_REFRESH = prevFastRefresh;
-        elf_overlay_set_active(NULL);
-        if (ov_loader) {
-          elf_overlay_unload(ov_loader);
-          ov_loader = NULL;
-        }
-        esp_elf_deinit(&elf);
         Serial.printf("[ELF] %s EXITED\n", p->appName);
         Serial.printf("[ELF] heap8 free=%u largest=%u after exit\n",
                       (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
                       (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-        ok = true;
       } else {
         // ENOSYS is what the loader returns for a symbol it cannot resolve,
         // which for a scoped app means the scope is too narrow.
         Serial.println(rre == -ENOSYS ? "ELF needs symbols outside its scope"
                                       : "ELF relocate failed");
       }
+      if (ire == 0)
+        esp_elf_deinit(&elf);
+      elf_overlay_set_active(NULL);
+      if (ov_loader)
+        elf_overlay_unload(ov_loader);
     }
-    PM_SD().streamClose(slot);
+    if (slot >= 0 && !PM_SD().streamClose(slot))
+      Serial.println("[ELF] source stream close failed");
   } else {
     Serial.printf("ELF open failed: %s\n", p->elfPath);
   }
@@ -343,7 +368,7 @@ bool runElfApp(int slot) {
     return false;
   }
 
-  ElfRunParams* p = new ElfRunParams;
+  ElfRunParams* p = new ElfRunParams{};
   strncpy(p->elfPath, info.elfPath, sizeof(p->elfPath) - 1);
   p->elfPath[sizeof(p->elfPath) - 1] = '\0';
 

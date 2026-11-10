@@ -9,7 +9,8 @@
   "build": {
     "srcDir": "../esp-iot-solution/components/elf_loader/src",
     "includeDir": "../esp-iot-solution/components/elf_loader/include",
-    "srcFilter": "+<*> -<dlso> -<soc> -<arch/esp_elf_riscv.c> -<esp_all_symbol.c> +<arch/esp_elf_xtensa.c>",
+    "srcFilter": "+<*> -<dlso> -<soc> -<arch/esp_elf_riscv.c> -<esp_all_symbol.c> -<esp_elf_symbol.c> +<arch/esp_elf_xtensa.c>",
+    "extraScript": "build.py",
     "flags": [
       "-DCONFIG_ELF_LOADER=1",
       "-DCONFIG_ELF_LOADER_BUS_ADDRESS_MIRROR=1",
