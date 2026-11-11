@@ -1,8 +1,8 @@
 // PocketMage V3.0
 // @Ashtf 2025
 
-#include <globals.h>
 #include <elf_runner.h>
+#include <globals.h>
 
 //        .o.       ooooooooo.   ooooooooo.    .oooooo..o  //
 //       .888.      `888   `Y88. `888   `Y88. d8P'    `Y8  //
@@ -12,16 +12,16 @@
 //   .8'     `888.   888          888         oo     .d8P  //
 //  o88o     o8888o o888o        o888o        8""88888P'   //
 
-
 // ADD E-INK HANDLER APP SCRIPTS HERE
 void applicationEinkHandler() {
-  #if PM_TARGET_APP
-    einkHandler_APP(); // PM_TARGET_APP: entry point
-  #endif
-  // PM_TARGET_APP: Remove switch statement
-  #if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_APP
+  einkHandler_APP();  // PM_TARGET_APP: entry point
+#endif
+// PM_TARGET_APP: Remove switch statement
+#if PM_TARGET_HOST  // POCKETMAGE_OS
   // While a loaded .elf owns the UI, the OS must not repaint behind it.
-  if (elfAppRunning()) return;
+  if (elfAppRunning())
+    return;
   // While a lock is required (loop() is blocked on lockEnsureUnlocked) the
   // e-ink must not repaint: keep the sleep screensaver/boot frame on the panel.
   // The NOWLATER shutdown screen is exempt so the clock face can render.
@@ -71,13 +71,13 @@ void applicationEinkHandler() {
       einkHandler_ONBOARDING();
       break;
     case ELFAPP:
-      break; // loaded .elf owns the panel; OS stands down
+      break;  // loaded .elf owns the panel; OS stands down
     // ADD APP CASES HERE
     default:
       einkHandler_HOME();
       break;
   }
-  #endif // POCKETMAGE_OS
+#endif  // POCKETMAGE_OS
 }
 
 // ADD PROCESS/KEYBOARD APP SCRIPTS HERE
@@ -85,12 +85,12 @@ void processKB() {
   // Check for USB KB
   KB().checkUSBKB();
 
-  #if PM_TARGET_APP
-    processKB_APP(); // PM_TARGET_APP: entry point
-    return;
-  #endif
-  // PM_TARGET_APP: Remove switch statement
-  #if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_APP
+  processKB_APP();  // PM_TARGET_APP: entry point
+  return;
+#endif
+// PM_TARGET_APP: Remove switch statement
+#if PM_TARGET_HOST  // POCKETMAGE_OS
   switch (CurrentAppState) {
     case HOME:
       processKB_HOME();
@@ -132,13 +132,13 @@ void processKB() {
       processKB_ONBOARDING();
       break;
     case ELFAPP:
-      break; // loaded .elf owns input; OS stands down
+      break;  // loaded .elf owns input; OS stands down
     // ADD APP CASES HERE
     default:
       processKB_HOME();
       break;
   }
-  #endif // POCKETMAGE_OS
+#endif  // POCKETMAGE_OS
 }
 
 //  ooo        ooooo       .o.       ooooo ooooo      ooo  //
@@ -157,28 +157,32 @@ void setup() {
 
 // Keyboard / OLED Loop
 void loop() {
-  // Run background tasks
-  #if PM_TARGET_HOST // POCKETMAGE_OS
-  // While a loaded .elf owns the UI, the OS must not drive input, repaint,
-  // time out, or yank state behind it. Battery sampling and the yield below
-  // keep running.
+// Run background tasks
+#if PM_TARGET_HOST  // POCKETMAGE_OS
+  // A loaded ELF owns input and rendering; OS power management stays active.
   if (!elfAppRunning()) {
     if (resetRequested) {
       resetRequested = false;
-      HOME_INIT();
+      if (CurrentAppState == USB_APP)
+        USB_EXIT();
+      else
+        HOME_INIT();
     }
     // OS-level lock lifecycle: while a lock is required (boot/wake, NOWLATER
     // exit, mid-session "lock on"), block here on the PIN prompt so no app
     // input or e-ink repaint can happen until the device is unlocked.  The
     // NOWLATER shutdown screen is exempt: power-off must work while locked.
-    if (deviceLocked && CurrentHOMEState != NOWLATER) lockEnsureUnlocked();
-    if (!noTimeout)  checkTimeout();
-    if (DEBUG_VERBOSE) printDebug();
+    if (deviceLocked && CurrentHOMEState != NOWLATER)
+      lockEnsureUnlocked();
+    if (DEBUG_VERBOSE)
+      printDebug();
   }
-  #endif
+#endif
+  checkTimeout();
   updateBattState();
 
-  if (!elfAppRunning()) processKB();
+  if (!elfAppRunning())
+    processKB();
 
   // Yield to watchdog
   vTaskDelay(50 / portTICK_PERIOD_MS);

@@ -1,34 +1,45 @@
-// AUDIT 1
 #include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
 
-#if PM_TARGET_HOST // PocketMage OS Only
+#include <cstdio>
+
+#if PM_TARGET_HOST  // PocketMage OS Only
 #include "wrench.h"
 
 // --- UTF-8 Helpers ---
 static inline uint16_t decodeUTF8(const char* str, uint16_t* index, uint16_t len) {
-  if (*index >= len) return 0;
+  if (*index >= len)
+    return 0;
   uint8_t c = str[*index];
   (*index)++;
-  
-  if (c < 0x80) return c; // Standard ASCII
-  if ((c & 0xE0) == 0xC0) { // 2-byte sequence
-    if (*index >= len) return c; // Incomplete, fallback safely
-    uint8_t c2 = str[*index]; (*index)++;
+
+  if (c < 0x80)
+    return c;                // Standard ASCII
+  if ((c & 0xE0) == 0xC0) {  // 2-byte sequence
+    if (*index >= len)
+      return c;  // Incomplete, fallback safely
+    uint8_t c2 = str[*index];
+    (*index)++;
     return ((c & 0x1F) << 6) | (c2 & 0x3F);
   }
-  if ((c & 0xF0) == 0xE0) { // 3-byte sequence
-    if (*index + 1 >= len) return c;
-    uint8_t c2 = str[*index]; (*index)++;
-    uint8_t c3 = str[*index]; (*index)++;
+  if ((c & 0xF0) == 0xE0) {  // 3-byte sequence
+    if (*index + 1 >= len)
+      return c;
+    uint8_t c2 = str[*index];
+    (*index)++;
+    uint8_t c3 = str[*index];
+    (*index)++;
     return ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
   }
-  return c; // Fallback
+  return c;  // Fallback
 }
 
 static inline uint8_t mapUnicodeToFontIndex(uint16_t unicode) {
-  if (unicode < 0x80) return unicode;
-  if (unicode >= 0x00A0 && unicode <= 0x00FF) return unicode - 0x20;
-  return 0x7F; // Replacement char
+  if (unicode < 0x80)
+    return unicode;
+  if (unicode >= 0x00A0 && unicode <= 0x00FF)
+    return unicode - 0x20;
+  return 0x7F;  // Replacement char
 }
 
 static void printUTF8ToEink(const String& s, int maxChars = 9999) {
@@ -46,23 +57,23 @@ enum TERMINAL_functions { PROMPT, POTION, SSH };
 TERMINAL_functions CurrentTERMfunc = PROMPT;
 
 // Potion
-static const int POTION_ROW_TOP     = 10;
-static const int POTION_ROW_PITCH   = 16;
-static const int POTION_PAGE_LINES  = 15;  // rows that fit on screen
+static const int POTION_ROW_TOP = 10;
+static const int POTION_ROW_PITCH = 16;
+static const int POTION_PAGE_LINES = 15;   // rows that fit on screen
 static const int POTION_BACK_OFFSET = 11;  // page - ahead - 1
 static const int POTION_AHEAD_LINES = 3;
-static const int POTION_LINE_X      = 5;
+static const int POTION_LINE_X = 5;
 
 // Terminal output geometry (e-ink terminal scroll view).
 // TERM_X and the TERM_SMALL_* page constants are shared with the SSH VT100
 // screen and live in globals.h.
-static const int TERM_LARGE_Y0      = 14;   // first baseline, large font (MonoBold)
-static const int TERM_LARGE_STEP    = 16;   // row pitch, large font
-static const int TERM_LARGE_LINES   = 14;   // lines per page, large font
-static const int TERM_LARGE_LINELEN = 28;   // max line length, large font
-static const int TERM_SMALL_LINELEN = 52;   // max line length, small font
-static const int TERM_SCROLL_MARGIN = 4;    // scrollbar right margin
-static const int TERM_LINE_NUM_GAP  = 4;    // line-number to code gap (potion editor)
+static const int TERM_LARGE_Y0 = 14;       // first baseline, large font (MonoBold)
+static const int TERM_LARGE_STEP = 16;     // row pitch, large font
+static const int TERM_LARGE_LINES = 14;    // lines per page, large font
+static const int TERM_LARGE_LINELEN = 28;  // max line length, large font
+static const int TERM_SMALL_LINELEN = 52;  // max line length, small font
+static const int TERM_SCROLL_MARGIN = 4;   // scrollbar right margin
+static const int TERM_LINE_NUM_GAP = 4;    // line-number to code gap (potion editor)
 
 // Terminal
 static std::vector<String> terminalOutputs;
@@ -88,51 +99,42 @@ static bool potLinksLoaded = false;
 // Functions
 
 void loadPotLinks() {
-  pocketmage::setCpuSpeed(240);
   potLinkAliases.clear();
   potLinkPaths.clear();
-  if (!global_fs->exists("/sys/pot_links.txt")) {
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (!PM_SD().exists("/sys/pot_links.txt")) {
     return;
   }
-  
-  File f = global_fs->open("/sys/pot_links.txt", FILE_READ);
-  if (!f || f.isDirectory()) {
-    if (f) f.close();
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    return;
-  }
-  
-  while (f.available()) {
-    String line = f.readStringUntil('\n');
+
+  String content = PM_SD().readFileToString("/sys/pot_links.txt");
+
+  int start = 0;
+  while (start < (int)content.length()) {
+    int end = content.indexOf('\n', start);
+    String line = (end == -1) ? content.substring(start) : content.substring(start, end);
+    start = (end == -1) ? (int)content.length() : end + 1;
+
     line.trim();
-    if (line.length() == 0) continue;
-    
+    if (line.length() == 0)
+      continue;
+
     int comma = line.indexOf(',');
     if (comma != -1) {
       potLinkAliases.push_back(line.substring(0, comma));
       potLinkPaths.push_back(line.substring(comma + 1));
     }
   }
-  f.close();
+
   potLinksLoaded = true;
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void savePotLinks() {
-  pocketmage::setCpuSpeed(240);
-  if (!global_fs->exists("/sys")) global_fs->mkdir("/sys");
-  File f = global_fs->open("/sys/pot_links.txt", FILE_WRITE);
-  if (!f) {
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    return;
-  }
-  
+  PM_SD().mkdirPath("/sys");
+
+  String content = "";
   for (size_t i = 0; i < potLinkAliases.size(); i++) {
-    f.println(potLinkAliases[i] + "," + potLinkPaths[i]);
+    content += potLinkAliases[i] + "," + potLinkPaths[i] + "\n";
   }
-  f.close();
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  PM_SD().writeFile("/sys/pot_links.txt", content.c_str());
 }
 
 #pragma region POTION
@@ -156,7 +158,8 @@ void terminalScrollPreview() {
     }
 
     String dispStr = terminalOutputs[i];
-    if (dispStr.length() > 21) dispStr = dispStr.substring(0, 21);
+    if (dispStr.length() > 21)
+      dispStr = dispStr.substring(0, 21);
     FontEngine::drawText(DisplayTarget::OLED, kOledPrevX, y, dispStr, FontStyle::Tiny);
 
     y += kOledPrevPitch;
@@ -175,8 +178,8 @@ void potionScrollPreview() {
     startLine = currentPotionLine - 1;
   }
 
-  int y = kOledPrevY0; // Baseline for the first row of text
-  
+  int y = kOledPrevY0;  // Baseline for the first row of text
+
   for (int i = startLine; i < startLine + kOledPrevRows; i++) {
     if (i >= (int)potionLines.size()) {
       break;
@@ -204,64 +207,41 @@ void potionScrollPreview() {
 
 void loadPotionFile(String path) {
   potionLines.clear();
-  pocketmage::setCpuSpeed(240);
 
-  File file = global_fs->open(path);
-  if (!file || file.isDirectory()) {
-    if (file) file.close();
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (!PM_SD().exists(path.c_str())) {
     return;
   }
 
-  String line = "";
-  while (file.available()) {
-    char c = file.read();
+  String content = PM_SD().readFileToString(path.c_str());
 
-    if (c == '\n') {
-      if (line.endsWith("\r")) {
-        line.remove(line.length() - 1);
-      }
-      potionLines.push_back(line);
-      line = "";
-    } else {
-      line += c;
-    }
-  }
+  int start = 0;
+  while (start < (int)content.length()) {
+    int end = content.indexOf('\n', start);
+    String line = (end == -1) ? content.substring(start) : content.substring(start, end);
+    start = (end == -1) ? (int)content.length() : end + 1;
 
-  if (line.length() > 0) {
     if (line.endsWith("\r")) {
       line.remove(line.length() - 1);
     }
     potionLines.push_back(line);
   }
 
-  file.close();
-
   if (potionLines.size() == 0)
     potionLines.push_back("");
-
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void savePotionFile(String path) {
-  pocketmage::setCpuSpeed(240);
-
-  File file = global_fs->open(path, FILE_WRITE);
-  if (!file) {
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    return;
-  }
-
+  String content = "";
   for (size_t i = 0; i < potionLines.size(); i++) {
-    file.print(potionLines[i]);
+    content += potionLines[i];
     if (i < potionLines.size() - 1) {
-      file.print('\n');
+      content += "\n";
     }
   }
 
-  file.close();
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-  OLED().sysMessage(TR(STR_TERM_FILE_SAVED),500);
+  if (PM_SD().writeBinaryFile(path.c_str(), (const uint8_t*)content.c_str(), content.length())) {
+    OLED().sysMessage(TR(STR_TERM_FILE_SAVED), 500);
+  }
 }
 
 void potionInit() {
@@ -279,14 +259,13 @@ void potionInit() {
 // Returns true if the editor was entered (caller must return immediately),
 // false otherwise with the failure reason in message.
 bool openFileInPotion(const String& arg, String& message) {
-  pocketmage::setCpuSpeed(240);
-
   if (arg.length() == 0) {
     message = TR(STR_TERM_USAGE_POTION);
     return false;
   }
 
-  String filePath = arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
+  String filePath =
+      arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
 
   if (!filePath.endsWith(".c") && !filePath.endsWith(".txt")) {
     int dotIdx = arg.lastIndexOf('.');
@@ -294,8 +273,8 @@ bool openFileInPotion(const String& arg, String& message) {
       message = TR(STR_TERM_ONLY_CTXT);
       return false;
     }
-    bool hasC = global_fs->exists(filePath + ".c");
-    bool hasTxt = global_fs->exists(filePath + ".txt");
+    bool hasC = PM_SD().exists((filePath + ".c").c_str());
+    bool hasTxt = PM_SD().exists((filePath + ".txt").c_str());
     if (hasTxt && !hasC) {
       filePath += ".txt";
     } else {
@@ -303,13 +282,12 @@ bool openFileInPotion(const String& arg, String& message) {
     }
   }
 
-  if (!global_fs->exists(filePath)) {
+  if (!PM_SD().exists(filePath.c_str())) {
     message = TR(STR_TERM_FILE_NOT_FOUND);
     return false;
   }
 
   editFile = filePath;
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
   potionInit();
   return true;
 }
@@ -319,7 +297,8 @@ bool openFileInPotion(const String& arg, String& message) {
 // line. Shared with SSH.cpp for diagnostic output before/after a session.
 void termPrint(const String& line) {
   terminalOutputs.push_back(line);
-  termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+  termScrollIndex =
+      terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
   newState = true;
 }
 
@@ -341,14 +320,16 @@ void updateTerminalDisp() {
   if (terminalOutputs.size() > termLinesPerPage) {
     maxScroll = (int)(terminalOutputs.size() - termLinesPerPage);
   }
-  
-  if (termScrollIndex > (ulong)maxScroll) termScrollIndex = maxScroll;
+
+  if (termScrollIndex > (ulong)maxScroll)
+    termScrollIndex = maxScroll;
 
   int y = termLargeFont ? TERM_LARGE_Y0 : TERM_SMALL_Y0;
   int yStep = termLargeFont ? TERM_LARGE_STEP : TERM_SMALL_STEP;
   int startIdx = (int)termScrollIndex;
   int endIdx = startIdx + termLinesPerPage;
-  if (endIdx > (int)terminalOutputs.size()) endIdx = (int)terminalOutputs.size();
+  if (endIdx > (int)terminalOutputs.size())
+    endIdx = (int)terminalOutputs.size();
 
   const FontStyle termStyle = termLargeFont ? FontStyle::MonoBold : FontStyle::Terminal;
   for (int i = startIdx; i < endIdx; i++) {
@@ -365,37 +346,6 @@ void updateTerminalDisp() {
   EINK().refresh();
 }
 
-bool deleteRecursive(String path) {
-  File dir = global_fs->open(path);
-  if (!dir) return false;
-  if (!dir.isDirectory()) {
-    dir.close();
-    return global_fs->remove(path);
-  }
-  
-  File file = dir.openNextFile();
-  while (file) {
-    String name = file.name();
-    int slash = name.lastIndexOf('/');
-    if (slash >= 0) name = name.substring(slash + 1);
-    String childPath = path;
-    if (!childPath.endsWith("/")) childPath += "/";
-    childPath += name;
-    
-    bool isDir = file.isDirectory();
-    file.close();
-    
-    if (isDir) {
-      deleteRecursive(childPath);
-    } else {
-      global_fs->remove(childPath);
-    }
-    file = dir.openNextFile();
-  }
-  dir.close();
-  return global_fs->rmdir(path);
-}
-
 void funcSelect(String command) {
   String returnText = "";
 
@@ -405,7 +355,8 @@ void funcSelect(String command) {
   // Only lowercase the verb for dispatch; preserve original case for arguments
   String verb = command;
   int verbEnd = verb.indexOf(' ');
-  if (verbEnd > 0) verb = verb.substring(0, verbEnd);
+  if (verbEnd > 0)
+    verb = verb.substring(0, verbEnd);
   verb.toLowerCase();
 
   // Clear command window
@@ -443,7 +394,8 @@ void funcSelect(String command) {
     terminalOutputs.push_back(TR(STR_TERM_HELP_THEME));
     terminalOutputs.push_back(TR(STR_TERM_HELP_LANG));
 
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
 
@@ -451,7 +403,6 @@ void funcSelect(String command) {
 
   // Enter directory
   else if (verb == "cd") {
-    pocketmage::setCpuSpeed(240);
     String arg = command.substring(2);
     arg.trim();
     if (arg.length() == 0) {
@@ -467,32 +418,29 @@ void funcSelect(String command) {
         newPath.remove(newPath.length() - 1);
       }
 
-      if (global_fs->exists(newPath)) {
-        File f = global_fs->open(newPath);
-        if (f && f.isDirectory()) {
+      if (PM_SD().exists(newPath.c_str())) {
+        if (PM_SD().statIsDir(newPath.c_str())) {
           currentDir = newPath;
         } else {
           returnText = TR(STR_TERM_CD_NOT_DIR);
         }
-        if (f) f.close();
       } else {
         returnText = TR(STR_TERM_CD_NO_SUCH);
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // List directory
   else if (verb == "ls") {
-    pocketmage::setCpuSpeed(240);
     String arg = command.substring(2);
     arg.trim();
     String listPath = currentDir;
@@ -506,56 +454,55 @@ void funcSelect(String command) {
       }
     }
 
-    if (global_fs->exists(listPath)) {
-      File dir = global_fs->open(listPath);
-      if (dir && dir.isDirectory()) {
-        File file = dir.openNextFile();
-        while (file) {
+    if (PM_SD().exists(listPath.c_str())) {
+      std::vector<PocketmageSD::DirItem> items;
+      if (PM_SD().listDirItems(listPath.c_str(), items)) {
+        for (const auto& item : items) {
           String lineOutput = "";
-          if (file.isDirectory())
+          if (item.isDir)
             lineOutput += TR(STR_TERM_LS_DIR);
           else
             lineOutput += "     ";
-          lineOutput += file.name();
-          if (!file.isDirectory()) {
+          lineOutput += item.name;
+          if (!item.isDir) {
             lineOutput += " * ";
-            lineOutput += String(file.size()) + "b";
+            String fullPath =
+                listPath.endsWith("/") ? listPath + item.name : listPath + "/" + item.name;
+            size_t fileSize = 0;
+            if (PM_SD().statPath(fullPath.c_str(), &fileSize, nullptr)) {
+              lineOutput += String(fileSize) + "b";
+            }
           }
 
           terminalOutputs.push_back(lineOutput);
-
-          lineOutput = "";
-          file = dir.openNextFile();
         }
-        dir.close();
       } else {
         returnText = TR(STR_TERM_LS_NOT_DIR);
       }
     } else {
       returnText = TR(STR_TERM_LS_NO_SUCH);
     }
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Make directory
   else if (verb == "mkdir") {
-    pocketmage::setCpuSpeed(240);
     String arg = command.substring(5);
     arg.trim();
     if (arg.length() == 0) {
       returnText = TR(STR_TERM_PATH_NOT_DEFINED);
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
-      termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+      OLED().sysMessage(returnText, 1000);
+      termScrollIndex =
+          terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
       newState = true;
-      if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
       return;
     }
 
@@ -568,11 +515,10 @@ void funcSelect(String command) {
       newDirPath += arg;
     }
 
-    if (!global_fs->exists(newDirPath))
-      global_fs->mkdir(newDirPath);
+    PM_SD().mkdirPath(newDirPath.c_str());
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -582,7 +528,6 @@ void funcSelect(String command) {
     String rmArg = command.substring(2);
     rmArg.trim();
     if (rmArg.startsWith("-r")) {
-      pocketmage::setCpuSpeed(240);
       String arg = command.substring(5);
       arg.trim();
 
@@ -599,28 +544,26 @@ void funcSelect(String command) {
         returnText = TR(STR_TERM_PATH_NOT_DEFINED);
       }
 
-      if (returnText == "" && global_fs->exists(dirPath)) {
-        if (!deleteRecursive(dirPath)) {
+      if (returnText == "" && PM_SD().exists(dirPath.c_str())) {
+        if (!PM_SD().removeTree(dirPath.c_str())) {
           returnText = TR(STR_TERM_RMDIR_FAILED);
         }
       } else if (returnText == "") {
         returnText = TR(STR_TERM_PATH_NOT_FOUND);
       }
 
-      if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
       if (returnText != "") {
         terminalOutputs.push_back(returnText);
-        OLED().sysMessage(returnText,1000);
+        OLED().sysMessage(returnText, 1000);
       }
 
-      termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+      termScrollIndex =
+          terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
       newState = true;
       return;
     }
 
     // Remove file
-    pocketmage::setCpuSpeed(240);
     String curArg = command.substring(2);
     curArg.trim();
 
@@ -637,36 +580,29 @@ void funcSelect(String command) {
       returnText = TR(STR_TERM_PATH_NOT_DEFINED);
     }
 
-    if (returnText == "" && global_fs->exists(curDir)) {
-      File f = global_fs->open(curDir);
-      if (!f) {
-        returnText = TR(STR_TERM_OPEN_FAILED);
-      } else if (f.isDirectory()) {
+    if (returnText == "" && PM_SD().exists(curDir.c_str())) {
+      if (PM_SD().statIsDir(curDir.c_str())) {
         returnText = TR(STR_TERM_NOT_FILE_RM);
       } else {
-        f.close();
-        if (!global_fs->remove(curDir))
+        if (!PM_SD().removeFile(curDir.c_str()))
           returnText = TR(STR_TERM_DELETE_FAILED);
       }
-      if (f) f.close();
     } else if (returnText == "") {
       returnText = TR(STR_TERM_PATH_NOT_FOUND);
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Copy file
   else if (verb == "cp") {
-    pocketmage::setCpuSpeed(240);
-
     String args = command.substring(3);
     args.trim();
 
@@ -679,46 +615,34 @@ void funcSelect(String command) {
       src.trim();
       dest.trim();
 
-      String srcPath = src.startsWith("/") ? src : (currentDir + (currentDir.endsWith("/") ? "" : "/") + src);
-      String destPath = dest.startsWith("/") ? dest : (currentDir + (currentDir.endsWith("/") ? "" : "/") + dest);
+      String srcPath =
+          src.startsWith("/") ? src : (currentDir + (currentDir.endsWith("/") ? "" : "/") + src);
+      String destPath =
+          dest.startsWith("/") ? dest : (currentDir + (currentDir.endsWith("/") ? "" : "/") + dest);
 
-      if (!global_fs->exists(srcPath)) {
+      if (!PM_SD().exists(srcPath.c_str())) {
         returnText = TR(STR_TERM_SRC_NOT_FOUND);
+      } else if (PM_SD().statIsDir(srcPath.c_str())) {
+        returnText = TR(STR_TERM_SRC_NOT_FILE);
       } else {
-        File srcFile = global_fs->open(srcPath, FILE_READ);
-        if (!srcFile || srcFile.isDirectory()) {
-          returnText = TR(STR_TERM_SRC_NOT_FILE);
-        } else {
-          File destFile = global_fs->open(destPath, FILE_WRITE);
-          if (!destFile) {
-            returnText = TR(STR_TERM_DEST_FAILED);
-          } else {
-            uint8_t buf[512];
-            size_t n;
-            while ((n = srcFile.read(buf, sizeof(buf))) > 0) {
-              destFile.write(buf, n);
-            }
-            destFile.close();
-          }
-          srcFile.close();
+        if (!PM_SD().copyFileRaw(srcPath.c_str(), destPath.c_str())) {
+          returnText = TR(STR_TERM_DEST_FAILED);
         }
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Move file
   else if (verb == "mv") {
-    pocketmage::setCpuSpeed(240);
-
     String args = command.substring(3);
     args.trim();
 
@@ -731,87 +655,71 @@ void funcSelect(String command) {
       src.trim();
       dest.trim();
 
-      String srcPath = src.startsWith("/") ? src : (currentDir + (currentDir.endsWith("/") ? "" : "/") + src);
-      String destPath = dest.startsWith("/") ? dest : (currentDir + (currentDir.endsWith("/") ? "" : "/") + dest);
+      String srcPath =
+          src.startsWith("/") ? src : (currentDir + (currentDir.endsWith("/") ? "" : "/") + src);
+      String destPath =
+          dest.startsWith("/") ? dest : (currentDir + (currentDir.endsWith("/") ? "" : "/") + dest);
 
-      if (!global_fs->exists(srcPath)) {
+      if (!PM_SD().exists(srcPath.c_str())) {
         returnText = TR(STR_TERM_SRC_NOT_FOUND);
-      } else {
-        if (!global_fs->rename(srcPath, destPath)) {
-          File srcFile = global_fs->open(srcPath, FILE_READ);
-          if (!srcFile || srcFile.isDirectory()) {
-            returnText = TR(STR_TERM_SRC_NOT_FILE);
+      } else if (!PM_SD().renamePath(srcPath.c_str(), destPath.c_str())) {
+        // Rename failed: fall back to copy + delete
+        if (PM_SD().statIsDir(srcPath.c_str())) {
+          returnText = TR(STR_TERM_SRC_NOT_FILE);
+        } else {
+          if (!PM_SD().copyFileRaw(srcPath.c_str(), destPath.c_str())) {
+            returnText = TR(STR_TERM_DEST_FAILED);
           } else {
-            File destFile = global_fs->open(destPath, FILE_WRITE);
-            if (!destFile) {
-              returnText = TR(STR_TERM_DEST_FAILED);
-            } else {
-              uint8_t buf[512];
-              size_t n;
-              while ((n = srcFile.read(buf, sizeof(buf))) > 0) {
-                destFile.write(buf, n);
-              }
-              destFile.close();
-              global_fs->remove(srcPath);
-            }
-            srcFile.close();
+            PM_SD().removeFile(srcPath.c_str());
           }
         }
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Create empty file (touch)
   else if (verb == "touch") {
-    pocketmage::setCpuSpeed(240);
-
     String arg = command.substring(6);
     arg.trim();
 
     if (arg.length() == 0) {
       returnText = TR(STR_TERM_USAGE_TOUCH);
     } else {
-      String filePath = arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
+      String filePath =
+          arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
 
-      if (global_fs->exists(filePath)) {
-        File f = global_fs->open(filePath);
-        if (f && f.isDirectory()) {
+      if (PM_SD().exists(filePath.c_str())) {
+        if (PM_SD().statIsDir(filePath.c_str())) {
           returnText = TR(STR_TERM_IS_DIR);
         }
-        if (f) f.close();
       } else {
-        File f = global_fs->open(filePath, FILE_WRITE);
-        if (!f) {
+        if (!PM_SD().writeBinaryFile(filePath.c_str(), (const uint8_t*)"", 0)) {
           returnText = TR(STR_TERM_CREATE_FILE_FAILED);
-        } else {
-          f.close();
         }
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Open in text editor
   else if (verb == "txt") {
-    pocketmage::setCpuSpeed(240);
-
     String arg = command.substring(4);
     arg.trim();
 
@@ -828,14 +736,14 @@ void funcSelect(String command) {
       }
 
       if (returnText == "") {
-        String filePath = arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
+        String filePath =
+            arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
 
-        if (!global_fs->exists(filePath)) {
+        if (!PM_SD().exists(filePath.c_str())) {
           returnText = TR(STR_TERM_FILE_NOT_FOUND);
         } else {
           PM_SDAUTO().setEditingFile(filePath);
           OLED().oledWord(TR(STR_TERM_OPENING_PREFIX) + PM_SDAUTO().getEditingFile());
-          if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
           delay(1000);
           TXT_INIT(filePath);
           return;
@@ -843,13 +751,12 @@ void funcSelect(String command) {
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -860,8 +767,6 @@ void funcSelect(String command) {
     potArg.trim();
 
     if (potArg.startsWith("link")) {
-      pocketmage::setCpuSpeed(240);
-
       String args = command.substring(9);
       args.trim();
 
@@ -874,52 +779,59 @@ void funcSelect(String command) {
         fileArg.trim();
         aliasArg.trim();
 
-        String filePath = fileArg.startsWith("/") ? fileArg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + fileArg);
-        
+        String filePath = fileArg.startsWith("/")
+                              ? fileArg
+                              : (currentDir + (currentDir.endsWith("/") ? "" : "/") + fileArg);
+
         if (!filePath.endsWith(".c")) {
           int dotIdx = fileArg.lastIndexOf('.');
-          if (dotIdx == -1) filePath += ".c";
+          if (dotIdx == -1)
+            filePath += ".c";
         }
 
-        if (!global_fs->exists(filePath)) {
+        if (!PM_SD().exists(filePath.c_str())) {
           returnText = TR(STR_TERM_FILE_NOT_FOUND);
         } else {
           // Find existing or add new
           int existingIdx = -1;
-          for(size_t i=0; i<potLinkAliases.size(); i++){
-              if(potLinkAliases[i] == aliasArg){ existingIdx = i; break; }
+          for (size_t i = 0; i < potLinkAliases.size(); i++) {
+            if (potLinkAliases[i] == aliasArg) {
+              existingIdx = i;
+              break;
+            }
           }
-          if(existingIdx != -1){
-              potLinkPaths[existingIdx] = filePath;
+          if (existingIdx != -1) {
+            potLinkPaths[existingIdx] = filePath;
           } else {
-              potLinkAliases.push_back(aliasArg);
-              potLinkPaths.push_back(filePath);
+            potLinkAliases.push_back(aliasArg);
+            potLinkPaths.push_back(filePath);
           }
-          
+
           savePotLinks();
           returnText = TR(STR_TERM_LINKED) + aliasArg + TR(STR_ARROW) + fileArg;
         }
       }
 
-      if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
       if (returnText != "") {
         terminalOutputs.push_back(returnText);
         OLED().sysMessage(returnText, 1000);
       }
-      termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+      termScrollIndex =
+          terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
       newState = true;
       return;
     }
 
     if (potArg.startsWith("unlink")) {
-      pocketmage::setCpuSpeed(240);
-      
       String aliasArg = command.substring(11);
       aliasArg.trim();
 
       int linkIdx = -1;
-      for(size_t i=0; i<potLinkAliases.size(); i++){
-          if(potLinkAliases[i] == aliasArg){ linkIdx = i; break; }
+      for (size_t i = 0; i < potLinkAliases.size(); i++) {
+        if (potLinkAliases[i] == aliasArg) {
+          linkIdx = i;
+          break;
+        }
       }
 
       if (linkIdx != -1) {
@@ -931,27 +843,32 @@ void funcSelect(String command) {
         returnText = TR(STR_TERM_LINK_NOT_FOUND);
       }
 
-      if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+      if (SAVE_POWER)
+        pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
       if (returnText != "") {
         terminalOutputs.push_back(returnText);
         OLED().sysMessage(returnText, 1000);
       }
-      termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+      termScrollIndex =
+          terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
       newState = true;
       return;
     }
 
     // "pot <file>": not a link command, treat as open-in-potion.
     String potMsg;
-    if (openFileInPotion(potArg, potMsg)) return;
+    if (openFileInPotion(potArg, potMsg))
+      return;
     returnText = potMsg;
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -962,15 +879,18 @@ void funcSelect(String command) {
     arg.trim();
 
     String potMsg;
-    if (openFileInPotion(arg, potMsg)) return;
+    if (openFileInPotion(arg, potMsg))
+      return;
     returnText = potMsg;
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -994,12 +914,12 @@ void funcSelect(String command) {
       }
 
       if (returnText == "") {
-        String filePath = arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
+        String filePath =
+            arg.startsWith("/") ? arg : (currentDir + (currentDir.endsWith("/") ? "" : "/") + arg);
 
-        if (!global_fs->exists(filePath)) {
+        if (!PM_SD().exists(filePath.c_str())) {
           returnText = TR(STR_TERM_FILE_NOT_FOUND);
-        } 
-        else {
+        } else {
           const char* wrenchCode = readCFile(filePath);
           if (wrenchCode) {
             compileWrench(wrenchCode);
@@ -1008,20 +928,25 @@ void funcSelect(String command) {
             returnText = TR(STR_TERM_BREW_READ_FAIL);
           }
 
-          if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-          termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+          if (SAVE_POWER)
+            pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+          termScrollIndex = terminalOutputs.size() > termLinesPerPage
+                                ? terminalOutputs.size() - termLinesPerPage
+                                : 0;
           return;
         }
       }
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
-      OLED().sysMessage(returnText,1000);
+      OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -1054,7 +979,8 @@ void funcSelect(String command) {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -1071,7 +997,7 @@ void funcSelect(String command) {
       returnText = TR(STR_TERM_FONT_LARGE);
     } else if (arg == "s") {
       termLargeFont = false;
-      termLinesPerPage = TERM_SMALL_LINES; 
+      termLinesPerPage = TERM_SMALL_LINES;
       termMaxLineLen = TERM_SMALL_LINELEN;
       returnText = TR(STR_TERM_FONT_SMALL);
     } else {
@@ -1084,12 +1010,14 @@ void funcSelect(String command) {
       prefs.end();
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
@@ -1115,27 +1043,32 @@ void funcSelect(String command) {
       prefs.end();
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // Check whether command is a linked alias
   int resolvedLinkIdx = -1;
-  for(size_t i=0; i<potLinkAliases.size(); i++){
-      if(potLinkAliases[i] == command){ resolvedLinkIdx = i; break; }
+  for (size_t i = 0; i < potLinkAliases.size(); i++) {
+    if (potLinkAliases[i] == command) {
+      resolvedLinkIdx = i;
+      break;
+    }
   }
-  
+
   if (resolvedLinkIdx != -1) {
     pocketmage::setCpuSpeed(240);
     String filePath = potLinkPaths[resolvedLinkIdx];
 
-    if (!global_fs->exists(filePath)) {
+    if (!PM_SD().exists(filePath.c_str())) {
       returnText = TR(STR_TERM_LINK_MISSING);
     } else {
       const char* wrenchCode = readCFile(filePath);
@@ -1145,25 +1078,29 @@ void funcSelect(String command) {
       } else {
         returnText = TR(STR_TERM_LINK_READ_FAIL);
       }
-      if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-      termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+      if (SAVE_POWER)
+        pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+      termScrollIndex =
+          terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
       return;
     }
 
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    if (SAVE_POWER)
+      pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     if (returnText != "") {
       terminalOutputs.push_back(returnText);
       OLED().sysMessage(returnText, 1000);
     }
-    termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+    termScrollIndex =
+        terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
     newState = true;
     return;
   }
 
   // WiFi helpers (scan/connect/status) are printed to the terminal scrollback.
   // sshCommand() owns the wifi* verbs; it stays in PROMPT mode.
-  else if (verb == "wifi" || verb == "wifi-scan" || verb == "wifi-list" ||
-           verb == "wifi-status" || verb == "wifi-disconnect") {
+  else if (verb == "wifi" || verb == "wifi-scan" || verb == "wifi-list" || verb == "wifi-status" ||
+           verb == "wifi-disconnect") {
     sshCommand(command);
     return;
   }
@@ -1184,7 +1121,8 @@ void funcSelect(String command) {
   if (returnText != "") {
     terminalOutputs.push_back(returnText);
   }
-  termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+  termScrollIndex =
+      terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
   newState = true;
 }
 
@@ -1213,8 +1151,10 @@ void wr_prompt(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* 
   const char* promptText = argv[0].asString(inbuf, 1024);
 
   String entered = textPrompt(promptText);
-  if (entered == "_RETURN_") return;
-  else if (entered == "_EXIT_") entered = "";
+  if (entered == "_RETURN_")
+    return;
+  else if (entered == "_EXIT_")
+    entered = "";
   entered.toCharArray(retbuf, sizeof(retbuf));
 
   wr_makeString(c, &ret, retbuf);
@@ -1261,55 +1201,53 @@ void wr_inkBackground(WRContext* c, const WRValue* argv, int argn, WRValue& ret,
 }
 
 void wr_inkRect(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int width         = argv[2].asInt();
-  int height        = argv[3].asInt();
-  bool borderColor  = (argv[4].asInt() == 0);
-  bool fillColor    = (argv[5].asInt() == 0);
-  
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int width = argv[2].asInt();
+  int height = argv[3].asInt();
+  bool borderColor = (argv[4].asInt() == 0);
+  bool fillColor = (argv[5].asInt() == 0);
+
   if ((fillColor && borderColor) || (!fillColor && !borderColor)) {
     display.fillRect(x_origin, y_origin, width, height, !fillColor);
-  }
-  else if (borderColor && !fillColor) {
+  } else if (borderColor && !fillColor) {
     display.drawRect(x_origin, y_origin, width, height, 1);
-  }
-  else if (!borderColor && fillColor) {
+  } else if (!borderColor && fillColor) {
     display.drawRect(x_origin, y_origin, width, height, 0);
-    display.fillRect(x_origin+1, y_origin+1, width-2, height-2, 1);
+    display.fillRect(x_origin + 1, y_origin + 1, width - 2, height - 2, 1);
   }
 }
 
 void wr_inkCircle(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int radius        = argv[2].asInt();
-  bool borderColor  = (argv[3].asInt() == 0);
-  bool fillColor    = (argv[4].asInt() == 0);
-  
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int radius = argv[2].asInt();
+  bool borderColor = (argv[3].asInt() == 0);
+  bool fillColor = (argv[4].asInt() == 0);
+
   if ((fillColor && borderColor) || (!fillColor && !borderColor)) {
     display.fillCircle(x_origin, y_origin, radius, fillColor);
-  }
-  else if (borderColor && !fillColor) {
+  } else if (borderColor && !fillColor) {
     display.drawCircle(x_origin, y_origin, radius, 1);
-  }
-  else if (!borderColor && fillColor) {
+  } else if (!borderColor && fillColor) {
     display.drawCircle(x_origin, y_origin, radius, 0);
-    display.fillCircle(x_origin, y_origin, radius-2, 1);
+    display.fillCircle(x_origin, y_origin, radius - 2, 1);
   }
 }
 
 void wr_inkText(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
   char buf[1024];
 
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int size          = argv[2].asInt();
-  bool color        = (argv[3].asInt() != 0);
-  const char* text  = argv[4].asString(buf, 1024);
-  
-  if (color) u8g2f.setForegroundColor(GxEPD_BLACK);
-  else u8g2f.setForegroundColor(GxEPD_WHITE);
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int size = argv[2].asInt();
+  bool color = (argv[3].asInt() != 0);
+  const char* text = argv[4].asString(buf, 1024);
+
+  if (color)
+    u8g2f.setForegroundColor(GxEPD_BLACK);
+  else
+    u8g2f.setForegroundColor(GxEPD_WHITE);
 
   switch (size) {
     case 1:
@@ -1337,42 +1275,40 @@ void wr_oledBackground(WRContext* c, const WRValue* argv, int argn, WRValue& ret
   bool bgColor = (argv[0].asInt() == 0);
 
   u8g2.setDrawColor(bgColor);
-  u8g2.drawBox(0,0,u8g2.getDisplayWidth(), u8g2.getDisplayHeight());
+  u8g2.drawBox(0, 0, u8g2.getDisplayWidth(), u8g2.getDisplayHeight());
   u8g2.setDrawColor(1);
 }
 
 void wr_oledRect(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int width         = argv[2].asInt();
-  int height        = argv[3].asInt();
-  bool borderColor  = (argv[4].asInt() == 0);
-  bool fillColor    = (argv[5].asInt() == 0);
-  
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int width = argv[2].asInt();
+  int height = argv[3].asInt();
+  bool borderColor = (argv[4].asInt() == 0);
+  bool fillColor = (argv[5].asInt() == 0);
+
   if ((fillColor && borderColor) || (!fillColor && !borderColor)) {
     u8g2.setDrawColor(!fillColor);
     u8g2.drawBox(x_origin, y_origin, width, height);
-  }
-  else if (borderColor && !fillColor) {
+  } else if (borderColor && !fillColor) {
     u8g2.setDrawColor(1);
     u8g2.drawFrame(x_origin, y_origin, width, height);
-  }
-  else if (!borderColor && fillColor) {
+  } else if (!borderColor && fillColor) {
     u8g2.setDrawColor(0);
     u8g2.drawFrame(x_origin, y_origin, width, height);
     u8g2.setDrawColor(1);
-    u8g2.drawBox(x_origin+1, y_origin+1, width-2, height-2);
+    u8g2.drawBox(x_origin + 1, y_origin + 1, width - 2, height - 2);
   }
 
   u8g2.setDrawColor(1);
 }
 
 void wr_oledCircle(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int radius        = argv[2].asInt();
-  bool borderColor  = (argv[3].asInt() == 0);
-  
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int radius = argv[2].asInt();
+  bool borderColor = (argv[3].asInt() == 0);
+
   u8g2.setDrawColor(borderColor);
   u8g2.drawCircle(x_origin, y_origin, radius);
 
@@ -1382,20 +1318,28 @@ void wr_oledCircle(WRContext* c, const WRValue* argv, int argn, WRValue& ret, vo
 void wr_oledText(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
   char buf[1024];
 
-  int x_origin      = argv[0].asInt();
-  int y_origin      = argv[1].asInt();
-  int size          = argv[2].asInt();
-  bool color        = (argv[3].asInt() == 0);
-  const char* text  = argv[4].asString(buf, 1024);
-  
+  int x_origin = argv[0].asInt();
+  int y_origin = argv[1].asInt();
+  int size = argv[2].asInt();
+  bool color = (argv[3].asInt() == 0);
+  const char* text = argv[4].asString(buf, 1024);
+
   u8g2.setDrawColor(color);
 
   FontStyle oledStyle;
   switch (size) {
-    case 1: oledStyle = FontStyle::Tiny;     break;
-    case 2: oledStyle = FontStyle::MonoBold; break;
-    case 3: oledStyle = FontStyle::Heading3; break;
-    default: oledStyle = FontStyle::Large;   break;
+    case 1:
+      oledStyle = FontStyle::Tiny;
+      break;
+    case 2:
+      oledStyle = FontStyle::MonoBold;
+      break;
+    case 3:
+      oledStyle = FontStyle::Heading3;
+      break;
+    default:
+      oledStyle = FontStyle::Large;
+      break;
   }
 
   FontEngine::drawText(DisplayTarget::OLED, x_origin, y_origin, text, oledStyle);
@@ -1407,7 +1351,7 @@ void wr_sysMessage(WRContext* c, const WRValue* argv, int argn, WRValue& ret, vo
   char buf[128];
   const char* msg = argv[0].asString(buf, 128);
   int delayMs = argv[1].asInt();
-  
+
   OLED().sysMessage(String(msg), delayMs);
 }
 
@@ -1459,9 +1403,10 @@ void wr_readFile(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void
   pocketmage::setCpuSpeed(240);
   char path[256];
   argv[0].asString(path, 256);
-  String content = PM_SDAUTO().readFileToString(*global_fs, path);
+  String content = PM_SDAUTO().readFileToString(path);
   wr_makeString(c, &ret, content.c_str());
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void wr_writeFile(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* usr) {
@@ -1470,8 +1415,9 @@ void wr_writeFile(WRContext* c, const WRValue* argv, int argn, WRValue& ret, voi
   char content[1024];
   argv[0].asString(path, 256);
   argv[1].asString(content, 1024);
-  PM_SDAUTO().writeFile(*global_fs, path, content);
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  PM_SDAUTO().writeFile(path, content);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 // ----- Helpers ----- //
@@ -1485,7 +1431,7 @@ void wr_toInt(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* u
   char inbuf[1024];
 
   const char* inString = argv[0].asString(inbuf, 1024);
-  
+
   wr_makeInt(&ret, atoi(inString));
 }
 
@@ -1493,32 +1439,28 @@ void wr_random(WRContext* c, const WRValue* argv, int argn, WRValue& ret, void* 
   int min = argv[0].asInt();
   int max = argv[1].asInt();
 
-  wr_makeInt(&ret, ((esp_random() % ((max-min)+1)) + min));
+  wr_makeInt(&ret, ((esp_random() % ((max - min) + 1)) + min));
 }
 
 // ----- Wrench Functions ----- //
 const char* readCFile(const String& path) {
-  File f = global_fs->open(path);
-  if (!f || f.isDirectory()) {
-    if(f) f.close();
-    return nullptr;
-  }
-
-  size_t len = f.size();
+  // Reads the whole file into a malloc'd buffer. The gateway ramps the CPU
+  // per op, so no CPU-speed juggling is needed here.
+  size_t len = PM_SD().getFileSize(path.c_str());
   if (len == 0) {
-    f.close();
     return nullptr;
   }
 
   char* buf = (char*)malloc(len + 1);
   if (!buf) {
-    f.close();
     return nullptr;
   }
 
-  size_t readBytes = f.readBytes(buf, len);
-  buf[readBytes] = '\0';
-  f.close();
+  if (!PM_SD().readBinaryFile(path.c_str(), (uint8_t*)buf, len)) {
+    free(buf);
+    return nullptr;
+  }
+  buf[len] = '\0';
 
   return buf;
 }
@@ -1595,7 +1537,8 @@ void compileWrench(const char* wrenchCode) {
 
   wr_destroyState(w);
 
-  termScrollIndex = terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
+  termScrollIndex =
+      terminalOutputs.size() > termLinesPerPage ? terminalOutputs.size() - termLinesPerPage : 0;
   newState = true;
 }
 
@@ -1606,7 +1549,7 @@ void TERMINAL_INIT() {
   potionLines.clear();
   potionLines.push_back("");
   terminalCommand = "";
-  
+
   prefs.begin("PocketMage", true);
   termLargeFont = prefs.getBool("termLargeFont", true);
   termDarkTheme = prefs.getBool("termDarkTheme", true);
@@ -1619,15 +1562,16 @@ void TERMINAL_INIT() {
     termLinesPerPage = TERM_SMALL_LINES;
     termMaxLineLen = TERM_SMALL_LINELEN;
   }
-  
+
   if (terminalOutputs.size() > termLinesPerPage) {
-      termScrollIndex = (ulong)(terminalOutputs.size() - termLinesPerPage);
+    termScrollIndex = (ulong)(terminalOutputs.size() - termLinesPerPage);
   } else {
-      termScrollIndex = 0;
+    termScrollIndex = 0;
   }
-  
+
   KB().setKeyboardState(NORMAL);
-  if (!potLinksLoaded) loadPotLinks();
+  if (!potLinksLoaded)
+    loadPotLinks();
   newState = true;
 }
 
@@ -1641,22 +1585,23 @@ void processKB_TERMINAL() {
   int currentMillis = millis();
 
   switch (CurrentTERMfunc) {
-    case PROMPT:
-    {
+    case PROMPT: {
       pocketmage::setCpuSpeed(240);
       char inchar = KB().updateKeypress();
       if (inchar == 0) {
-        if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+        if (SAVE_POWER)
+          pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
       }
 
       int maxScroll = 0;
       if (terminalOutputs.size() > termLinesPerPage) {
-          maxScroll = (int)(terminalOutputs.size() - termLinesPerPage);
+        maxScroll = (int)(terminalOutputs.size() - termLinesPerPage);
       }
 
       ulong maxS = (ulong)maxScroll;
       // Handle Terminal Hardware Scrolling
-      int scrollStepT = (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
+      int scrollStepT =
+          (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
       if (TOUCH().updateScroll(maxS, termScrollIndex, scrollStepT)) {
         newState = true;
       }
@@ -1672,38 +1617,35 @@ void processKB_TERMINAL() {
             newState = true;
           }
 
-          if (inchar == 13) { // CR
+          if (inchar == 13) {  // CR
             funcSelect(terminalCommand);
             terminalCommand = "";
-            
+
             if (terminalOutputs.size() > termLinesPerPage) {
-                termScrollIndex = (ulong)(terminalOutputs.size() - termLinesPerPage);
+              termScrollIndex = (ulong)(terminalOutputs.size() - termLinesPerPage);
             } else {
-                termScrollIndex = 0;
+              termScrollIndex = 0;
             }
-            
+
             KB().setKeyboardState(NORMAL);
             newState = true;
-          }
-          else if (inchar == 17) { // SHIFT
+          } else if (inchar == 17) {  // SHIFT
             KB().toggleShift();
-          }
-          else if (inchar == 18) { // FUNC
+          } else if (inchar == 18) {  // FUNC
             KB().toggleFn();
-          }
-          else if (inchar == 8) { // BKSP
+          } else if (inchar == 8) {  // BKSP
             if (terminalCommand.length() > 0) {
               terminalCommand.remove(terminalCommand.length() - 1);
             }
-          }
-          else if (inchar == 12) { // FN+LEFT (Escape/Home)
+          } else if (inchar == 12) {  // FN+LEFT (Escape/Home)
             HOME_INIT();
             break;
-          }
-          else if (inchar >= 32 && inchar <= 126) {
+          } else if (inchar >= 32 && inchar <= 126) {
             terminalCommand += inchar;
-            if (inchar >= 48 && inchar <= 57) {} // keep FN on for numbers
-            else if (KB().getKeyboardState() != NORMAL) KB().setKeyboardState(NORMAL);
+            if (inchar >= 48 && inchar <= 57) {
+            }  // keep FN on for numbers
+            else if (KB().getKeyboardState() != NORMAL)
+              KB().setKeyboardState(NORMAL);
           }
         }
       }
@@ -1711,7 +1653,7 @@ void processKB_TERMINAL() {
       currentMillis = millis();
       if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
-        
+
         if (TOUCH().getLastTouch() == -1) {
           OLED().oledLine(terminalCommand, terminalCommand.length(), false, currentDir + "> ");
         } else {
@@ -1721,8 +1663,7 @@ void processKB_TERMINAL() {
       break;
     }
 
-    case POTION:
-    {
+    case POTION: {
       String left = "";
       String right = "";
 
@@ -1730,11 +1671,13 @@ void processKB_TERMINAL() {
       pocketmage::setCpuSpeed(240);
       char inchar = KB().updateKeypress();
       if (inchar == 0) {
-        if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+        if (SAVE_POWER)
+          pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
       }
 
       // update scroll (Independent of keyboard debounce)
-      int scrollStepP = (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
+      int scrollStepP =
+          (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
       if (TOUCH().updateScroll(potionLines.size() - 1, currentPotionLine, scrollStepP)) {
         // Put cursor at the end
         cursor_pos = potionLines[currentPotionLine].length();
@@ -1753,8 +1696,7 @@ void processKB_TERMINAL() {
             // Add a line and go to it
             if (cursor_pos == 0 && potionLines[currentPotionLine].length() > 0) {
               potionLines.insert(potionLines.begin() + currentPotionLine, "");
-            }
-            else {
+            } else {
               potionLines.insert(potionLines.begin() + currentPotionLine + 1, "");
               currentPotionLine++;
             }
@@ -1776,21 +1718,23 @@ void processKB_TERMINAL() {
             if (potionLines[currentPotionLine].length() > 0 && cursor_pos != 0) {
               uint16_t old_cursor = cursor_pos;
               // Safely leap over UTF-8 continuation bytes
-              do { cursor_pos--; } while (cursor_pos > 0 && (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
-              
+              do {
+                cursor_pos--;
+              } while (cursor_pos > 0 &&
+                       (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
+
               int bytesToDelete = old_cursor - cursor_pos;
               potionLines[currentPotionLine].remove(cursor_pos, bytesToDelete);
-            }
-            else if (potionLines[currentPotionLine].length() == 0) {
+            } else if (potionLines[currentPotionLine].length() == 0) {
               if (potionLines.size() > 1) {
                 potionLines.erase(potionLines.begin() + currentPotionLine);
-                
+
                 // If the deleted line was the last line, shift the active index up
                 if (currentPotionLine >= potionLines.size()) {
                   currentPotionLine--;
                 }
                 // Safely clamp cursor
-                cursor_pos = potionLines[currentPotionLine].length(); 
+                cursor_pos = potionLines[currentPotionLine].length();
                 newState = true;
               }
             }
@@ -1798,29 +1742,37 @@ void processKB_TERMINAL() {
           // LEFT
           else if (inchar == 19) {
             if (cursor_pos > 0) {
-              do { cursor_pos--; } while (cursor_pos > 0 && (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
+              do {
+                cursor_pos--;
+              } while (cursor_pos > 0 &&
+                       (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
             }
           }
           // RIGHT
           else if (inchar == 21) {
             if (cursor_pos < potionLines[currentPotionLine].length()) {
-              do { cursor_pos++; } while (cursor_pos < potionLines[currentPotionLine].length() && (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
+              do {
+                cursor_pos++;
+              } while (cursor_pos < potionLines[currentPotionLine].length() &&
+                       (potionLines[currentPotionLine][cursor_pos] & 0xC0) == 0x80);
             }
           }
           // CENTER
           else if (inchar == 20) {
             KB().setKeyboardState(FUNC);
             command = textPrompt(TR(STR_GOTO_LINE));
-            if (command == "_RETURN_") return;
+            if (command == "_RETURN_")
+              return;
             else if (command != "_EXIT_") {
               int line = atoi(command.c_str());
               // Line is in bounds
               if (line >= 0 && line < potionLines.size()) {
                 currentPotionLine = line;
-              }
-              else if (line < 0) currentPotionLine = 0;
-              else if (line >= potionLines.size()) currentPotionLine = potionLines.size() - 1;
-              
+              } else if (line < 0)
+                currentPotionLine = 0;
+              else if (line >= potionLines.size())
+                currentPotionLine = potionLines.size() - 1;
+
               cursor_pos = potionLines[currentPotionLine].length();
               newState = true;
             }
@@ -1849,7 +1801,7 @@ void processKB_TERMINAL() {
           else if (inchar == 6) {
             if (editFile != "")
               savePotionFile(editFile);
-              newState = true;
+            newState = true;
             break;
           }
           // FN+CENTER
@@ -1874,8 +1826,7 @@ void processKB_TERMINAL() {
           else if (inchar == 9 || inchar == 14) {
             potionLines[currentPotionLine] = "  " + potionLines[currentPotionLine];
             cursor_pos += 2;
-          } 
-          else {
+          } else {
             // split line at cursor_pos
             if (cursor_pos == 0) {
               potionLines[currentPotionLine] = inchar + potionLines[currentPotionLine];
@@ -1900,8 +1851,8 @@ void processKB_TERMINAL() {
       currentMillis = millis();
       if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
-        
-        if (CurrentTERMfunc == POTION) { // Verify we didnt just exit back to PROMPT
+
+        if (CurrentTERMfunc == POTION) {  // Verify we didnt just exit back to PROMPT
           if (TOUCH().getLastTouch() == -1) {
             String lineNum = String(currentPotionLine);
             while (lineNum.length() < 3) {
@@ -1929,7 +1880,8 @@ void processKB_TERMINAL() {
       sshProcessKB();
       break;
   }
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void einkHandler_TERMINAL() {
@@ -1953,7 +1905,9 @@ void einkHandler_TERMINAL() {
           widestNum = "0" + widestNum;
         }
         String widestLineNum = "[" + widestNum + "]";
-        int codeX = POTION_LINE_X + FontEngine::textWidth(DisplayTarget::EINK, widestLineNum, FontStyle::Terminal) + TERM_LINE_NUM_GAP;
+        int codeX = POTION_LINE_X +
+                    FontEngine::textWidth(DisplayTarget::EINK, widestLineNum, FontStyle::Terminal) +
+                    TERM_LINE_NUM_GAP;
 
         if (potionLines.size() <= POTION_PAGE_LINES) {
           int y = POTION_ROW_TOP;
@@ -1965,21 +1919,22 @@ void einkHandler_TERMINAL() {
               lineNum = "0" + lineNum;
             }
 
-              if (i == currentPotionLine) {
-                display.fillRect(0, y - 13, display.width(), 16, fgColor);
-                u8g2f.setForegroundColor(bgColor);
-              } else
-                u8g2f.setForegroundColor(fgColor);
-              FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]", FontStyle::Terminal);
-              FontEngine::drawText(DisplayTarget::EINK, codeX, y, s, FontStyle::Terminal);
-              y += POTION_ROW_PITCH;
+            if (i == currentPotionLine) {
+              display.fillRect(0, y - 13, display.width(), 16, fgColor);
+              u8g2f.setForegroundColor(bgColor);
+            } else
+              u8g2f.setForegroundColor(fgColor);
+            FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]",
+                                 FontStyle::Terminal);
+            FontEngine::drawText(DisplayTarget::EINK, codeX, y, s, FontStyle::Terminal);
+            y += POTION_ROW_PITCH;
           }
-        } 
-        else {
+        } else {
           if (currentPotionLine <= POTION_BACK_OFFSET) {
             int y = POTION_ROW_TOP;
             for (size_t i = 0; i < potionLines.size(); i++) {
-              if (i >= potionLines.size() || y < 0 || y > (display.height()+10)) continue;
+              if (i >= potionLines.size() || y < 0 || y > (display.height() + 10))
+                continue;
 
               const String& s = potionLines[i];
 
@@ -1993,15 +1948,17 @@ void einkHandler_TERMINAL() {
                 u8g2f.setForegroundColor(bgColor);
               } else
                 u8g2f.setForegroundColor(fgColor);
-              FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]", FontStyle::Terminal);
+              FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]",
+                                   FontStyle::Terminal);
               FontEngine::drawText(DisplayTarget::EINK, codeX, y, s, FontStyle::Terminal);
               y += POTION_ROW_PITCH;
             }
-          }
-          else {
+          } else {
             int y = POTION_ROW_TOP;
-            for (size_t i = currentPotionLine - POTION_BACK_OFFSET; i < currentPotionLine + POTION_AHEAD_LINES; i++) {
-              if (i >= potionLines.size() || y < 0 || y > (display.height()+10)) continue;
+            for (size_t i = currentPotionLine - POTION_BACK_OFFSET;
+                 i < currentPotionLine + POTION_AHEAD_LINES; i++) {
+              if (i >= potionLines.size() || y < 0 || y > (display.height() + 10))
+                continue;
 
               const String& s = potionLines[i];
 
@@ -2015,7 +1972,8 @@ void einkHandler_TERMINAL() {
                 u8g2f.setForegroundColor(bgColor);
               } else
                 u8g2f.setForegroundColor(fgColor);
-              FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]", FontStyle::Terminal);
+              FontEngine::drawText(DisplayTarget::EINK, POTION_LINE_X, y, "[" + lineNum + "]",
+                                   FontStyle::Terminal);
               FontEngine::drawText(DisplayTarget::EINK, codeX, y, s, FontStyle::Terminal);
               y += POTION_ROW_PITCH;
             }

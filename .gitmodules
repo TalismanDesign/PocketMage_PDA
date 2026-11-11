@@ -3,8 +3,7 @@
 	url = https://github.com/TalismanDesign/PocketMage_SDK.git
 [submodule "Code/PocketMageOS/lib/esp-iot-solution"]
 	path = Code/PocketMageOS/lib/esp-iot-solution
-	url = https://github.com/TalismanDesign/esp-iot-solution.git
-	branch = pocketmage-pin-1.3.3
+	url = https://github.com/espressif/esp-iot-solution
 	shallow = true
 [submodule "Code/PocketMageOS/lib/elf_overlay"]
 	path = Code/PocketMageOS/lib/elf_overlay
@@ -12,3 +11,6 @@
 [submodule "Code/PocketMageOS/lib/esp-adf-libs"]
 	path = Code/PocketMageOS/lib/esp-adf-libs
 	url = https://github.com/espressif/esp-adf-libs
+[submodule "Code/PocketMageOS/lib/microtar"]
+	path = Code/PocketMageOS/lib/microtar/microtar
+	url = https://github.com/rxi/microtar

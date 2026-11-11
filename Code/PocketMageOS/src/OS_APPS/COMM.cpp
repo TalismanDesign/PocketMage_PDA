@@ -1,14 +1,19 @@
 #include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
 
-#if PM_TARGET_HOST // POCKETMAGE_OS
+#include <cstdio>
+#include <cstdlib>
+
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 #include <WiFi.h>
-#include <esp_wifi.h>
 #include <esp_mac.h>
+#include <esp_wifi.h>
+
 #include <vector>
 
 extern "C" {
-  #include "mesh_now.h"
-  #include "message_queue.h"
+#include "mesh_now.h"
+#include "message_queue.h"
 }
 
 static constexpr const char* TAG = "COMM";
@@ -18,43 +23,43 @@ static constexpr const char* TAG = "COMM";
 #define MAX_VISIBLE_LINES 10
 
 // Layout constants
-constexpr int COMM_BAR_H         = 20;    // top bar height
-constexpr int COMM_BAR_SEP_Y     = 21;    // top-bar separator line y
-constexpr int COMM_BAR_TEXT_Y    = 16;    // top bar text baseline
-constexpr int COMM_BAR_LEFT_X    = 4;     // top bar left column x
-constexpr int COMM_BAR_MID_X     = 164;   // top bar middle column x
-constexpr int COMM_BAR_RIGHT_X   = 290;   // top bar right column x
-constexpr int COMM_CURSOR_X      = 4;     // selection arrow x
-constexpr int COMM_LIST_X        = 20;    // peer list label x
-constexpr int COMM_LIST_Y0       = 36;    // first peer row baseline
-constexpr int COMM_LIST_PITCH    = 20;    // peer row pitch
-constexpr int COMM_SB_Y          = 26;    // list scrollbar track y
-constexpr int COMM_SB_W          = 4;     // list scrollbar thumb width
-constexpr int COMM_SB_MARGIN     = 7;     // list scrollbar right margin
-constexpr int COMM_CHAT_Y        = 26;    // message area y origin
-constexpr int COMM_CHAT_H        = kEinkContentH;  // 214: message area height
-constexpr int COMM_BARW          = 3;     // chat scrollbar width
-constexpr int COMM_EDGE_MARGIN   = 6;     // chat right margin
-constexpr int COMM_WRAP_RESERVE  = 55;    // bubble text wrap inset (bubble padding + scrollbar + margins)
-constexpr int COMM_BUBBLE_PAD_X  = 8;     // bubble text x inset
-constexpr int COMM_BUBBLE_PAD    = 16;    // bubble horizontal padding
-constexpr int COMM_BUBBLE_R      = 10;    // bubble corner radius
-constexpr int COMM_BUBBLE_GAP    = 4;     // vertical gap between bubbles
-constexpr int COMM_BUBBLE_HEAD   = 21;    // bubble height above the message block
-constexpr int COMM_LINE_SPACE    = 2;     // extra per-line spacing
-constexpr int COMM_META_GAP      = 10;    // name-to-time gap
-constexpr int COMM_NAME_PAD      = 8;     // name baseline offset from bubble top
-constexpr int COMM_MSG_OFFSET    = 7;     // message baseline offset from name baseline
-constexpr int COMM_BUBBLE_AVG_H  = 64;    // average bubble height (scrollbar ratio)
+constexpr int COMM_BAR_H = 20;              // top bar height
+constexpr int COMM_BAR_SEP_Y = 21;          // top-bar separator line y
+constexpr int COMM_BAR_TEXT_Y = 16;         // top bar text baseline
+constexpr int COMM_BAR_LEFT_X = 4;          // top bar left column x
+constexpr int COMM_BAR_MID_X = 164;         // top bar middle column x
+constexpr int COMM_BAR_RIGHT_X = 290;       // top bar right column x
+constexpr int COMM_CURSOR_X = 4;            // selection arrow x
+constexpr int COMM_LIST_X = 20;             // peer list label x
+constexpr int COMM_LIST_Y0 = 36;            // first peer row baseline
+constexpr int COMM_LIST_PITCH = 20;         // peer row pitch
+constexpr int COMM_SB_Y = 26;               // list scrollbar track y
+constexpr int COMM_SB_W = 4;                // list scrollbar thumb width
+constexpr int COMM_SB_MARGIN = 7;           // list scrollbar right margin
+constexpr int COMM_CHAT_Y = 26;             // message area y origin
+constexpr int COMM_CHAT_H = kEinkContentH;  // 214: message area height
+constexpr int COMM_BARW = 3;                // chat scrollbar width
+constexpr int COMM_EDGE_MARGIN = 6;         // chat right margin
+constexpr int COMM_WRAP_RESERVE =
+    55;  // bubble text wrap inset (bubble padding + scrollbar + margins)
+constexpr int COMM_BUBBLE_PAD_X = 8;   // bubble text x inset
+constexpr int COMM_BUBBLE_PAD = 16;    // bubble horizontal padding
+constexpr int COMM_BUBBLE_R = 10;      // bubble corner radius
+constexpr int COMM_BUBBLE_GAP = 4;     // vertical gap between bubbles
+constexpr int COMM_BUBBLE_HEAD = 21;   // bubble height above the message block
+constexpr int COMM_LINE_SPACE = 2;     // extra per-line spacing
+constexpr int COMM_META_GAP = 10;      // name-to-time gap
+constexpr int COMM_NAME_PAD = 8;       // name baseline offset from bubble top
+constexpr int COMM_MSG_OFFSET = 7;     // message baseline offset from name baseline
+constexpr int COMM_BUBBLE_AVG_H = 64;  // average bubble height (scrollbar ratio)
 
 // Message-bubble font: the largest mono ladder face whose full content still
 // fits the bubble text width; anything longer falls back to the Caption face.
 // Shared with wrapTextPx() so font choice and wrapping agree.
 static FontStyle msgFont(const char* content) {
-  const FontStyle cascade[] = { FontStyle::MonoBold, FontStyle::Mono, FontStyle::Caption };
-  return FontEngine::fitStyle(DisplayTarget::EINK, content,
-                              kEinkWidth - COMM_WRAP_RESERVE,
-                              cascade, sizeof(cascade) / sizeof(cascade[0]));
+  const FontStyle cascade[] = {FontStyle::MonoBold, FontStyle::Mono, FontStyle::Caption};
+  return FontEngine::fitStyle(DisplayTarget::EINK, content, kEinkWidth - COMM_WRAP_RESERVE, cascade,
+                              sizeof(cascade) / sizeof(cascade[0]));
 }
 
 // TYPES
@@ -75,7 +80,7 @@ static bool meshReady = false;
 static CommState currentState = PEER_LIST;
 static ChatMode chatMode = LOCAL_CHAT;
 
-static ChatMsg msgs[MAX_CHAT_MSGS];
+static ChatMsg *msgs = nullptr;
 static int msgCount = 0;
 static bool autoScroll = true;
 
@@ -98,13 +103,14 @@ static ulong chatScrollIndex = 0;
 
 // MAC HELPERS
 static void macToStr(const uint8_t* m, char* out) {
-  sprintf(out, "%02X:%02X:%02X:%02X:%02X:%02X",
-          m[0], m[1], m[2], m[3], m[4], m[5]);
+  sprintf(out, "%02X:%02X:%02X:%02X:%02X:%02X", m[0], m[1], m[2], m[3], m[4], m[5]);
 }
 
 static String displayName(const char* mac) {
-  if (strcmp(mac, myMacStr) == 0) return "Me";
-  if (strcmp(mac, "00:1A:2B:3C:4D:5E") == 0) return "Chris";
+  if (strcmp(mac, myMacStr) == 0)
+    return "Me";
+  if (strcmp(mac, "00:1A:2B:3C:4D:5E") == 0)
+    return "Chris";
   return String(mac);
 }
 
@@ -114,28 +120,29 @@ static std::vector<String> wrapTextPx(const String& text, FontStyle style) {
 
 // SD LOGGING
 static void logToSD(const ChatMsg* m) {
-  if (PM_SDAUTO().getNoSD() || !global_fs) return;
+  if (PM_SDAUTO().getNoSD())
+    return;
   PM_SDAUTO().beginIO();
-  global_fs->mkdir("/chat");
+  PM_SD().mkdirPath("/chat");
   char path[64];
   if (chatMode == LOCAL_CHAT) {
     snprintf(path, sizeof(path), "/chat/_broadcast.log");
   } else {
     char fm[18];
     macToStr(peerMAC, fm);
-    for (char* p = fm; *p; p++) if (*p == ':') *p = '-';
+    for (char* p = fm; *p; p++)
+      if (*p == ':')
+        *p = '-';
     snprintf(path, sizeof(path), "/chat/dm_%s.log", fm);
   }
-  File f = global_fs->open(path, FILE_APPEND);
-  if (f) {
-    f.printf("%u|%s|%s\n", m->timestamp, m->sender, m->content);
-    f.close();
-  }
+  char line[256];
+  snprintf(line, sizeof(line), "%u|%s|%s\n", m->timestamp, m->sender, m->content);
+  PM_SD().appendFile(path, line);
   PM_SDAUTO().endIO();
 }
 
 // MESSAGE BUFFER
-static void addMsg(const char* sender, const char* content, bool local) {
+static void addMsg(const char* sender, const char* content, bool isLocal) {
   if (msgCount >= MAX_CHAT_MSGS) {
     int mv = MAX_CHAT_MSGS - 1;
     memmove(&msgs[0], &msgs[1], mv * sizeof(ChatMsg));
@@ -146,15 +153,15 @@ static void addMsg(const char* sender, const char* content, bool local) {
   m->sender[sizeof(m->sender) - 1] = '\0';
   strncpy(m->content, content, sizeof(m->content));
   m->content[sizeof(m->content) - 1] = '\0';
-  m->sentByLocal = local;
-  
+  m->sentByLocal = isLocal;
+
   DateTime now = CLOCK().nowDT();
   m->timestamp = now.unixtime();
   m->hr = now.hour();
   m->mn = now.minute();
 
   logToSD(m);
-  newState = true; // Incoming message forces an E-ink refresh
+  newState = true;  // Incoming message forces an E-ink refresh
 }
 
 // MESH-NOW RECEIVE CALLBACK
@@ -178,6 +185,17 @@ static void meshRecvCb(const mesh_message_t* msg) {
 }
 
 // INIT
+static void commInitFailed(const char* operation, esp_err_t error) {
+  constexpr unsigned long kErrorMessageMs = 1500;
+  ESP_LOGE(TAG, "%s: %s", operation, esp_err_to_name(error));
+  free(msgs);
+  msgs = nullptr;
+  msgCount = 0;
+  HOME_INIT();
+  OLED().sysMessage(TR(STR_COMM_INIT_FAILED), kErrorMessageMs);
+}
+
+/** Open ESP-NOW chat; return home with an error message if startup fails. */
 void COMM_INIT() {
   setCpuFrequencyMhz(240);
   CurrentAppState = COMM;
@@ -185,6 +203,14 @@ void COMM_INIT() {
   chatMode = LOCAL_CHAT;
   msgCount = 0;
   autoScroll = true;
+
+  // Lazily allocate chat message buffer so it doesn't sit in .bss when COMM is unused
+  free(msgs);
+  msgs = (ChatMsg *)calloc(MAX_CHAT_MSGS, sizeof(ChatMsg));
+  if (!msgs) {
+    commInitFailed("Chat message allocation", ESP_ERR_NO_MEM);
+    return;
+  }
   selPeer = 0;
   prevSelPeer = 0;
   cursor_moved = false;
@@ -197,28 +223,61 @@ void COMM_INIT() {
   comm_first_draw = true;
   if (meshReady) {
     message_t discard{};
-    while (message_queue_receive(&discard, 0) == ESP_OK) {}
+    while (message_queue_receive(&discard, 0) == ESP_OK) {
+    }
     return;
   }
 
-  WiFi.mode(WIFI_AP_STA);
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
-
-  esp_read_mac(myMAC, ESP_MAC_WIFI_STA);
+  esp_err_t error = mesh_now_deinit();
+  if (error != ESP_OK) {
+    commInitFailed("Previous mesh cleanup", error);
+    return;
+  }
+  // Mesh-NOW sends through WIFI_IF_STA. Starting an unused SoftAP also enters
+  // ieee80211_hostap_attach, the null-dereference path in the reported panic.
+  // https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/network/esp_now.html
+  if (!WiFi.mode(WIFI_OFF) || !WiFi.mode(WIFI_STA)) {
+    commInitFailed("Station startup", ESP_FAIL);
+    return;
+  }
+  error = esp_wifi_set_ps(WIFI_PS_NONE);
+  if (error != ESP_OK) {
+    commInitFailed("Station power saving", error);
+    return;
+  }
+  error = esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+  if (error != ESP_OK) {
+    commInitFailed("Mesh channel", error);
+    return;
+  }
+  error = esp_read_mac(myMAC, ESP_MAC_WIFI_STA);
+  if (error != ESP_OK) {
+    commInitFailed("Station MAC", error);
+    return;
+  }
   macToStr(myMAC, myMacStr);
 
-  message_queue_init();
-  mesh_now_deinit();
-  if (mesh_now_init() == ESP_OK) {
-    mesh_now_set_receive_callback(meshRecvCb);
-    meshReady = true;
+  error = message_queue_init();
+  if (error != ESP_OK) {
+    commInitFailed("Receive queue", error);
+    return;
   }
+  error = mesh_now_init();
+  if (error != ESP_OK) {
+    const esp_err_t cleanup = mesh_now_deinit();
+    if (cleanup != ESP_OK)
+      ESP_LOGE(TAG, "Failed mesh cleanup: %s", esp_err_to_name(cleanup));
+    commInitFailed("Mesh startup", error);
+    return;
+  }
+  mesh_now_set_receive_callback(meshRecvCb);
+  meshReady = true;
 }
 
 // DRAIN INCOMING QUEUE
 static void drainQueue() {
-  if (!meshReady) return;
+  if (!meshReady)
+    return;
   message_t q{};
   while (message_queue_receive(&q, 0) == ESP_OK) {
     char s[18];
@@ -229,7 +288,8 @@ static void drainQueue() {
         addMsg(s, q.message, false);
       }
     } else {
-      if (!fromMe) addMsg(s, q.message, false);
+      if (!fromMe)
+        addMsg(s, q.message, false);
     }
   }
 }
@@ -238,13 +298,17 @@ void chatScrollPreview() {
   u8g2.clearBuffer();
   u8g2.setDrawColor(1);
   int startLine = 0;
-  if (chatScrollIndex >= 1) startLine = chatScrollIndex - 1;
+  if (chatScrollIndex >= 1)
+    startLine = chatScrollIndex - 1;
   int y = kOledPrevY0;
   for (int i = startLine; i < startLine + kOledPrevRows; i++) {
-    if (i >= msgCount) break;
-    if (i == (int)chatScrollIndex) u8g2.drawTriangle(0, y - 2 * kOledPrevTriH, 0, y, kOledPrevTriW, y - kOledPrevTriH);
+    if (i >= msgCount)
+      break;
+    if (i == (int)chatScrollIndex)
+      u8g2.drawTriangle(0, y - 2 * kOledPrevTriH, 0, y, kOledPrevTriW, y - kOledPrevTriH);
     String dispStr = String(msgs[i].sender) + ": " + String(msgs[i].content);
-    if (dispStr.length() > 38) dispStr = dispStr.substring(0, 38) + "..";
+    if (dispStr.length() > 38)
+      dispStr = dispStr.substring(0, 38) + "..";
     FontEngine::drawText(DisplayTarget::OLED, kOledPrevX, y, dispStr, FontStyle::Tiny);
     y += kOledPrevPitch;
   }
@@ -255,7 +319,8 @@ void chatScrollPreview() {
 void processKB_COMM() {
   drainQueue();
 
-  if (!meshReady) return;
+  if (!meshReady)
+    return;
   int current_pc = mesh_now_get_peer_count();
   if (current_pc != last_peer_count) {
     last_peer_count = current_pc;
@@ -268,27 +333,31 @@ void processKB_COMM() {
 
   // Handle TOUCH scrolling
   if (currentState == CHAT_VIEW) {
-      int maxScrollIndex = 0;
-      if (msgCount > 0) {
-          int totalH = 0;
-          int top = msgCount - 1;
-          while (top >= 0) {
-              FontStyle mf = msgFont(msgs[top].content);
-              int lineH = FontEngine::fontHeight(DisplayTarget::EINK, mf);
-              int lineSpacing = lineH + 2;
-              std::vector<String> lines = wrapTextPx(msgs[top].content, mf);
-              int bH = (lines.size() * lineSpacing) + lineH + 21;
-              if (totalH + bH > 214) { top++; break; }
-              totalH += bH;
-              if (top == 0) break;
-              top--;
-          }
-          maxScrollIndex = top;
+    int maxScrollIndex = 0;
+    if (msgCount > 0) {
+      int totalH = 0;
+      int top = msgCount - 1;
+      while (top >= 0) {
+        FontStyle mf = msgFont(msgs[top].content);
+        int lineH = FontEngine::fontHeight(DisplayTarget::EINK, mf);
+        int lineSpacing = lineH + 2;
+        std::vector<String> lines = wrapTextPx(msgs[top].content, mf);
+        int bH = (lines.size() * lineSpacing) + lineH + 21;
+        if (totalH + bH > 214) {
+          top++;
+          break;
+        }
+        totalH += bH;
+        if (top == 0)
+          break;
+        top--;
       }
-      if (TOUCH().updateScroll(maxScrollIndex, chatScrollIndex)) {
-          newState = true;
-          autoScroll = (chatScrollIndex >= maxScrollIndex);
-      }
+      maxScrollIndex = top;
+    }
+    if (TOUCH().updateScroll(maxScrollIndex, chatScrollIndex)) {
+      newState = true;
+      autoScroll = (chatScrollIndex >= maxScrollIndex);
+    }
   }
 
   if (nowMs - KBBounceMillis >= KB_COOLDOWN) {
@@ -301,12 +370,16 @@ void processKB_COMM() {
         prevSelPeer = selPeer;
 
         if (ch == 19 || ch == 7 || ch == 29) {
-          if (selPeer > 0) { selPeer--; cursor_moved = true; }
-        } 
-        else if (ch == 21 || ch == 6 || ch == 25 || ch == 30) {
-          if (selPeer < totalRooms - 1) { selPeer++; cursor_moved = true; }
-        } 
-        else if (ch == 13 || ch == ' ' || ch == 20) {
+          if (selPeer > 0) {
+            selPeer--;
+            cursor_moved = true;
+          }
+        } else if (ch == 21 || ch == 6 || ch == 25 || ch == 30) {
+          if (selPeer < totalRooms - 1) {
+            selPeer++;
+            cursor_moved = true;
+          }
+        } else if (ch == 13 || ch == ' ' || ch == 20) {
           chatInputBuffer = "";
           chatCursorPos = 0;
           autoScroll = true;
@@ -329,80 +402,92 @@ void processKB_COMM() {
               OLED().oledWord(displayName(peerMacStr).c_str());
             }
           }
-        } 
-        else if (ch == 12 || ch == 8 || ch == 127) {
+        } else if (ch == 12 || ch == 8 || ch == 127) {
           HOME_INIT();
         }
-      } 
-      else if (currentState == CHAT_VIEW) {
-        if (ch == 13) { 
-            if (chatInputBuffer.length() > 0) {
-                esp_err_t sendRet;
-                if (chatMode == LOCAL_CHAT) sendRet = mesh_now_send_broadcast(chatInputBuffer.c_str());
-                else sendRet = mesh_now_send_direct(peerMAC, chatInputBuffer.c_str());
-                
-                if (sendRet == ESP_OK) {
-                    addMsg(myMacStr, chatInputBuffer.c_str(), true);
-                }
-                chatInputBuffer = "";
-                chatCursorPos = 0;
-                autoScroll = true;
-                newState = true;
+      } else if (currentState == CHAT_VIEW) {
+        if (ch == 13) {
+          if (chatInputBuffer.length() > 0) {
+            esp_err_t sendRet;
+            if (chatMode == LOCAL_CHAT)
+              sendRet = mesh_now_send_broadcast(chatInputBuffer.c_str());
+            else
+              sendRet = mesh_now_send_direct(peerMAC, chatInputBuffer.c_str());
+
+            if (sendRet == ESP_OK) {
+              addMsg(myMacStr, chatInputBuffer.c_str(), true);
             }
-        }
-        else if (ch == 12) { 
-            currentState = PEER_LIST;
             chatInputBuffer = "";
             chatCursorPos = 0;
+            autoScroll = true;
             newState = true;
-            OLED().oledWord(TR(STR_COMM_CHAT));
-        }
-        else if (ch == 17) {
-            KB().toggleShift();
-        }
-        else if (ch == 18) {
-            KB().toggleFn();
-        }
-        else if (ch == 8) { 
-            if (chatInputBuffer.length() > 0 && chatCursorPos != 0) {
-                int old_cursor = chatCursorPos;
-                do { chatCursorPos--; } while (chatCursorPos > 0 && (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
-                int bytesToDelete = old_cursor - chatCursorPos;
-                chatInputBuffer.remove(chatCursorPos, bytesToDelete);
-            }
-        }
-        else if (ch == 19) { 
-            if (chatCursorPos > 0) {
-                do { chatCursorPos--; } while (chatCursorPos > 0 && (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
-            }
-        }
-        else if (ch == 21) { 
-            if (chatCursorPos < chatInputBuffer.length()) {
-                do { chatCursorPos++; } while (chatCursorPos < chatInputBuffer.length() && (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
-            }
-        }
-        else if (ch == 28) { chatCursorPos = 0; KB().setKeyboardState(NORMAL); }
-        else if (ch == 30) { chatCursorPos = chatInputBuffer.length(); KB().setKeyboardState(NORMAL); }
-        else if (ch == 29) { KB().setKeyboardState(NORMAL); }
-        else if (ch == 6) { KB().setKeyboardState(NORMAL); }
-        else if (ch == 7) { chatInputBuffer = ""; chatCursorPos = 0; KB().setKeyboardState(NORMAL); }
-        else if (ch == 24 || ch == 25 || ch == 26) { KB().setKeyboardState(NORMAL); }
-        else if (ch == 9 || ch == 14) { KB().setKeyboardState(NORMAL); } 
-        else if (ch == 20 || ch == 23) {} 
-        else { 
-            String chStr = String(ch);
-            if (chatCursorPos == 0) {
-                chatInputBuffer = chStr + chatInputBuffer;
-            } else if (chatCursorPos == chatInputBuffer.length()) {
-                chatInputBuffer += chStr;
-            } else {
-                String left = chatInputBuffer.substring(0, chatCursorPos);
-                String right = chatInputBuffer.substring(chatCursorPos);
-                chatInputBuffer = left + chStr + right;
-            }
-            chatCursorPos++;
-            if (ch >= 48 && ch <= 57) {} 
-            else if (KB().getKeyboardState() != NORMAL) KB().setKeyboardState(NORMAL);
+          }
+        } else if (ch == 12) {
+          currentState = PEER_LIST;
+          chatInputBuffer = "";
+          chatCursorPos = 0;
+          newState = true;
+          OLED().oledWord(TR(STR_COMM_CHAT));
+        } else if (ch == 17) {
+          KB().toggleShift();
+        } else if (ch == 18) {
+          KB().toggleFn();
+        } else if (ch == 8) {
+          if (chatInputBuffer.length() > 0 && chatCursorPos != 0) {
+            int old_cursor = chatCursorPos;
+            do {
+              chatCursorPos--;
+            } while (chatCursorPos > 0 && (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
+            int bytesToDelete = old_cursor - chatCursorPos;
+            chatInputBuffer.remove(chatCursorPos, bytesToDelete);
+          }
+        } else if (ch == 19) {
+          if (chatCursorPos > 0) {
+            do {
+              chatCursorPos--;
+            } while (chatCursorPos > 0 && (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
+          }
+        } else if (ch == 21) {
+          if (chatCursorPos < chatInputBuffer.length()) {
+            do {
+              chatCursorPos++;
+            } while (chatCursorPos < chatInputBuffer.length() &&
+                     (chatInputBuffer[chatCursorPos] & 0xC0) == 0x80);
+          }
+        } else if (ch == 28) {
+          chatCursorPos = 0;
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 30) {
+          chatCursorPos = chatInputBuffer.length();
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 29) {
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 6) {
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 7) {
+          chatInputBuffer = "";
+          chatCursorPos = 0;
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 24 || ch == 25 || ch == 26) {
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 9 || ch == 14) {
+          KB().setKeyboardState(NORMAL);
+        } else if (ch == 20 || ch == 23) {
+        } else {
+          String chStr = String(ch);
+          if (chatCursorPos == 0) {
+            chatInputBuffer = chStr + chatInputBuffer;
+          } else if (chatCursorPos == chatInputBuffer.length()) {
+            chatInputBuffer += chStr;
+          } else {
+            String left = chatInputBuffer.substring(0, chatCursorPos);
+            String right = chatInputBuffer.substring(chatCursorPos);
+            chatInputBuffer = left + chStr + right;
+          }
+          chatCursorPos++;
+          if (ch >= 48 && ch <= 57) {
+          } else if (KB().getKeyboardState() != NORMAL)
+            KB().setKeyboardState(NORMAL);
         }
       }
     }
@@ -412,7 +497,8 @@ void processKB_COMM() {
   if (nowMs - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
     OLEDFPSMillis = nowMs;
     if (currentState == PEER_LIST) {
-      if (TOUCH().getLastTouch() == -1) OLED().oledWord(TR(STR_COMM_CHAT));
+      if (TOUCH().getLastTouch() == -1)
+        OLED().oledWord(TR(STR_COMM_CHAT));
     } else {
       if (TOUCH().getLastTouch() == -1) {
         OLED().oledLine(chatInputBuffer, chatCursorPos, false, TR(STR_COMM_MSG_PREFIX));
@@ -427,23 +513,25 @@ void processKB_COMM() {
 void einkHandler_COMM() {
   if (cursor_moved) {
     cursor_moved = false;
-    
+
     int totalRooms = 1 + mesh_now_get_peer_count();
     int vis = min(totalRooms, MAX_VISIBLE_LINES);
-    
+
     int scrollTop = max(selPeer - vis / 2, 0);
-    if (scrollTop + vis > totalRooms) scrollTop = max(totalRooms - vis, 0);
-    
+    if (scrollTop + vis > totalRooms)
+      scrollTop = max(totalRooms - vis, 0);
+
     int prevScrollTop = max(prevSelPeer - vis / 2, 0);
-    if (prevScrollTop + vis > totalRooms) prevScrollTop = max(totalRooms - vis, 0);
-    
+    if (prevScrollTop + vis > totalRooms)
+      prevScrollTop = max(totalRooms - vis, 0);
+
     if (scrollTop != prevScrollTop || newState) {
-      newState = true; 
+      newState = true;
     } else {
       // Safely perform native partial window update without blanking the rest of the screen
       display.fillRect(0, 28, 16, kEinkContentH, GxEPD_WHITE);
       FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_BLACK);
-      
+
       for (int i = 0; i < vis; i++) {
         int idx = scrollTop + i;
         if (idx == selPeer) {
@@ -451,14 +539,15 @@ void einkHandler_COMM() {
           FontEngine::drawText(DisplayTarget::EINK, COMM_CURSOR_X, yPos, ">", FontStyle::Body);
         }
       }
-      
+
       // Push only this rectangle to the display
-      display.displayWindow(0, 28, 16, kEinkContentH); 
+      display.displayWindow(0, 28, 16, kEinkContentH);
       return;
     }
   }
 
-  if (!newState && !comm_first_draw) return;
+  if (!newState && !comm_first_draw)
+    return;
   comm_first_draw = false;
   newState = false;
 
@@ -469,29 +558,35 @@ void einkHandler_COMM() {
   FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_WHITE);
 
   if (currentState == PEER_LIST) {
-    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y, TR(STR_COMM_SELECT_ROOM), FontStyle::Body);
-    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_MID_X, COMM_BAR_TEXT_Y, "Me " + String(myMacStr), FontStyle::Caption);
-    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_RIGHT_X, COMM_BAR_TEXT_Y, "P: " + String(mesh_now_get_peer_count()), FontStyle::Caption);
+    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y,
+                         TR(STR_COMM_SELECT_ROOM), FontStyle::Body);
+    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_MID_X, COMM_BAR_TEXT_Y,
+                         "Me " + String(myMacStr), FontStyle::Caption);
+    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_RIGHT_X, COMM_BAR_TEXT_Y,
+                         "P: " + String(mesh_now_get_peer_count()), FontStyle::Caption);
 
     int totalRooms = 1 + mesh_now_get_peer_count();
     mesh_peer_t* allPeers = mesh_now_get_peers();
-    
+
     int listY = COMM_LIST_Y0;
     int vis = min(totalRooms, MAX_VISIBLE_LINES);
     int scrollTop = max(selPeer - vis / 2, 0);
-    if (scrollTop + vis > totalRooms) scrollTop = max(totalRooms - vis, 0);
-    
+    if (scrollTop + vis > totalRooms)
+      scrollTop = max(totalRooms - vis, 0);
+
     FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_BLACK);
-    
+
     for (int i = 0; i < vis; i++) {
       int idx = scrollTop + i;
-      if (idx >= totalRooms) break;
+      if (idx >= totalRooms)
+        break;
       int yPos = listY + i * COMM_LIST_PITCH;
-      if (yPos > kEinkHeight - 2) break; 
-      
+      if (yPos > kEinkHeight - 2)
+        break;
+
       bool selected = (idx == selPeer);
       String label;
-      
+
       if (idx == 0) {
         label = TR(STR_COMM_LOCAL_CHAT);
       } else {
@@ -504,13 +599,13 @@ void einkHandler_COMM() {
           label = "---";
         }
       }
-      
+
       if (selected) {
         FontEngine::drawText(DisplayTarget::EINK, COMM_CURSOR_X, yPos, ">", FontStyle::Body);
       }
       FontEngine::drawText(DisplayTarget::EINK, COMM_LIST_X, yPos, label, FontStyle::Body);
     }
-    
+
     // Scrollbar (Extended to bottom)
     if (totalRooms > vis) {
       int sbY = COMM_SB_Y;
@@ -522,13 +617,18 @@ void einkHandler_COMM() {
     }
   } else {
     if (chatMode == LOCAL_CHAT) {
-      FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y, TR(STR_COMM_LOCAL_CHAT), FontStyle::Body);
+      FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y,
+                           TR(STR_COMM_LOCAL_CHAT), FontStyle::Body);
     } else {
       String name = displayName(peerMacStr);
-      FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y, "> " + name, FontStyle::Body);
+      FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_LEFT_X, COMM_BAR_TEXT_Y, "> " + name,
+                           FontStyle::Body);
     }
-    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_MID_X, COMM_BAR_TEXT_Y, chatMode == LOCAL_CHAT ? "ESP-NOW" : TR(STR_COMM_DIRECT), FontStyle::Caption);
-    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_RIGHT_X, COMM_BAR_TEXT_Y, "P: " + String(mesh_now_get_peer_count()), FontStyle::Caption);
+    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_MID_X, COMM_BAR_TEXT_Y,
+                         chatMode == LOCAL_CHAT ? "ESP-NOW" : TR(STR_COMM_DIRECT),
+                         FontStyle::Caption);
+    FontEngine::drawText(DisplayTarget::EINK, COMM_BAR_RIGHT_X, COMM_BAR_TEXT_Y,
+                         "P: " + String(mesh_now_get_peer_count()), FontStyle::Caption);
   }
 
   // Separator line
@@ -540,24 +640,30 @@ void einkHandler_COMM() {
 
     int maxScrollIndex = 0;
     if (msgCount > 0) {
-        int totalH = 0;
-        int top = msgCount - 1;
-        while (top >= 0) {
-            FontStyle mf = msgFont(msgs[top].content);
-            int lineH = FontEngine::fontHeight(DisplayTarget::EINK, mf);
-            int lineSpacing = lineH + COMM_LINE_SPACE;
-            std::vector<String> lines = wrapTextPx(msgs[top].content, mf);
-            int bH = (lines.size() * lineSpacing) + lineH + COMM_BUBBLE_HEAD;
-            if (totalH + bH > COMM_CHAT_H) { top++; break; }
-            totalH += bH;
-            if (top == 0) break;
-            top--;
+      int totalH = 0;
+      int top = msgCount - 1;
+      while (top >= 0) {
+        FontStyle mf = msgFont(msgs[top].content);
+        int lineH = FontEngine::fontHeight(DisplayTarget::EINK, mf);
+        int lineSpacing = lineH + COMM_LINE_SPACE;
+        std::vector<String> lines = wrapTextPx(msgs[top].content, mf);
+        int bH = (lines.size() * lineSpacing) + lineH + COMM_BUBBLE_HEAD;
+        if (totalH + bH > COMM_CHAT_H) {
+          top++;
+          break;
         }
-        maxScrollIndex = top;
+        totalH += bH;
+        if (top == 0)
+          break;
+        top--;
+      }
+      maxScrollIndex = top;
     }
 
-    if (autoScroll) chatScrollIndex = maxScrollIndex;
-    if (chatScrollIndex > (ulong)maxScrollIndex) chatScrollIndex = maxScrollIndex;
+    if (autoScroll)
+      chatScrollIndex = maxScrollIndex;
+    if (chatScrollIndex > (ulong)maxScrollIndex)
+      chatScrollIndex = maxScrollIndex;
 
     for (int i = chatScrollIndex; i < msgCount && y < kEinkHeight; i++) {
       ChatMsg* m = &msgs[i];
@@ -578,31 +684,36 @@ void einkHandler_COMM() {
       int textW = 0;
       for (const String& l : lines) {
         int lw = FontEngine::textWidth(DisplayTarget::EINK, l, mf);
-        if (lw > textW) textW = lw;
+        if (lw > textW)
+          textW = lw;
       }
 
       int bubbleW = max(textW, metaW) + COMM_BUBBLE_PAD;
       int bubbleH = (lines.size() * lineSpacing) + lineH + COMM_BUBBLE_HEAD;
 
-      int x = m->sentByLocal ? (kEinkWidth - bubbleW - COMM_EDGE_MARGIN - (COMM_BARW + 2)) : COMM_EDGE_MARGIN;
+      int x = m->sentByLocal ? (kEinkWidth - bubbleW - COMM_EDGE_MARGIN - (COMM_BARW + 2))
+                             : COMM_EDGE_MARGIN;
 
       if (m->sentByLocal) {
-          display.fillRoundRect(x, y, bubbleW, bubbleH, COMM_BUBBLE_R, GxEPD_BLACK);
-          FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_WHITE);
+        display.fillRoundRect(x, y, bubbleW, bubbleH, COMM_BUBBLE_R, GxEPD_BLACK);
+        FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_WHITE);
       } else {
-          display.drawRoundRect(x, y, bubbleW, bubbleH, COMM_BUBBLE_R, GxEPD_BLACK);
-          FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_BLACK);
+        display.drawRoundRect(x, y, bubbleW, bubbleH, COMM_BUBBLE_R, GxEPD_BLACK);
+        FontEngine::setTextColor(DisplayTarget::EINK, GxEPD_BLACK);
       }
 
       int nameY = y + COMM_NAME_PAD + ascent;
       FontEngine::drawText(DisplayTarget::EINK, x + COMM_BUBBLE_PAD_X, nameY, nameText, mf);
-      FontEngine::drawText(DisplayTarget::EINK, x + bubbleW - COMM_BUBBLE_PAD_X - timeW, nameY, timeText, FontStyle::Caption);
+      FontEngine::drawText(DisplayTarget::EINK, x + bubbleW - COMM_BUBBLE_PAD_X - timeW, nameY,
+                           timeText, FontStyle::Caption);
 
-      display.drawFastHLine(x + COMM_BUBBLE_PAD_X, nameY + 2, bubbleW - COMM_BUBBLE_PAD, m->sentByLocal ? GxEPD_WHITE : GxEPD_BLACK);
+      display.drawFastHLine(x + COMM_BUBBLE_PAD_X, nameY + 2, bubbleW - COMM_BUBBLE_PAD,
+                            m->sentByLocal ? GxEPD_WHITE : GxEPD_BLACK);
 
       int msgY = nameY + COMM_MSG_OFFSET + ascent;
       for (size_t l = 0; l < lines.size(); l++) {
-          FontEngine::drawText(DisplayTarget::EINK, x + COMM_BUBBLE_PAD_X, msgY + l * lineSpacing, lines[l], mf);
+        FontEngine::drawText(DisplayTarget::EINK, x + COMM_BUBBLE_PAD_X, msgY + l * lineSpacing,
+                             lines[l], mf);
       }
 
       y += bubbleH + COMM_BUBBLE_GAP;
@@ -611,7 +722,8 @@ void einkHandler_COMM() {
     if (maxScrollIndex > 0) {
       float avgBubbleH = COMM_BUBBLE_AVG_H;
       float visibleRatio = (float)COMM_CHAT_H / ((maxScrollIndex + 1) * avgBubbleH);
-      if (visibleRatio > 1.0) visibleRatio = 1.0;
+      if (visibleRatio > 1.0)
+        visibleRatio = 1.0;
       int handleHeight = max((int)(COMM_CHAT_H * visibleRatio), 15);
       float scrollFraction = (float)chatScrollIndex / maxScrollIndex;
       int handleY = COMM_CHAT_Y + scrollFraction * (COMM_CHAT_H - handleHeight);

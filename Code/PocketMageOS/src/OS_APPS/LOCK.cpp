@@ -4,7 +4,7 @@
 // is already on the panel, and unlocking should be OLED-fast
 
 #include <globals.h>
-#if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 
 #include <mbedtls/sha256.h>
 
@@ -16,13 +16,13 @@ volatile bool deviceLocked = false;
 
 // NVS keys (namespace "PocketMage", shared with the rest of the OS)
 static const char* LOCK_PREF_ENABLED = "LOCK_ENABLED";
-static const char* LOCK_PREF_HASH    = "LOCK_HASH";
-static const char* LOCK_PREF_SALT    = "LOCK_SALT";
+static const char* LOCK_PREF_HASH = "LOCK_HASH";
+static const char* LOCK_PREF_SALT = "LOCK_SALT";
 
 // PIN policy: 4..8 decimal digits
 constexpr int LOCK_PIN_MIN_LEN = 4;
 constexpr int LOCK_PIN_MAX_LEN = 8;
-constexpr int LOCK_SALT_BYTES  = 16;
+constexpr int LOCK_SALT_BYTES = 16;
 
 static String lockSalt;
 static String lockHash;
@@ -40,7 +40,8 @@ static String lockSha256Hex(const String& data) {
 
   String hex;
   for (int i = 0; i < 32; i++) {
-    if (digest[i] < 0x10) hex += "0";
+    if (digest[i] < 0x10)
+      hex += "0";
     hex += String(digest[i], HEX);
   }
   return hex;
@@ -51,7 +52,8 @@ static String lockNewSalt() {
   String salt;
   for (int i = 0; i < LOCK_SALT_BYTES; i++) {
     uint8_t b = static_cast<uint8_t>(random(0, 256));
-    if (b < 0x10) salt += "0";
+    if (b < 0x10)
+      salt += "0";
     salt += String(b, HEX);
   }
   return salt;
@@ -79,9 +81,11 @@ bool lockHasPin() {
 }
 
 bool lockPinValid(const String& pin) {
-  if (pin.length() < LOCK_PIN_MIN_LEN || pin.length() > LOCK_PIN_MAX_LEN) return false;
+  if (pin.length() < LOCK_PIN_MIN_LEN || pin.length() > LOCK_PIN_MAX_LEN)
+    return false;
   for (unsigned int i = 0; i < pin.length(); i++) {
-    if (pin[i] < '0' || pin[i] > '9') return false;
+    if (pin[i] < '0' || pin[i] > '9')
+      return false;
   }
   return true;
 }
@@ -115,7 +119,8 @@ void lockDisable() {
 // timing leak would only disclose the hash, not the PIN.
 bool lockVerifyPin(const String& pin) {
   lockLoadPrefs();
-  if (lockHash.length() == 0) return true;  // No PIN configured -> nothing to check
+  if (lockHash.length() == 0)
+    return true;  // No PIN configured -> nothing to check
   return lockSha256Hex(lockSalt + pin) == lockHash;
 }
 
@@ -135,7 +140,8 @@ void lockEnsureUnlocked() {
   while (deviceLocked && CurrentHOMEState != NOWLATER) {
     String entered = textPrompt(TR(STR_LOCK_PROMPT), "", true, true);
 
-    if (entered == "_EXIT_" || entered == "_RETURN_" || entered == "_CENTER_") continue;
+    if (entered == "_EXIT_" || entered == "_RETURN_" || entered == "_CENTER_")
+      continue;
 
     if (lockVerifyPin(entered)) {
       deviceLocked = false;
@@ -146,4 +152,4 @@ void lockEnsureUnlocked() {
   }
 }
 
-#endif // POCKETMAGE_OS
+#endif  // POCKETMAGE_OS

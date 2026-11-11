@@ -2,36 +2,33 @@
 #define GLOBALS_H
 
 // LIBRARIES
-#include <USBMSC.h>
-#include <SD_MMC.h>
 #include <SD.h>
+#include <SD_MMC.h>
 #include <SPI.h>
+#include <USBMSC.h>
+#include <assets.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <pocketmage.h>
-// PM_TARGET_APP: remove assets.h + assets.cpp, and OS_APPS/, follow PM_TARGET_APP: tag instructions in codebase
-#include <assets.h> // PM_TARGET_APP: remove
-// Shared state (vspi/hspi/global_fs/prefs, settings, AppState/KBState,
-// getBatteryVoltage) is owned by the SDK.
 #include <pocketmage_globals.h>
 
 // ===================== SYSTEM STATE =====================
-extern int OLEDFPSMillis;                       // Last OLED FPS update time
-extern int KBBounceMillis;                      // Last keyboard debounce time
-extern volatile bool newState;                  // App state changed
-extern volatile bool disableTimeout;            // Disable timeout globally
-extern bool fileLoaded;     
-extern unsigned int flashMillis;                // Flash timing
+extern int OLEDFPSMillis;             // Last OLED FPS update time
+extern int KBBounceMillis;            // Last keyboard debounce time
+extern volatile bool newState;        // App state changed
+extern volatile bool disableTimeout;  // Disable timeout globally
+extern bool fileLoaded;
+extern unsigned int flashMillis;  // Flash timing
 
 // ===================== APP STATES =====================
-extern const unsigned char *appIcons[11];       // App icons
+extern const unsigned char* appIcons[11];  // App icons
 
 // ===================== TASKS APP =====================
 extern std::vector<std::vector<String>> tasks;  // Task list
 
 // ===================== HOME APP =====================
-enum HOMEState { HOME_HOME, NOWLATER };         // Home app states
-extern HOMEState CurrentHOMEState;              // Current home state
+enum HOMEState { HOME_HOME, NOWLATER };  // Home app states
+extern HOMEState CurrentHOMEState;       // Current home state
 
 // ===================== PocketMage APP PROTOTYPES =====================
 // <APP.cpp>
@@ -39,12 +36,13 @@ void APP_INIT();
 void processKB_APP();
 void einkHandler_APP();
 
-//utils.cpp
+// utils.cpp
 void printDebug();
 void checkTimeout();
 void wakeFromNowlater(char bootKey = 0);
 void updateBattState();
-String textPrompt(String promptText = "", String prefix = "", bool mask = false, bool lockGlyph = false);
+String textPrompt(String promptText = "", String prefix = "", bool mask = false,
+                  bool lockGlyph = false);
 int boolPrompt(String promptText = "Are you sure?");
 void waitForKeypress(String message = "Press any button to continue...");
 String datePrompt(String defaultYYYYMMDD = "");
@@ -53,14 +51,12 @@ bool applyDateFromPrompt();
 bool applyTimeFromPrompt();
 void runClockSetupFlow(bool ask);
 #if PM_TARGET_HOST
-void saveEditingFile(); // PM_TARGET_APP: Remove saveEditingFile
+void saveEditingFile();
 #endif
 // <PocketMage>
-void einkHandler(void *parameter);
+void einkHandler(void* parameter);
 
-
-// PM_TARGET_APP: Remove all pocketmage v3 prototypes below this line
-#if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 
 // <UTILS.cpp>
 // Maps a boot shortcut letter (pressed while the device is off / on NOWLATER)
@@ -68,7 +64,7 @@ void einkHandler(void *parameter);
 AppState bootShortcutApp(char inchar);
 
 // <LOCK.cpp>
-extern volatile bool deviceLocked;      // Transient lock requirement; see LOCK.cpp
+extern volatile bool deviceLocked;  // Transient lock requirement; see LOCK.cpp
 bool lockIsEnabled();
 bool lockHasPin();
 bool lockPinValid(const String& pin);
@@ -98,7 +94,7 @@ void mageIdle(bool internalRefresh = true);
 void resetIdle();
 
 // <TASKS.cpp>
-void sortTasksByDueDate(std::vector<std::vector<String>> &tasks);
+void sortTasksByDueDate(std::vector<std::vector<String>>& tasks);
 void updateTaskArray();
 void einkHandler_TASKS();
 void processKB_TASKS();
@@ -133,7 +129,8 @@ String getCurrentJournal();
 // <APPLOADER.cpp>
 void processKB_APPLOADER();
 void einkHandler_APPLOADER();
-void loadAndDrawAppIcon(int x, int y, int slot, bool showName = true, int maxNameWidth = kGridLabelMaxW);
+void loadAndDrawAppIcon(int x, int y, int slot, bool showName = true,
+                        int maxNameWidth = kGridLabelMaxW);
 
 // <TERMINAL.cpp>
 void processKB_TERMINAL();
@@ -146,10 +143,10 @@ void compileWrench(const char* wrenchCode);
 
 // Terminal/SSH shared layout (small font page). Owned by TERMINAL.cpp and
 // SSH.cpp; SSH uses these to size the VT100 screen buffer.
-constexpr int TERM_X             = 5;    // output text x
-constexpr int TERM_SMALL_Y0      = 10;   // first baseline, small font (Terminal)
-constexpr int TERM_SMALL_STEP    = 14;   // row pitch, small font
-constexpr int TERM_SMALL_LINES   = 17;   // lines per page, small font
+constexpr int TERM_X = 5;             // output text x
+constexpr int TERM_SMALL_Y0 = 10;     // first baseline, small font (Terminal)
+constexpr int TERM_SMALL_STEP = 14;   // row pitch, small font
+constexpr int TERM_SMALL_LINES = 17;  // lines per page, small font
 
 // <SSH.cpp>
 void sshStartSession(const String& host, const String& user, int port);
@@ -164,6 +161,6 @@ bool sshCommand(const String& command);
 void processKB_COMM();
 void einkHandler_COMM();
 
-#endif // POCKETMAGE_OS
+#endif  // POCKETMAGE_OS
 
-#endif // GLOBALS_H
+#endif  // GLOBALS_H

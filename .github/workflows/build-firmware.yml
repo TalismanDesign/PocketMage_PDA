@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_deploy:
-        description: 'Skip Pages deployment (Upload as artifact instead)?'
+        description: "Skip Pages deployment (Upload as artifact instead)?"
         required: false
         type: boolean
         default: false
@@ -43,7 +43,7 @@ jobs:
       - name: Prepare the Python Cauldron
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Summon PlatformIO, esptool & jq
         run: |
@@ -66,15 +66,15 @@ jobs:
         id: offsets
         run: |
           set -euo pipefail
-          
+
           # Read offsets from partition CSV (expect 0x-prefixed hex or decimal)
           APP0_OFFSET=$(grep "^app0," partitions.csv | cut -d',' -f4 | tr -d ' ')
           PARTITIONS_OFFSET="0x8000"  # Standard for ESP32
-          
+
           echo "bootloader_offset=0x0" >> $GITHUB_OUTPUT
           echo "partitions_offset=$PARTITIONS_OFFSET" >> $GITHUB_OUTPUT
           echo "app0_offset=$APP0_OFFSET" >> $GITHUB_OUTPUT
-          
+
           echo "Partition offsets:"
           echo "  Bootloader: 0x0"
           echo "  Partitions: $PARTITIONS_OFFSET"
@@ -84,30 +84,30 @@ jobs:
         id: flash_params
         run: |
           set -euo pipefail
-          
+
           FLASH_MODE="dio"
           FLASH_FREQ="80m"
           FLASH_SIZE="16MB"
-          
+
           echo "flash_mode=$FLASH_MODE" >> $GITHUB_OUTPUT
           echo "flash_freq=$FLASH_FREQ" >> $GITHUB_OUTPUT
           echo "flash_size=$FLASH_SIZE" >> $GITHUB_OUTPUT
-          
+
           echo "Flash parameters: mode=$FLASH_MODE freq=$FLASH_FREQ size=$FLASH_SIZE"
 
       - name: Determine Version Tag
         id: version
         run: |
           set -euo pipefail
-          
+
           # Retrieve release tag (empty when not triggered by release event)
           RELEASE_TAG="${{ github.event.release.tag_name }}"
-          
+
           # Use timestamped dev version for non-release builds
           if [ -z "$RELEASE_TAG" ]; then
             RELEASE_TAG="dev-$(date +%Y%m%d-%H%M%S)"
           fi
-          
+
           echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
           echo "Determined version: $RELEASE_TAG"
 
@@ -116,14 +116,14 @@ jobs:
           set -euo pipefail
 
           RELEASE_TAG="${{ steps.version.outputs.release_tag }}"
-          
+
           # Setup paths
           BUILD_DIR_PROD="$GITHUB_WORKSPACE/Code/PocketMageOS/.pio/build/PM_PRODUCTION"
           BUILD_DIR_BETA="$GITHUB_WORKSPACE/Code/PocketMageOS/.pio/build/PM_BETA"
-          
+
           TARGET_DIR_PROD="$GITHUB_WORKSPACE/docs/firmware/${RELEASE_TAG}/production"
           TARGET_DIR_BETA="$GITHUB_WORKSPACE/docs/firmware/${RELEASE_TAG}/beta"
-          
+
           mkdir -p "${TARGET_DIR_PROD}"
           mkdir -p "${TARGET_DIR_BETA}"
 
@@ -259,4 +259,4 @@ jobs:
         with:
           name: pocketmage-firmware-${{ steps.version.outputs.release_tag }}
           path: ./docs
-          retention-days: 14  # Adjust retention window as you see fit
+          retention-days: 14 # Adjust retention window as you see fit
