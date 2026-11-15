@@ -1,6 +1,6 @@
-// AUDIT 1
 
 #include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 enum LexState { MENU, DEF };
 LexState CurrentLexState = MENU;
@@ -80,13 +80,14 @@ void LEXICON_INIT() {
   // Verify that dict is installed
   pocketmage::setCpuSpeed(240);
   delay(50);
-  if (!global_fs->exists("/dict/A.txt")) {
-    OLED().sysMessage(TR(STR_LEX_INSTALL_DICT),5000);
+  if (!PM_SD().exists("/dict/A.txt")) {
+    OLED().sysMessage(TR(STR_LEX_INSTALL_DICT), 5000);
     pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     HOME_INIT();
     return;
   }
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void loadDefinitions(String input) {
@@ -119,9 +120,9 @@ void loadDefinitions(String input) {
 
   String filePath = "/dict/" + String((char)toupper(firstChar)) + ".txt";
 
-  File file = global_fs->open(filePath);
-  if (!file) {
-    OLED().sysMessage(TR(STR_LEX_MISSING),2000);
+  String dictContents = PM_SD().readFileToString(filePath.c_str());
+  if (dictContents.length() == 0) {
+    OLED().sysMessage(TR(STR_LEX_MISSING), 2000);
     PM_SDAUTO().endIO();
     if (SAVE_POWER)
       pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
@@ -132,18 +133,27 @@ void loadDefinitions(String input) {
 
   int lineScanCount = 0;
 
-  while (file.available()) {
+  const char* p = dictContents.c_str();
+  while (*p) {
+    // Extract one line (stop at '\n' or end)
+    const char* eol = strchr(p, '\n');
+    size_t linelen = eol ? (size_t)(eol - p) : strlen(p);
 
-    if (++lineScanCount % 100 == 0) yield(); 
+    if (++lineScanCount % 100 == 0)
+      yield();
 
-    String line = file.readStringUntil('\n');
+    String line(p, linelen);
     line.trim();
-    if (line.length() == 0)
+    if (line.length() == 0) {
+      p = eol ? eol + 1 : eol;
       continue;
+    }
 
     int defSplit = line.indexOf(')');
-    if (defSplit == -1)
+    if (defSplit == -1) {
+      p = eol ? eol + 1 : eol;
       continue;
+    }
 
     // Extract key and definition
     String key = line.substring(0, defSplit + 1);
@@ -159,14 +169,14 @@ void loadDefinitions(String input) {
       // No more definitions for this word (Dictionary is alphabetically sorted)
       break;
     }
+
+    p = eol ? eol + 1 : eol;
   }
 
-  file.close();
-
   if (defList.empty()) {
-    OLED().sysMessage(TR(STR_LEX_NONE),2000);    
+    OLED().sysMessage(TR(STR_LEX_NONE), 2000);
 
-    CurrentLexState = MENU; 
+    CurrentLexState = MENU;
     newState = true;
 
   } else {
@@ -198,9 +208,12 @@ void processKB_LEXICON() {
     case MENU:
       KB().setKeyboardState(NORMAL);
       command = textPrompt();
-      if (command == "_RETURN_") return;
-      else if (command != "_EXIT_") loadDefinitions(command);
-      else HOME_INIT();
+      if (command == "_RETURN_")
+        return;
+      else if (command != "_EXIT_")
+        loadDefinitions(command);
+      else
+        HOME_INIT();
       break;
 
     case DEF:
@@ -215,7 +228,7 @@ void processKB_LEXICON() {
           loadDefinitions(currentLine);
           currentLine = "";
           cursor_pos = 0;
-        }                                       
+        }
         // SHIFT Recieved
         else if (inchar == 17) {
           KB().toggleShift();
@@ -229,7 +242,7 @@ void processKB_LEXICON() {
           if (currentLine.length() > 0 && cursor_pos != 0) {
             if (cursor_pos == currentLine.length()) {
               currentLine.remove(currentLine.length() - 1, 1);
-            } else { 
+            } else {
               currentLine.remove(cursor_pos - 1, 1);
             }
             cursor_pos--;
@@ -279,8 +292,8 @@ void processKB_LEXICON() {
           KB().setKeyboardState(NORMAL);
         }
         // FN+LEFT
-        else if (inchar == 12 ) {
-           HOME_INIT();
+        else if (inchar == 12) {
+          HOME_INIT();
         }
         // FN+RIGHT
         else if (inchar == 6) {
@@ -295,9 +308,8 @@ void processKB_LEXICON() {
         // TAB, SHIFT+TAB / FN+TAB, FN+SHIFT+TAB
         else if (inchar == 9 || inchar == 14) {
           KB().setKeyboardState(NORMAL);
-        }
-        else {
-          //split line at cursor_pos
+        } else {
+          // split line at cursor_pos
           if (cursor_pos == 0) {
             currentLine = inchar + currentLine;
           } else if (cursor_pos == currentLine.length()) {
@@ -327,11 +339,11 @@ void processKB_LEXICON() {
 }
 
 // Layout constants
-constexpr int LEX_MARGIN        = 8;    // left/right margin
-constexpr int LEX_WORD_X        = 12;   // word x
-constexpr int LEX_WORD_Y        = 50;   // word baseline
-constexpr int LEX_DEF_Y0        = 87;   // first definition-line baseline
-constexpr int LEX_LINE_HEIGHT   = 20;   // definition line pitch
+constexpr int LEX_MARGIN = 8;        // left/right margin
+constexpr int LEX_WORD_X = 12;       // word x
+constexpr int LEX_WORD_Y = 50;       // word baseline
+constexpr int LEX_DEF_Y0 = 87;       // first definition-line baseline
+constexpr int LEX_LINE_HEIGHT = 20;  // definition line pitch
 
 void einkHandler_LEXICON() {
   switch (CurrentLexState) {
@@ -344,21 +356,22 @@ void einkHandler_LEXICON() {
         endEinkScreen(TR(STR_LEX_TYPE_WORD));
       }
       break;
-      
+
     case DEF:
       if (newState) {
         newState = false;
-        
+
         beginEinkScreen();
 
         display.drawBitmap(0, 0, _lex1, 320, 218, GxEPD_BLACK);
         u8g2f.setForegroundColor(GxEPD_BLACK);
 
         // Draw Word
-        FontEngine::drawText(DisplayTarget::EINK, LEX_WORD_X, LEX_WORD_Y, defList[definitionIndex].first, FontStyle::Body);
+        FontEngine::drawText(DisplayTarget::EINK, LEX_WORD_X, LEX_WORD_Y,
+                             defList[definitionIndex].first, FontStyle::Body);
 
         // Draw Definition with Word Wrap
-        
+
         String defText = defList[definitionIndex].second;
         int maxW = kEinkWidth - (2 * LEX_MARGIN);
         int cursorY = LEX_DEF_Y0;

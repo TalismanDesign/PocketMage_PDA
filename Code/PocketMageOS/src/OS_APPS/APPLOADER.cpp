@@ -1,199 +1,110 @@
-// AUDIT 1
-#include <globals.h>
 #include <elf_runner.h>
-#include <ESP32-targz.h>
+#include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
 
+#include <cstring>
 
-#define APP_DIRECTORY   "/apps"
-#define TEMP_DIR        "/apps/temp"
+#define APP_DIRECTORY "/apps"
+#define TEMP_DIR "/apps/temp"
 #define PREFS_NAMESPACE "AppLoader"
-#if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 static String currentLine = "";
 
-enum AppLoaderState {MENU, SWAP_OR_EDIT, INSTALLING, SWAP};
+enum AppLoaderState { MENU, SWAP_OR_EDIT, INSTALLING, SWAP };
 AppLoaderState CurrentAppLoaderState = MENU;
 
-uint8_t selectedSlot = 0; //1:A, 2:B, etc.
+uint8_t selectedSlot = 0;  // 1:A, 2:B, etc.
 
-// ---------- Globals ----------
-volatile uint8_t g_installProgress = 0; // 0-100 (0-50: extract, 50-100: intall)
-volatile bool g_installDone = false;
-volatile bool g_installFailed = false;
-
-// ---------- Utilities ----------
-static bool ensureDir(fs::FS &fs, const char *path) {
-    if (fs.exists(path)) return true;
-    return fs.mkdir(path);
-}
-
-static bool rmRF(fs::FS &fs, const char *path) {
-    File entry = fs.open(path);
-    if (!entry) return true; // nothing to delete
-    if (!entry.isDirectory()) {
-        entry.close();
-        return fs.remove(path);
-    }
-
-    File child;
-    while ((child = entry.openNextFile())) {
-        String name = child.name();
-        int sep = name.lastIndexOf('/');
-        if (sep >= 0) name = name.substring(sep + 1);
-        String childPath = String(path) + "/" + name;
-        child.close();
-        if (!rmRF(fs, childPath.c_str())) { entry.close(); return false; }
-    }
-    entry.close();
-    return fs.rmdir(path);
-}
-
-bool copyFile(fs::FS &fs, const char *src, const char *dst) {
-  File in = fs.open(src, "r");
-  if (!in) return false;
-
-  File out = fs.open(dst, "w");
-  if (!out) { in.close(); return false; }
-
-  uint8_t buf[1024];
-  while (in.available()) {
-    size_t r = in.read(buf, sizeof(buf));
-    if (out.write(buf, r) != r) {
-      in.close(); out.close();
-      return false;
-    }
-    vTaskDelay(1); // feed watchdog
-  }
-
-  in.close();
-  out.close();
-  return true;
-}
-
-// ---------- Place this at the top of the .cpp file, before installTask ----------
-void copyDirRecursive(File src, const String &assetsSrc, const String &assetsDst) {
-    while (true) {
-        File entry = src.openNextFile();
-        if (!entry) break;
-
-        String name = entry.name();
-        
-        // Skip macOS metadata files
-        if (name.startsWith("._")) {
-            entry.close();
-            continue;
-        }
-
-        String relative = name.substring(assetsSrc.length());
-        String dstFile = assetsDst + relative;
-
-        if (entry.isDirectory()) {
-            ensureDir(*global_fs, dstFile.c_str());
-            copyDirRecursive(entry, assetsSrc, assetsDst);
-        } else {
-            File dst = global_fs->open(dstFile.c_str(), FILE_WRITE);
-            if (dst) {
-                uint8_t buf[512];
-                size_t len;
-                while ((len = entry.read(buf, sizeof(buf))) > 0) {
-                    dst.write(buf, len);
-                }
-                dst.close();
-                Serial.printf("Copied %s -> %s\n", name.c_str(), dstFile.c_str());
-            } else {
-                Serial.printf("Failed to open destination file %s\n", dstFile.c_str());
-            }
-        }
-        entry.close();
-        
-        vTaskDelay(1); 
-    }
-}
-
-bool copyAssetsFlat(fs::FS &fs, const char *srcDir, const char *dstDir) {
-  ensureDir(fs, dstDir);
-
-  File dir = fs.open(srcDir);
-  if (!dir || !dir.isDirectory()) return false;
-
-  File f;
-  while ((f = dir.openNextFile())) {
-    String name = String(f.name());
-    
-    // Skip macOS metadata files
-    if (name.startsWith("._")) {
-        f.close();
-        continue;
-    }
-
-    String srcPath = String(srcDir) + "/" + name;
-    String dstPath = String(dstDir) + "/" + name;
-
-    if (f.isDirectory()) {
-      ensureDir(fs, dstPath.c_str());
-      copyAssetsFlat(fs, srcPath.c_str(), dstPath.c_str());
-    } else {
-      if (!copyFile(fs, srcPath.c_str(), dstPath.c_str())) {
-        f.close();
-        dir.close();
-        return false;
-      }
-    }
-    f.close();
-    vTaskDelay(1);
-  }
-  dir.close();
-  return true;
-}
-
-
-static String basenameNoExt(const String &path, const char *ext = ".tar") {
+static String basenameNoExt(const String& path, const char* ext = ".tar") {
   int slash = path.lastIndexOf('/');
   String name = (slash >= 0) ? path.substring(slash + 1) : path;
-  if (name.endsWith(ext)) return name.substring(0, name.length() - (int)strlen(ext));
+  if (name.endsWith(ext))
+    return name.substring(0, name.length() - (int)strlen(ext));
   return name;
 }
 
 // Join two paths safely (ensures exactly one slash between them)
-static String pathJoin(const String &a, const String &b) {
-  if (a.length() == 0) return b;
-  if (b.length() == 0) return a;
+static String pathJoin(const String& a, const String& b) {
+  if (a.length() == 0)
+    return b;
+  if (b.length() == 0)
+    return a;
   if (a.endsWith("/")) {
-    if (b.startsWith("/")) return a + b.substring(1); // avoid double slash
+    if (b.startsWith("/"))
+      return a + b.substring(1);  // avoid double slash
     return a + b;
   } else {
-    if (b.startsWith("/")) return a + b;
+    if (b.startsWith("/"))
+      return a + b;
     return a + "/" + b;
   }
+}
+
+// ---------- Globals ----------
+volatile uint8_t g_installProgress = 0;  // 0-100 (0-50: extract, 50-100: intall)
+// Raw 0-100 written by the SD gateway while extractTar blocks the installer;
+// the UI halves it so extraction maps onto the first half of the bar.
+volatile int g_extractProgress = 0;
+volatile bool g_installDone = false;
+volatile bool g_installFailed = false;
+
+// ---------- Utilities ----------
+// All card access goes through the gateway-backed PM_SD methods: the gateway
+// resolves relative paths and ramps the CPU per op, so no CPU-speed juggling
+// or sdPath() wrapping is needed here.
+static bool ensureDir(const char* path) {
+  return PM_SD().mkdirPath(path);
+}
+
+static bool rmRF(const char* path) {
+  return PM_SD().removeTree(path);
+}
+
+bool copyFile(const char* src, const char* dst) {
+  return PM_SD().copyFileRaw(src, dst);
+}
+
+bool copyAssetsFlat(const char* srcDir, const char* dstDir) {
+  ensureDir(dstDir);
+
+  std::vector<PocketmageSD::DirItem> items;
+  if (!PM_SD().listDirItems(srcDir, items))
+    return false;
+
+  for (const auto& item : items) {
+    // Skip macOS metadata files
+    if (item.name.startsWith("._"))
+      continue;
+
+    String srcPath = pathJoin(srcDir, item.name);
+    String dstPath = pathJoin(dstDir, item.name);
+
+    if (item.isDir) {
+      if (!copyAssetsFlat(srcPath.c_str(), dstPath.c_str()))
+        return false;
+    } else {
+      if (!copyFile(srcPath.c_str(), dstPath.c_str()))
+        return false;
+    }
+    vTaskDelay(1);  // feed watchdog
+  }
+  return true;
 }
 
 // ---------- Saving/Loading appInfo ----------
 
 // Layout constants, app icon geometry
-constexpr int APPLOADER_ICON_S   = kIconCellSize;  // app icon cell size
-constexpr int APPLOADER_NAME_GAP = kIconNameGap;   // icon-to-name baseline gap
+constexpr int APPLOADER_ICON_S = kIconCellSize;   // app icon cell size
+constexpr int APPLOADER_NAME_GAP = kIconNameGap;  // icon-to-name baseline gap
 
 void loadAndDrawAppIcon(int x, int y, int slot, bool showName, int maxNameWidth) {
-  pocketmage::setCpuSpeed(240);
-
   ElfAppInfo app;
   if (!loadElfAppInfo(slot, app)) {
-    // Ensure CPU speed is reset if we abort early
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     return;
   }
 
-  bool iconLoaded = false;
-  uint8_t buf[APPLOADER_ICON_S * 5]; // 40x40 1-bit = 200 bytes
-
-  if (global_fs->exists(app.iconPath)) {
-    File f = global_fs->open(app.iconPath, "r");
-    if (f) {
-      if (f.read(buf, sizeof(buf)) == sizeof(buf)) {
-        iconLoaded = true;
-      }
-      f.close();
-    }
-  }
+  uint8_t buf[APPLOADER_ICON_S * 5];  // 40x40 1-bit = 200 bytes
+  bool iconLoaded = PM_SD().readBinaryFile(app.iconPath, buf, sizeof(buf));
 
   display.fillRect(x, y, APPLOADER_ICON_S, APPLOADER_ICON_S, GxEPD_WHITE);
 
@@ -204,9 +115,8 @@ void loadAndDrawAppIcon(int x, int y, int slot, bool showName, int maxNameWidth)
   }
 
   if (showName) {
-    FontStyle nameStyle = FontEngine::fitStyle(DisplayTarget::EINK, app.name,
-                                               maxNameWidth, kLabelCascade,
-                                               kLabelCascadeCount);
+    FontStyle nameStyle = FontEngine::fitStyle(DisplayTarget::EINK, app.name, maxNameWidth,
+                                               kLabelCascade, kLabelCascadeCount);
     String appNameStr = truncateWithEllipsis(app.name, maxNameWidth, nameStyle);
 
     u8g2f.setForegroundColor(GxEPD_BLACK);
@@ -218,77 +128,50 @@ void loadAndDrawAppIcon(int x, int y, int slot, bool showName, int maxNameWidth)
 
     FontEngine::drawText(DisplayTarget::EINK, tx, ty, appNameStr, nameStyle);
   }
-
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
-void cleanupAppsTemp(String binPath) {
-  // --- Cleanup TEMP_DIR, keep *_ICON.bin only ---
-  File root = global_fs->open(TEMP_DIR);
-  if (root && root.isDirectory()) {
-    File entry;
-    while ((entry = root.openNextFile())) {
-      String name = entry.name();
-      int sep = name.lastIndexOf('/');
-      if (sep >= 0) name = name.substring(sep + 1);
-      String fullPath = pathJoin(TEMP_DIR, name);
-      entry.close();
-      if (!name.endsWith("_ICON.bin")) {
-        global_fs->remove(fullPath);
+bool cleanupAppsTempRecursive(const char* dirPath) {
+  std::vector<PocketmageSD::DirItem> items;
+  if (!PM_SD().listDirItems(dirPath, items))
+    return false;
+
+  for (const auto& item : items) {
+    String fullPath = pathJoin(dirPath, item.name);
+
+    if (item.isDir) {
+      cleanupAppsTempRecursive(fullPath.c_str());
+      // removeFile() on a directory only succeeds when it is now empty,
+      // matching the old rmdir-if-empty behavior: dirs that still hold
+      // an _ICON.bin survive.
+      PM_SD().removeFile(fullPath.c_str());
+    } else {
+      if (!item.name.endsWith("_ICON.bin")) {
+        PM_SD().removeFile(fullPath.c_str());
       }
     }
-    root.close();
   }
+  return true;
 }
-bool cleanupAppsTempRecursive(fs::FS &fs, const String &dirPath) {
-    File dir = fs.open(dirPath);
-    if (!dir || !dir.isDirectory()) return false;
-
-    File entry;
-    while ((entry = dir.openNextFile())) {
-        String name = entry.name();
-        int sep = name.lastIndexOf('/');
-        if (sep >= 0) name = name.substring(sep + 1);
-        String fullPath = pathJoin(dirPath, name);
-
-        if (entry.isDirectory()) {
-            entry.close();
-            cleanupAppsTempRecursive(fs, fullPath); // recurse
-            // try to remove directory if empty
-            fs.rmdir(fullPath.c_str());
-        } else {
-            entry.close();
-            if (!name.endsWith("_ICON.bin")) {
-                fs.remove(fullPath.c_str());
-            }
-        }
-    }
-    dir.close();
-    return true;
-}
-
 
 // ---------- Install Task ----------
 
 struct InstallTaskParams {
-    char tarRelName[128];
-    int slot; // 1..4
+  char tarRelName[128];
+  int slot;  // 1..4
 };
 
-static void installTask(void *param) {
-  pocketmage::setCpuSpeed(240);
-
-  InstallTaskParams *p = (InstallTaskParams *)param;
+static void installTask(void* param) {
+  InstallTaskParams* p = (InstallTaskParams*)param;
   g_installProgress = 0;
+  g_extractProgress = 0;
   g_installDone = false;
   g_installFailed = false;
 
   String tarPath = pathJoin(APP_DIRECTORY, p->tarRelName);
 
   // --- Check TAR exists ---
-  if (!global_fs->exists(tarPath.c_str())) {
+  if (!PM_SD().exists(tarPath.c_str())) {
     Serial.printf("Tar not found: %s\n", tarPath.c_str());
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -296,197 +179,146 @@ static void installTask(void *param) {
   }
 
   // --- Ensure directories ---
-  if (!ensureDir(*global_fs, APP_DIRECTORY) ||
-    !ensureDir(*global_fs, TEMP_DIR)) {
+  if (!ensureDir(APP_DIRECTORY) || !ensureDir(TEMP_DIR)) {
     Serial.println("Failed to prepare TEMP_DIR");
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
 
-  // --- TAR extraction ---
-  TarUnpacker unpacker;
-  unpacker.haltOnError(true);
-  unpacker.setTarProgressCallback([](uint8_t progress) {
-    uint8_t mappedProgress = progress / 2; // 0-50% for extraction
-    
-    // Never let the bar go backwards.
-    if (mappedProgress > g_installProgress) {
-        g_installProgress = mappedProgress;
-    }
-  });
-
-  if (!unpacker.tarExpander(*global_fs, tarPath.c_str(), *global_fs, TEMP_DIR)) {
-    Serial.printf("Extraction failed (err=%d)\n", unpacker.tarGzGetError());
-
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-
+  // --- TAR extraction (one gateway op: microtar, sanitized entry names,
+  // mkdirs for missing parents, 4KB streaming; runs at 240MHz on the
+  // gateway task while it blocks here) ---
+  if (!PM_SD().extractTar(tarPath.c_str(), TEMP_DIR, &g_extractProgress)) {
+    Serial.println("Extraction failed");
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
 
-  g_installProgress = 50; // halfway
+  g_installProgress = 50;  // halfway
 
-// --- Determine main .bin and base name ---
-String elfPath = "";
-String base = "";
-String iconPath = "";
+  // --- Determine main .bin and base name ---
+  String elfPath = "";
+  String base = "";
+  String iconPath = "";
 
-File tempRoot = global_fs->open(TEMP_DIR);
-if (tempRoot && tempRoot.isDirectory()) {
-    File entry;
-    while ((entry = tempRoot.openNextFile())) {
-        String name = entry.name();
-        int sep = name.lastIndexOf('/');
-        if (sep >= 0) name = name.substring(sep + 1);
+  {
+    std::vector<PocketmageSD::DirItem> items;
+    PM_SD().listDirItems(TEMP_DIR, items);
+    for (const auto& item : items) {
+      String name = item.name;
+      int sep = name.lastIndexOf('/');
+      if (sep >= 0)
+        name = name.substring(sep + 1);
 
-        // Skip macOS metadata files
-        if (name.startsWith("._")) {
-            entry.close();
-            continue;
+      // Skip macOS metadata files
+      if (name.startsWith("._")) {
+        continue;
+      }
+
+      // --- Main .app.elf ---
+      if (elfPath.length() == 0 && name.endsWith(".app.elf")) {
+        elfPath = pathJoin(TEMP_DIR, name);
+
+        // Derive base by stripping ".app.elf" (icon is <base>_ICON.bin)
+        if (name.length() > 8) {
+          base = name.substring(0, name.length() - 8);
+        } else {
+          int dot = name.lastIndexOf('.');
+          base = (dot > 0) ? name.substring(0, dot) : name;
         }
-
-        // --- Main .app.elf ---
-        if (elfPath.length() == 0 && name.endsWith(".app.elf")) {
-            elfPath = pathJoin(TEMP_DIR, name);
-
-            // Derive base by stripping ".app.elf" (icon is <base>_ICON.bin)
-            if (name.endsWith(".app.elf") && name.length() > 8) {
-                base = name.substring(0, name.length() - 8);
-            } else {
-                int dot = name.lastIndexOf('.');
-                base = (dot > 0) ? name.substring(0, dot) : name;
-            }
-
-            entry.close();
-            continue;
-        }
-        entry.close();
+      }
     }
-    tempRoot.close();
-}
+  }
 
-if (elfPath.length() == 0 || base.length() == 0) {
+  if (elfPath.length() == 0 || base.length() == 0) {
     Serial.printf("ELF not found after extraction in %s\n", TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
-}
+  }
 
-Serial.printf("App base name determined: '%s'\n", base.c_str());
+  Serial.printf("App base name determined: '%s'\n", base.c_str());
 
-// --- Icon scan (order-independent): <base>_ICON.bin anywhere in TEMP_DIR ---
-{
+  // --- Icon scan (order-independent): <base>_ICON.bin anywhere in TEMP_DIR ---
+  {
     String want = base + "_ICON.bin";
-    File scan = global_fs->open(TEMP_DIR);
-    if (scan && scan.isDirectory()) {
-        File entry;
-        while ((entry = scan.openNextFile())) {
-            String name = entry.name();
-            int sep = name.lastIndexOf('/');
-            if (sep >= 0) name = name.substring(sep + 1);
-            if (!name.startsWith("._") && name.equalsIgnoreCase(want)) {
-                iconPath = pathJoin(TEMP_DIR, name);
-                entry.close();
-                break;
-            }
-            entry.close();
-        }
-        scan.close();
+    std::vector<PocketmageSD::DirItem> items;
+    PM_SD().listDirItems(TEMP_DIR, items);
+    for (const auto& item : items) {
+      String name = item.name;
+      int sep = name.lastIndexOf('/');
+      if (sep >= 0)
+        name = name.substring(sep + 1);
+      if (!name.startsWith("._") && name.equalsIgnoreCase(want)) {
+        iconPath = pathJoin(TEMP_DIR, name);
+        break;
+      }
     }
     if (iconPath.length() == 0) {
-        Serial.printf("Icon not found for app '%s' (non-fatal)\n", base.c_str());
+      Serial.printf("Icon not found for app '%s' (non-fatal)\n", base.c_str());
     } else {
-        Serial.printf("Icon found: %s\n", iconPath.c_str());
+      Serial.printf("Icon found: %s\n", iconPath.c_str());
     }
-}
+  }
 
-
-// Wait up to ~200 ms for SD_MMC to see the files
-int waitMs = 0;
-while (waitMs < 200) {
-    File tempRoot = global_fs->open(TEMP_DIR);
-    bool found = false;
-    if (tempRoot && tempRoot.isDirectory()) {
-        File entry;
-        while ((entry = tempRoot.openNextFile())) {
-            String name = String(entry.name());
-
-            // Skip macOS metadata files
-            if (name.startsWith("._")) {
-                entry.close();
-                continue;
-            }
-
-            if (name.endsWith(".app.elf")) {
-                elfPath = pathJoin(TEMP_DIR, name);
-                found = true;
-            }
-            entry.close();
-            if (found) break;
-        }
-        tempRoot.close();
+  // Extraction is synchronous through the gateway, so the extracted files are
+  // already visible; still poll briefly for the ELF as a safety net.
+  {
+    int waitMs = 0;
+    while (waitMs < 200 && !PM_SD().exists(elfPath.c_str())) {
+      vTaskDelay(10 / portTICK_PERIOD_MS);
+      waitMs += 10;
     }
-    if (found && global_fs->exists(elfPath.c_str())) break;
+  }
 
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    waitMs += 10;
-}
-
-Serial.println("Listing /apps/temp:");
-tempRoot = global_fs->open(TEMP_DIR);
-if (tempRoot && tempRoot.isDirectory()) {
-    File entry;
-    while ((entry = tempRoot.openNextFile())) {
-        Serial.printf("  %s%s\n", entry.name(), entry.isDirectory() ? "/" : "");
-        entry.close();
+  Serial.println("Listing /apps/temp:");
+  {
+    std::vector<PocketmageSD::DirItem> items;
+    PM_SD().listDirItems(TEMP_DIR, items);
+    for (const auto& item : items) {
+      Serial.printf("  %s%s\n", item.name.c_str(), item.isDir ? "/" : "");
     }
-    tempRoot.close();
-}
+  }
 
-if (elfPath.length() == 0 || !global_fs->exists(elfPath.c_str())) {
+  if (elfPath.length() == 0 || !PM_SD().exists(elfPath.c_str())) {
     Serial.printf("ELF not found after extraction: %s\n", elfPath.c_str());
-    cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
-}
+  }
 
-vTaskDelay(pdMS_TO_TICKS(100)); // Safe wait
+  vTaskDelay(pdMS_TO_TICKS(100));  // Safe wait
 
-// --- Copy assets folder ---
-String assetsSrc = pathJoin(TEMP_DIR, "assets");
-String assetsDst = pathJoin("/assets", base);   // <-- correct target path
+  // --- Copy assets folder ---
+  String assetsSrc = pathJoin(TEMP_DIR, "assets");
+  String assetsDst = pathJoin("/assets", base);  // <-- correct target path
 
-if (global_fs->exists(assetsSrc.c_str())) {
-    rmRF(*global_fs, assetsDst.c_str()); // clean old assets
+  if (PM_SD().statIsDir(assetsSrc.c_str())) {
+    rmRF(assetsDst.c_str());  // clean old assets
     Serial.printf("Copying assets: %s -> %s\n", assetsSrc.c_str(), assetsDst.c_str());
-    if (!copyAssetsFlat(*global_fs, assetsSrc.c_str(), assetsDst.c_str())) {
-        Serial.println("Failed to copy assets!");
-        g_installFailed = true;
-        g_installDone = true;
-        cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-            if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-        delete p;
-        vTaskDelete(NULL);
+    if (!copyAssetsFlat(assetsSrc.c_str(), assetsDst.c_str())) {
+      Serial.println("Failed to copy assets!");
+      g_installFailed = true;
+      g_installDone = true;
+      cleanupAppsTempRecursive(TEMP_DIR);
+      delete p;
+      vTaskDelete(NULL);
     }
-}
-
+  }
 
   // --- Install into the slot directory (no flashing: .elf runs in-process) ---
   char slotDir[32];
   elfAppSlotDir(p->slot, slotDir, sizeof(slotDir));
-  if (!ensureDir(*global_fs, slotDir)) {
+  if (!ensureDir(slotDir)) {
     Serial.printf("Failed to create slot dir %s\n", slotDir);
-    cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -496,24 +328,21 @@ if (global_fs->exists(assetsSrc.c_str())) {
   String elfDst = pathJoin(slotDir, base + ".app.elf");
   String iconDst = iconPath.length() > 0 ? pathJoin(slotDir, base + "_ICON.bin") : String();
 
-  File f = global_fs->open(elfPath.c_str(), "r");
-  if (!f) {
+  if (!PM_SD().exists(elfPath.c_str())) {
     Serial.printf("Failed to open: %s\n", elfPath.c_str());
-    cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
-  uint32_t sz = f.size();
-  f.close();
+  size_t sz = 0;
+  PM_SD().statPath(elfPath.c_str(), &sz, nullptr);
   Serial.printf("Installing %s (%u bytes) -> %s\n", elfPath.c_str(), sz, elfDst.c_str());
 
-  if (!copyFile(*global_fs, elfPath.c_str(), elfDst.c_str())) {
+  if (!copyFile(elfPath.c_str(), elfDst.c_str())) {
     Serial.println("ELF copy failed");
-    cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+    cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -522,7 +351,7 @@ if (global_fs->exists(assetsSrc.c_str())) {
   g_installProgress = 75;
 
   if (iconDst.length() > 0) {
-    if (!copyFile(*global_fs, iconPath.c_str(), iconDst.c_str())) {
+    if (!copyFile(iconPath.c_str(), iconDst.c_str())) {
       Serial.println("Icon copy failed (non-fatal)");
       iconDst = "";
     }
@@ -532,12 +361,12 @@ if (global_fs->exists(assetsSrc.c_str())) {
   // Optional, but a stale manifest must not outlive the app it names
   String propsSrc = pathJoin(TEMP_DIR, "app.properties");
   String propsDst = pathJoin(slotDir, "app.properties");
-  if (global_fs->exists(propsSrc.c_str())) {
-    if (!copyFile(*global_fs, propsSrc.c_str(), propsDst.c_str())) {
+  if (PM_SD().exists(propsSrc.c_str())) {
+    if (!copyFile(propsSrc.c_str(), propsDst.c_str())) {
       Serial.println("app.properties copy failed (non-fatal)");
     }
-  } else if (global_fs->exists(propsDst.c_str())) {
-    global_fs->remove(propsDst.c_str());
+  } else if (PM_SD().exists(propsDst.c_str())) {
+    PM_SD().removeFile(propsDst.c_str());
   }
 
   // --- Overlay binary (optional) ---
@@ -546,33 +375,32 @@ if (global_fs->exists(assetsSrc.c_str())) {
   {
     String want1 = base + ".elfo";
     String want2 = base + ".app.elfo";
-    File scan = global_fs->open(TEMP_DIR);
-    if (scan && scan.isDirectory()) {
-      File entry;
-      while ((entry = scan.openNextFile())) {
-        String name = entry.name();
-        int sep = name.lastIndexOf('/');
-        if (sep >= 0) name = name.substring(sep + 1);
-        if (name.startsWith("._")) { entry.close(); continue; }
-        if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2) || name.endsWith(".elfo")) {
-          // prefer exact matches for base name
-          if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2)) {
-            overlaySrc = pathJoin(TEMP_DIR, entry.name());
-            entry.close();
-            break;
-          }
-          if (overlaySrc.length() == 0) {
-            overlaySrc = pathJoin(TEMP_DIR, entry.name());
-          }
-        }
-        entry.close();
+    std::vector<PocketmageSD::DirItem> items;
+    PM_SD().listDirItems(TEMP_DIR, items);
+    for (const auto& item : items) {
+      String name = item.name;
+      int sep = name.lastIndexOf('/');
+      if (sep >= 0)
+        name = name.substring(sep + 1);
+      if (name.startsWith("._")) {
+        continue;
       }
-      scan.close();
+      if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2) || name.endsWith(".elfo")) {
+        // prefer exact matches for base name
+        if (name.equalsIgnoreCase(want1) || name.equalsIgnoreCase(want2)) {
+          overlaySrc = pathJoin(TEMP_DIR, name);
+          break;
+        }
+        if (overlaySrc.length() == 0) {
+          overlaySrc = pathJoin(TEMP_DIR, name);
+        }
+      }
     }
   }
   if (overlaySrc.length() > 0) {
-    if (global_fs->exists(overlayDst.c_str())) global_fs->remove(overlayDst.c_str());
-    if (copyFile(*global_fs, overlaySrc.c_str(), overlayDst.c_str())) {
+    if (PM_SD().exists(overlayDst.c_str()))
+      PM_SD().removeFile(overlayDst.c_str());
+    if (copyFile(overlaySrc.c_str(), overlayDst.c_str())) {
       Serial.printf("Overlay copied: %s -> %s\n", overlaySrc.c_str(), overlayDst.c_str());
     } else {
       Serial.printf("Overlay copy failed (non-fatal): %s\n", overlaySrc.c_str());
@@ -593,8 +421,7 @@ if (global_fs->exists(assetsSrc.c_str())) {
     Serial.println("Install OK");
   }
 
-  cleanupAppsTempRecursive(*global_fs, TEMP_DIR);
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  cleanupAppsTempRecursive(TEMP_DIR);
 
   g_installProgress = 100;
   g_installDone = true;
@@ -604,27 +431,22 @@ if (global_fs->exists(assetsSrc.c_str())) {
 }
 
 // ---------- Async API ----------
-bool installAppTarToSlotAsync(const char *tarRelName, int slot) {
-    auto *params = new InstallTaskParams;
-    strncpy(params->tarRelName, tarRelName, sizeof(params->tarRelName) - 1);
-    params->tarRelName[sizeof(params->tarRelName) - 1] = '\0';
-    params->slot = slot;
+bool installAppTarToSlotAsync(const char* tarRelName, int slot) {
+  auto* params = new InstallTaskParams;
+  strncpy(params->tarRelName, tarRelName, sizeof(params->tarRelName) - 1);
+  params->tarRelName[sizeof(params->tarRelName) - 1] = '\0';
+  params->slot = slot;
 
-    BaseType_t res = xTaskCreate(
-        installTask,
-        "installTask",
-        12288, // stack size (increase if extraction is large)
-        params,
-        1,
-        NULL
-    );
+  BaseType_t res = xTaskCreate(installTask, "installTask",
+                               12288,  // stack size (increase if extraction is large)
+                               params, 1, NULL);
 
-    if (res != pdPASS) {
-        Serial.println("Failed to create install task");
-        delete params;
-        return false;
-    }
-    return true;
+  if (res != pdPASS) {
+    Serial.println("Failed to create install task");
+    delete params;
+    return false;
+  }
+  return true;
 }
 
 // ---------- Helpers ----------
@@ -636,16 +458,18 @@ void drawProgressBar(uint8_t progress) {
   // Draw rounded rectangle border
   u8g2.drawRFrame(20, 3, 216, 16, 5);
   // Draw progress bar
-  if (progressPx > 10) u8g2.drawRBox(20, 3, progressPx, 16, 5);
+  if (progressPx > 10)
+    u8g2.drawRBox(20, 3, progressPx, 16, 5);
 
   // Show text
   String progressText = "";
-  if (progress < 52) progressText = TR(STR_APPLOADER_EXTRACTING);
-  else               progressText = TR(STR_APPLOADER_INSTALLING);
+  if (progress < 52)
+    progressText = TR(STR_APPLOADER_EXTRACTING);
+  else
+    progressText = TR(STR_APPLOADER_INSTALLING);
   int pw = FontEngine::textWidth(DisplayTarget::OLED, progressText, FontStyle::Body);
-  FontEngine::drawText(DisplayTarget::OLED,
-               (u8g2.getDisplayWidth() - pw)/2,
-               u8g2.getDisplayHeight()-3, progressText, FontStyle::Body);
+  FontEngine::drawText(DisplayTarget::OLED, (u8g2.getDisplayWidth() - pw) / 2,
+                       u8g2.getDisplayHeight() - 3, progressText, FontStyle::Body);
 
   u8g2.sendBuffer();
 }
@@ -671,30 +495,26 @@ void processKB_APPLOADER() {
       inchar = KB().updateKeypress();
 
       // 2. Only process the actual input if the cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {  
+      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
         if (inchar != 0) {
           KBBounceMillis = currentMillis;
 
           // HANDLE INPUTS
-          if (inchar == 12 || inchar == 23) { // Home or App Switcher Kill Signal
+          if (inchar == 12 || inchar == 23) {  // Home or App Switcher Kill Signal
             HOME_INIT();
-          }
-          else if (inchar == 'a' || inchar == 'A' || inchar == '1') {
+          } else if (inchar == 'a' || inchar == 'A' || inchar == '1') {
             selectedSlot = 1;
             CurrentAppLoaderState = SWAP_OR_EDIT;
             KB().setKeyboardState(NORMAL);
-          }
-          else if (inchar == 'b' || inchar == 'B' || inchar == '2') {
+          } else if (inchar == 'b' || inchar == 'B' || inchar == '2') {
             selectedSlot = 2;
             CurrentAppLoaderState = SWAP_OR_EDIT;
             KB().setKeyboardState(NORMAL);
-          }
-          else if (inchar == 'c' || inchar == 'C' || inchar == '3') {
+          } else if (inchar == 'c' || inchar == 'C' || inchar == '3') {
             selectedSlot = 3;
             CurrentAppLoaderState = SWAP_OR_EDIT;
             KB().setKeyboardState(NORMAL);
-          }
-          else if (inchar == 'd' || inchar == 'D' || inchar == '4') {
+          } else if (inchar == 'd' || inchar == 'D' || inchar == '4') {
             selectedSlot = 4;
             CurrentAppLoaderState = SWAP_OR_EDIT;
             KB().setKeyboardState(NORMAL);
@@ -705,7 +525,7 @@ void processKB_APPLOADER() {
 
       // 3. Update OLED at true OLED_MAX_FPS, completely independent of keyboard bounce
       currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000/OLED_MAX_FPS)) {
+      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
         OLED().oledWord(TR(STR_APPLOADER_CHOOSE_SLOT));
       }
@@ -716,25 +536,23 @@ void processKB_APPLOADER() {
       inchar = KB().updateKeypress();
 
       // 2. Only process the actual input if the cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {  
+      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
         if (inchar != 0) {
           KBBounceMillis = currentMillis;
 
-          if (inchar == 12 || inchar == 23) { // Home or App Switcher Kill Signal
+          if (inchar == 12 || inchar == 23) {  // Home or App Switcher Kill Signal
             selectedSlot = 0;
             CurrentAppLoaderState = MENU;
-            newState = true; // Trigger e-ink redraw of the menu
-          }
-          else if (inchar == 'S' || inchar == 's' || inchar == '!') {
+            newState = true;  // Trigger e-ink redraw of the menu
+          } else if (inchar == 'S' || inchar == 's' || inchar == '!') {
             CurrentAppLoaderState = SWAP;
-          }
-          else if (inchar == 'D' || inchar == 'd' || inchar == '$') {
+          } else if (inchar == 'D' || inchar == 'd' || inchar == '$') {
             // Clear the slot: drop metadata and remove the slot directory
             clearElfAppInfo(selectedSlot);
 
             char slotDir[32];
             elfAppSlotDir(selectedSlot, slotDir, sizeof(slotDir));
-            if (rmRF(*global_fs, slotDir)) {
+            if (rmRF(slotDir)) {
               Serial.printf("Slot %d cleared\n", selectedSlot);
             }
 
@@ -745,10 +563,10 @@ void processKB_APPLOADER() {
           }
         }
       }
-        
+
       // 3. Update OLED at true OLED_MAX_FPS, completely independent of keyboard bounce
       currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000/OLED_MAX_FPS)) {
+      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
         OLED().oledWord(TR(STR_APPLOADER_SWAP_DELETE));
       }
@@ -756,21 +574,20 @@ void processKB_APPLOADER() {
 
     case SWAP:
       outPath = fileWizardMini(false, APP_DIRECTORY, 0);
-      
+
       // Catch standard exits as well as the App Switcher 23 kill signal string
       if (outPath == "_EXIT_" || outPath == "_APP_SWITCH_" || outPath == "_RETURN_") {
         // Return to menu
         CurrentAppLoaderState = MENU;
         newState = true;
         break;
-      }
-      else if (outPath != "") {
+      } else if (outPath != "") {
         // Reject MacOS metadata files disguised as tar files
         if (outPath.indexOf("/._") != -1) {
-            OLED().sysMessage(TR(STR_APPLOADER_MACOS_META), 2000);
-            CurrentAppLoaderState = MENU;
-            newState = true; // Force background redraw just in case
-            break;
+          OLED().sysMessage(TR(STR_APPLOADER_MACOS_META), 2000);
+          CurrentAppLoaderState = MENU;
+          newState = true;  // Force background redraw just in case
+          break;
         }
 
         // Ensure file is a .tar
@@ -781,8 +598,8 @@ void processKB_APPLOADER() {
             relName = relName.substring(strlen(APP_DIRECTORY) + 1);
           }
 
-          Serial.printf("Installing app from %s (rel=%s) into slot %d\n",
-                        outPath.c_str(), relName.c_str(), selectedSlot);
+          Serial.printf("Installing app from %s (rel=%s) into slot %d\n", outPath.c_str(),
+                        relName.c_str(), selectedSlot);
 
           installAppTarToSlotAsync(relName.c_str(), selectedSlot);
           CurrentAppLoaderState = INSTALLING;
@@ -795,15 +612,19 @@ void processKB_APPLOADER() {
       break;
 
     case INSTALLING:
-      // Update OLED progress
+      // Update OLED progress. Extraction maps onto the first half of the
+      // bar (gateway reports raw 0-100 there), the install phase owns the
+      // second half; max() keeps the bar monotonic across the handover.
       if (!g_installDone) {
-        drawProgressBar(g_installProgress);
+        uint8_t shown = (uint8_t)(g_extractProgress / 2);
+        if (g_installProgress > shown)
+          shown = g_installProgress;
+        drawProgressBar(shown);
       } else {
         vTaskDelay(pdMS_TO_TICKS(500));
         if (g_installFailed) {
           OLED().sysMessage(TR(STR_APPLOADER_INSTALL_FAILED), 2000);
-        } 
-        else {
+        } else {
           OLED().sysMessage(TR(STR_APPLOADER_INSTALL_COMPLETE), 2000);
         }
         newState = true;
@@ -821,7 +642,7 @@ void einkHandler_APPLOADER() {
         beginEinkScreen(true);
         display.drawBitmap(0, 0, _appLoader, 320, 218, GxEPD_BLACK);
 
-        loadAndDrawAppIcon(42 , 146, 1, true, kGridLabelMaxW);  // Slot 1
+        loadAndDrawAppIcon(42, 146, 1, true, kGridLabelMaxW);   // Slot 1
         loadAndDrawAppIcon(106, 146, 2, true, kGridLabelMaxW);  // Slot 2
         loadAndDrawAppIcon(174, 146, 3, true, kGridLabelMaxW);  // Slot 3
         loadAndDrawAppIcon(238, 146, 4, true, kGridLabelMaxW);  // Slot 4

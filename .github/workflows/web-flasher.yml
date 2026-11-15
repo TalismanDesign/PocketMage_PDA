@@ -36,7 +36,7 @@ jobs:
       - name: Prepare the Python Cauldron
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Summon PlatformIO, esptool & jq
         run: |
@@ -59,14 +59,14 @@ jobs:
         id: offsets
         run: |
           set -euo pipefail
-          
+
           APP0_OFFSET=$(grep "^app0," partitions.csv | cut -d',' -f4 | tr -d ' ')
           PARTITIONS_OFFSET="0x8000"
-          
+
           echo "bootloader_offset=0x0" >> $GITHUB_OUTPUT
           echo "partitions_offset=$PARTITIONS_OFFSET" >> $GITHUB_OUTPUT
           echo "app0_offset=$APP0_OFFSET" >> $GITHUB_OUTPUT
-          
+
           echo "Partition offsets:"
           echo "  Bootloader: 0x0"
           echo "  Partitions: $PARTITIONS_OFFSET"
@@ -76,28 +76,28 @@ jobs:
         id: flash_params
         run: |
           set -euo pipefail
-          
+
           FLASH_MODE="dio"
           FLASH_FREQ="80m"
           FLASH_SIZE="16MB"
-          
+
           echo "flash_mode=$FLASH_MODE" >> $GITHUB_OUTPUT
           echo "flash_freq=$FLASH_FREQ" >> $GITHUB_OUTPUT
           echo "flash_size=$FLASH_SIZE" >> $GITHUB_OUTPUT
-          
+
           echo "Flash parameters: mode=$FLASH_MODE freq=$FLASH_FREQ size=$FLASH_SIZE"
 
       - name: Determine Version Tag
         id: version
         run: |
           set -euo pipefail
-          
+
           RELEASE_TAG="${{ github.event.release.tag_name }}"
-          
+
           if [ -z "$RELEASE_TAG" ]; then
             RELEASE_TAG="dev-$(date +%Y%m%d-%H%M%S)"
           fi
-          
+
           echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
           echo "Determined version: $RELEASE_TAG"
 

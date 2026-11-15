@@ -67,7 +67,15 @@ Third-party apps are not built with this environment set. They are compiled agai
 
 ## Testing
 
-There is no automated test suite for the firmware. Verify changes against real hardware, or review the build log for changes with no runtime effect. CI builds `PM_PRODUCTION` and `PM_BETA` on every push, so a clean build locally is the minimum bar before opening a pull request.
+Run the hardware-independent firmware tests from `Code/PocketMageOS` with Python 3
+and a C++ compiler supporting AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```sh
+python3 -m unittest discover -s tests/host -p 'test_*.py'
+```
+
+CI builds `PM_PRODUCTION` and `PM_BETA` on every push. Verify hardware behavior on
+the device; see [Crash logs](./crash-logs.md) for reading crash reports after a reboot.
 
 ## Next steps
 

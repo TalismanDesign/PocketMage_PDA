@@ -388,6 +388,34 @@ msgctxt "STR_USB_CONNECT"
 msgid "Connect to a Computer:"
 msgstr "Conecta a una computadora:"
 
+msgctxt "STR_USB_WAITING"
+msgid "USB: waiting for computer"
+msgstr "USB: esperando al PC"
+
+msgctxt "STR_USB_CONNECTED"
+msgid "USB connected"
+msgstr "USB conectado"
+
+msgctxt "STR_USB_SUSPENDED"
+msgid "USB suspended"
+msgstr "USB suspendido"
+
+msgctxt "STR_USB_EJECTED"
+msgid "USB ejected: exit to restart"
+msgstr "USB expulsado: salir para reiniciar"
+
+msgctxt "STR_USB_CARD_BUSY"
+msgid "SD unavailable or busy"
+msgstr "SD no disponible u ocupada"
+
+msgctxt "STR_USB_MSC_FAIL"
+msgid "USB storage init failed"
+msgstr "Error al iniciar almacenamiento USB"
+
+msgctxt "STR_USB_DEVICE_FAIL"
+msgid "USB device init failed"
+msgstr "Error al iniciar dispositivo USB"
+
 msgctxt "STR_CAL_TYPE_A_DATE"
 msgid " | Type a Date:"
 msgstr " | Escribe una fecha:"
@@ -1268,3 +1296,7 @@ msgstr "Reloj:"
 msgctxt "STR_ONBOARD_SKIPPED"
 msgid "Skipped"
 msgstr "Omitido"
+
+msgctxt "STR_COMM_INIT_FAILED"
+msgid "Chat unavailable"
+msgstr "Chat no disponible"

@@ -1,7 +1,10 @@
 # PocketMage PDA
-PocketMage is available on Crowd Supply! Check it out [here](https://pocketmage.org/back)!
+
+PocketMage is available on Crowd Supply! Check it out [there](https://pocketmage.org/back)!
 
 @Ashtf 2025
+
+<!-- markdownlint-disable MD033 -->
 
 <img width="1245" height="882" alt="Screenshot 2025-09-10 203805" src="https://github.com/user-attachments/assets/f021dc66-12d8-489f-9078-9c7eeeb4ad03" />
 
@@ -30,6 +33,20 @@ Start with the docs sites. The PocketMageOS docs cover the device, the OS, and t
 Apps come in two forms. **Native apps** compile into the firmware; start from [APP_TEMPLATE.cpp](./Code/PocketMageOS/src/APP_TEMPLATE.cpp) and the [App API Reference](https://talismandesign.github.io/PocketMage_PDA/docs/reference/app-api). **ELF apps** build standalone against the SDK and load from the SD card at runtime; start from the [SDK Get Started guide](https://talismandesign.github.io/PocketMage_SDK/docs/get-started/).
 
 The app walkthrough video is a useful first pass: [Developing For the PocketMage](https://www.youtube.com/watch?v=3Ytc-3-BbMM).
+
+### Build and test
+
+With PlatformIO Core, Python 3, and a C++ compiler supporting sanitizers installed,
+run from `Code/PocketMageOS`:
+
+```sh
+pio run -e PM_BETA -j 2
+python3 -m unittest discover -s tests/host -p 'test_*.py'
+```
+
+Use `PM_PRODUCTION` for production hardware; add `-t upload` to flash a connected
+device. See [build setup](./Docs/docs/development/build-environments.md) and
+[crash report retrieval](./Docs/docs/development/crash-logs.md).
 
 ## [Hardware]
 

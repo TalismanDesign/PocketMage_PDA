@@ -4,12 +4,14 @@
 //      888         .8' `888.     `"Y8888o.   88888[       `"Y8888o.    //
 //      888        .88ooo8888.         `"Y88b  888`88b.         `"Y88b  //
 //      888       .8'     `888.  oo     .d8P  888  `88b.  oo     .d8P   //
-//     o888o     o88o      o8888o 8""88888P'  o888o  o888o 8""88888P'   //  
+//     o888o     o88o      o8888o 8""88888P'  o888o  o888o 8""88888P'   //
 
 #include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
+
 #include "esp32-hal-log.h"
 #include "esp_log.h"
-#if PM_TARGET_HOST // POCKETMAGE_OS
+#if PM_TARGET_HOST  // POCKETMAGE_OS
 enum TasksState { TASKS0, TASKS0_NEWTASK, TASKS1, TASKS1_EDITTASK };
 TasksState CurrentTasksState = TASKS0;
 
@@ -23,68 +25,71 @@ String newTaskName = "";
 String newTaskDueDate = "";
 uint8_t selectedTask = 0;
 
-static ulong taskScrollIndex = 0; // State for task list scrolling
+static ulong taskScrollIndex = 0;  // State for task list scrolling
 
 // Layout constants
-constexpr int TASKS_NAME_X      = 29;    // task name x
-constexpr int TASKS_DATE_X      = 231;   // due-date x
-constexpr int TASKS_ROW_Y0      = 54;    // first row baseline
-constexpr int TASKS_ROW_PITCH   = 17;    // row pitch
-constexpr int TASKS_NAME_W      = 180;   // task name truncation width
-constexpr int TASKS_SCROLL_X    = 311;   // scrollbar x
-constexpr int TASKS_SCROLL_Y    = 38;    // scrollbar y
-constexpr int TASKS_SCROLL_H    = 174;   // scrollbar height
-constexpr int TASKS_SCROLL_W    = 3;     // scrollbar width
+constexpr int TASKS_NAME_X = 29;     // task name x
+constexpr int TASKS_DATE_X = 231;    // due-date x
+constexpr int TASKS_ROW_Y0 = 54;     // first row baseline
+constexpr int TASKS_ROW_PITCH = 17;  // row pitch
+constexpr int TASKS_NAME_W = 180;    // task name truncation width
+constexpr int TASKS_SCROLL_X = 311;  // scrollbar x
+constexpr int TASKS_SCROLL_Y = 38;   // scrollbar y
+constexpr int TASKS_SCROLL_H = 174;  // scrollbar height
+constexpr int TASKS_SCROLL_W = 3;    // scrollbar width
 
 void TASKS_INIT() {
   CurrentAppState = TASKS;
   CurrentTasksState = TASKS0;
   taskScrollIndex = 0;
-  
+
   updateTaskArray();
   sortTasksByDueDate(tasks);
-  
+
   newState = true;
 }
 
-void sortTasksByDueDate(std::vector<std::vector<String>> &tasks) {
-  std::sort(tasks.begin(), tasks.end(), [](const std::vector<String> &a, const std::vector<String> &b) {
-    return a[1] < b[1]; // Compare dueDate strings
-  });
+void sortTasksByDueDate(std::vector<std::vector<String>>& tasks) {
+  std::sort(tasks.begin(), tasks.end(),
+            [](const std::vector<String>& a, const std::vector<String>& b) {
+              return a[1] < b[1];  // Compare dueDate strings
+            });
 }
 
 void updateTasksFile() {
   PM_SDAUTO().beginIO();
-  pocketmage::setCpuSpeed(240);
 
   const char* tempFile = "/sys/tasks.tmp";
   const char* tasksFile = "/sys/tasks.txt";
 
   // Stream directly to the file to prevent Heap fragmentation / OOM crashes
-  File file = global_fs->open(tempFile, FILE_WRITE);
-  if (file) {
+  bool saveOk = false;
+  int slot = PM_SD().streamOpen(tempFile, 'w');
+  if (slot >= 0) {
+    saveOk = true;
     for (size_t i = 0; i < tasks.size(); i++) {
-      file.print(tasks[i][0]);
-      file.print("|");
-      file.print(tasks[i][1]);
-      file.print("|");
-      file.print(tasks[i][2]);
-      file.print("|");
-      file.println(tasks[i][3]); // println adds the newline
+      String line = tasks[i][0] + "|" + tasks[i][1] + "|" + tasks[i][2] + "|" + tasks[i][3] + "\n";
+      if (PM_SD().streamWrite(slot, line.c_str(), line.length()) != line.length()) {
+        saveOk = false;
+        break;
+      }
     }
-    file.close();
-
-    // Verify that the temp file was written correctly by checking its existence
-    if (global_fs->exists(tempFile)) {
-      PM_SDAUTO().deleteFile(*global_fs, tasksFile);
-      PM_SDAUTO().renameFile(*global_fs, tempFile, tasksFile);
-    }
-  } else {
-    ESP_LOGE(TAG, "Failed to write to temporary tasks file.");
-    OLED().sysMessage(TR(STR_SAVE_FAILED),1000);
+    PM_SD().streamClose(slot);
   }
 
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  // Verify that the temp file was written correctly by checking its existence
+  if (saveOk)
+    saveOk = PM_SD().exists(tempFile);
+  if (saveOk) {
+    // tasks.txt may not exist yet on the first save; that is not an error
+    PM_SD().removeFile(tasksFile);
+    saveOk = PM_SD().renamePath(tempFile, tasksFile);
+  }
+  if (!saveOk) {
+    ESP_LOGE(TAG, "Failed to write to temporary tasks file.");
+    OLED().sysMessage(TR(STR_SAVE_FAILED), 1000);
+  }
+
   PM_SDAUTO().endIO();
 }
 
@@ -96,38 +101,32 @@ void addTask(String taskName, String dueDate, String priority, String completed)
 
 void updateTaskArray() {
   PM_SDAUTO().beginIO();
-  pocketmage::setCpuSpeed(240);
 
   const char* tasksFile = "/sys/tasks.txt";
 
   // If the file doesn't exist, create it to ensure the app can run on first launch
-  if (!global_fs->exists(tasksFile)) {
-    File f = global_fs->open(tasksFile, FILE_WRITE);
-    if (f) {
-        f.close();
-    } else {
-        ESP_LOGE(TAG, "Failed to create tasks file.");
-        if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-        PM_SDAUTO().endIO();
-        return;
+  if (!PM_SD().exists(tasksFile)) {
+    int slot = PM_SD().streamOpen(tasksFile, 'w');
+    if (slot < 0) {
+      ESP_LOGE(TAG, "Failed to create tasks file.");
+      PM_SDAUTO().endIO();
+      return;
     }
+    PM_SD().streamClose(slot);
   }
 
-  File file = global_fs->open(tasksFile, "r"); 
-  if (!file) {
-    ESP_LOGE(TAG, "Failed to open file to read: %s", tasksFile);
-    if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
-    PM_SDAUTO().endIO();
-    return;
-  }
+  String content = PM_SD().readFileToString(tasksFile);
 
-  tasks.clear(); // Clear the existing vector before loading the new data
+  tasks.clear();  // Clear the existing vector before loading the new data
 
   // Loop through the file, line by line
-  while (file.available()) {
-    String line = file.readStringUntil('\n');  
-    line.trim();  
-    
+  int lineStart = 0;
+  while (lineStart < (int)content.length()) {
+    int nl = content.indexOf('\n', lineStart);
+    String line = (nl < 0) ? content.substring(lineStart) : content.substring(lineStart, nl);
+    lineStart = (nl < 0) ? (int)content.length() : nl + 1;
+    line.trim();
+
     // Skip empty lines
     if (line.length() == 0) {
       continue;
@@ -139,23 +138,20 @@ void updateTaskArray() {
 
     // Basic validation for substrings
     if (delimiterPos1 == -1 || delimiterPos2 == -1 || delimiterPos3 == -1) {
-        ESP_LOGW(TAG, "Malformed line in tasks file: %s", line.c_str());
-        continue;
+      ESP_LOGW(TAG, "Malformed line in tasks file: %s", line.c_str());
+      continue;
     }
 
     // Extract task name, due date, priority, and completed status
-    String taskName  = line.substring(0, delimiterPos1);
-    String dueDate   = line.substring(delimiterPos1 + 1, delimiterPos2);
-    String priority  = line.substring(delimiterPos2 + 1, delimiterPos3);
+    String taskName = line.substring(0, delimiterPos1);
+    String dueDate = line.substring(delimiterPos1 + 1, delimiterPos2);
+    String priority = line.substring(delimiterPos2 + 1, delimiterPos3);
     String completed = line.substring(delimiterPos3 + 1);
 
     // Add the task to the vector
     tasks.push_back({taskName, dueDate, priority, completed});
   }
 
-  file.close(); 
-
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
   PM_SDAUTO().endIO();
 }
 
@@ -187,7 +183,7 @@ void tasksScrollPreview() {
     startLine = taskScrollIndex - 1;
   }
 
-  int y = kOledPrevY0; 
+  int y = kOledPrevY0;
   for (int i = startLine; i < startLine + kOledPrevRows; i++) {
     if (i >= (int)tasks.size()) {
       break;
@@ -200,16 +196,16 @@ void tasksScrollPreview() {
     String tName = tasks[i][0];
     String tDate = convertDateFormat(tasks[i][1]);
     String dispStr = tName + " " + tDate;
-    
+
     // OLED is ~128px wide. 21 characters in 5x7 fits perfectly.
     if (dispStr.length() > 21) {
-       // Protect the date (8 chars + 1 space = 9 chars). Truncate task name.
-       if (tName.length() > 10) {
-          tName = tName.substring(0, 10) + "..";
-       }
-       dispStr = tName + " " + tDate;
+      // Protect the date (8 chars + 1 space = 9 chars). Truncate task name.
+      if (tName.length() > 10) {
+        tName = tName.substring(0, 10) + "..";
+      }
+      dispStr = tName + " " + tDate;
     }
-    
+
     FontEngine::drawText(DisplayTarget::OLED, kOledPrevX, y, dispStr, FontStyle::Tiny);
 
     y += kOledPrevPitch;
@@ -228,7 +224,8 @@ void processKB_TASKS() {
   // Handle hardware scrollbar slider
   if (CurrentTasksState == TASKS0 || CurrentTasksState == TASKS0_NEWTASK) {
     int maxScroll = tasks.size() > MAX_FILES ? tasks.size() - MAX_FILES : 0;
-    int scrollStep = (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
+    int scrollStep =
+        (KB().getKeyboardState() == SHIFT || KB().getKeyboardState() == FN_SHIFT) ? 5 : 1;
     if (TOUCH().updateScroll(maxScroll, taskScrollIndex, scrollStep)) {
       newState = true;
     }
@@ -237,16 +234,16 @@ void processKB_TASKS() {
   switch (CurrentTasksState) {
     case TASKS0:
       KB().setKeyboardState(FUNC);
-      
+
       // 1. Drain the hardware buffer continuously at loop speed
       inchar = KB().updateKeypress();
 
       // 2. Only process the actual input if the cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {  
+      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
         if (inchar != 0) {
           KBBounceMillis = currentMillis;
 
-          //BKSP Recieved
+          // BKSP Recieved
           if (inchar == 127 || inchar == 8 || inchar == 12) {
             HOME_INIT();
             break;
@@ -260,7 +257,7 @@ void processKB_TASKS() {
           }
           // SELECT A TASK
           else if (inchar >= '0' && inchar <= '9') {
-            int taskIndex = (inchar == '0') ? 9 : (inchar - '1');  
+            int taskIndex = (inchar == '0') ? 9 : (inchar - '1');
 
             // Add the scroll offset so pressing 1 selects the first *visible* task
             int actualTaskIndex = taskScrollIndex + taskIndex;
@@ -279,9 +276,9 @@ void processKB_TASKS() {
 
       // 3. Update OLED at true OLED_MAX_FPS, completely independent of keyboard bounce
       currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000/OLED_MAX_FPS)) {
+      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
-        if (CurrentTasksState == TASKS0) { // Make sure we didn't just jump to another menu
+        if (CurrentTasksState == TASKS0) {  // Make sure we didn't just jump to another menu
           if (TOUCH().getLastTouch() == -1) {
             OLED().oledWord(currentWord);
           } else {
@@ -296,25 +293,26 @@ void processKB_TASKS() {
         // Step 1: Text entry for task name
         KB().setKeyboardState(NORMAL);
         input = textPrompt(TR(STR_TASKS_ENTER_NAME));
-        if (input == "_RETURN_") return;
+        if (input == "_RETURN_")
+          return;
         else if (input != "_EXIT_") {
           newTaskName = input;
           newTaskState = 1;
         } else {
           CurrentTasksState = TASKS0;
         }
-      } 
-      else if (newTaskState == 1) {
+      } else if (newTaskState == 1) {
         // Step 2: Interactive Date Prompt
-        String uiDate = datePrompt(""); // Returns "DD/MM/YYYY"
+        String uiDate = datePrompt("");  // Returns "DD/MM/YYYY"
 
         // Convert "DD/MM/YYYY" to internal "YYYYMMDD" format for sorting
         if (uiDate.length() == 10) {
-            newTaskDueDate = uiDate.substring(6, 10) + uiDate.substring(3, 5) + uiDate.substring(0, 2);
+          newTaskDueDate =
+              uiDate.substring(6, 10) + uiDate.substring(3, 5) + uiDate.substring(0, 2);
 
-            // ADD NEW TASK
-            addTask(newTaskName, newTaskDueDate, "0", "0");
-            OLED().sysMessage(TR(STR_TASKS_ADDED),1000);
+          // ADD NEW TASK
+          addTask(newTaskName, newTaskDueDate, "0", "0");
+          OLED().sysMessage(TR(STR_TASKS_ADDED), 1000);
         }
 
         // RETURN TO MAIN MENU
@@ -330,70 +328,67 @@ void processKB_TASKS() {
 
       // 1. Drain the hardware buffer continuously at loop speed
       inchar = KB().updateKeypress();
-      
+
       // 2. Only process the actual input if the cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {  
+      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
         if (inchar != 0) {
           KBBounceMillis = currentMillis;
-        
+
           if (inchar == 127 || inchar == 8 || inchar == 12) {
             CurrentTasksState = TASKS0;
             newState = true;
             break;
-          }
-          else if (inchar >= '1' && inchar <= '4') {
-              
+          } else if (inchar >= '1' && inchar <= '4') {
             if (selectedTask >= 0 && selectedTask < tasks.size()) {
-                if (inchar == '1') {      // RENAME TASK
-                  KB().setKeyboardState(NORMAL);
-                  input = textPrompt(TR(STR_TASKS_ENTER_NEW_NAME));
-                  if (input == "_RETURN_") return;
-                  else if (input != "_EXIT_") {
-                    OLED().oledWord(TR(STR_TASKS_UPDATING));
-                    tasks[selectedTask][0] = input;
-                    updateTasksFile();
-
-                    CurrentTasksState = TASKS0;
-                    newState = true;
-                  }
-                }
-                else if (inchar == '2') { // CHANGE DUE DATE
-                  // Call the new interactive UI
-                  String uiDate = datePrompt(tasks[selectedTask][1]);
-                  
-                  if (uiDate != "_EXIT_" && uiDate.length() == 10) {
-                    OLED().oledWord(TR(STR_TASKS_UPDATING));
-
-                    // Convert "DD/MM/YYYY" to internal "YYYYMMDD"
-                    newTaskDueDate = uiDate.substring(6, 10) + uiDate.substring(3, 5) + uiDate.substring(0, 2);
-
-                    // UPDATE DUE DATE
-                    tasks[selectedTask][1] = newTaskDueDate;
-                    updateTasksFile();
-
-                    // RETURN
-                    CurrentTasksState = TASKS0;
-                    newState = true;
-                  }
-                }
-                else if (inchar == '3') { // DELETE TASK
-                  int response = boolPrompt(TR(STR_TASKS_DELETE_Q));
-                  if (response == 1) {
-                    OLED().oledWord(TR(STR_TASKS_DELETING));
-                    deleteTask(selectedTask);
-                    updateTasksFile();
-
-                    CurrentTasksState = TASKS0;
-                    newState = true;
-                  }
-                }
-                else if (inchar == '4') { // COPY TASK
-                  OLED().oledWord(TR(STR_TASKS_COPYING));
-                  addTask(tasks[selectedTask][0]+"_COPY", tasks[selectedTask][1], "0", "0");
+              if (inchar == '1') {  // RENAME TASK
+                KB().setKeyboardState(NORMAL);
+                input = textPrompt(TR(STR_TASKS_ENTER_NEW_NAME));
+                if (input == "_RETURN_")
+                  return;
+                else if (input != "_EXIT_") {
+                  OLED().oledWord(TR(STR_TASKS_UPDATING));
+                  tasks[selectedTask][0] = input;
+                  updateTasksFile();
 
                   CurrentTasksState = TASKS0;
                   newState = true;
                 }
+              } else if (inchar == '2') {  // CHANGE DUE DATE
+                // Call the new interactive UI
+                String uiDate = datePrompt(tasks[selectedTask][1]);
+
+                if (uiDate != "_EXIT_" && uiDate.length() == 10) {
+                  OLED().oledWord(TR(STR_TASKS_UPDATING));
+
+                  // Convert "DD/MM/YYYY" to internal "YYYYMMDD"
+                  newTaskDueDate =
+                      uiDate.substring(6, 10) + uiDate.substring(3, 5) + uiDate.substring(0, 2);
+
+                  // UPDATE DUE DATE
+                  tasks[selectedTask][1] = newTaskDueDate;
+                  updateTasksFile();
+
+                  // RETURN
+                  CurrentTasksState = TASKS0;
+                  newState = true;
+                }
+              } else if (inchar == '3') {  // DELETE TASK
+                int response = boolPrompt(TR(STR_TASKS_DELETE_Q));
+                if (response == 1) {
+                  OLED().oledWord(TR(STR_TASKS_DELETING));
+                  deleteTask(selectedTask);
+                  updateTasksFile();
+
+                  CurrentTasksState = TASKS0;
+                  newState = true;
+                }
+              } else if (inchar == '4') {  // COPY TASK
+                OLED().oledWord(TR(STR_TASKS_COPYING));
+                addTask(tasks[selectedTask][0] + "_COPY", tasks[selectedTask][1], "0", "0");
+
+                CurrentTasksState = TASKS0;
+                newState = true;
+              }
             }
           }
         }
@@ -401,9 +396,9 @@ void processKB_TASKS() {
 
       // 3. Update OLED at true OLED_MAX_FPS, completely independent of keyboard bounce
       currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000/OLED_MAX_FPS)) {
+      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
         OLEDFPSMillis = currentMillis;
-        if (CurrentTasksState == TASKS1) { // Make sure we didn't just jump to another menu
+        if (CurrentTasksState == TASKS1) {  // Make sure we didn't just jump to another menu
           OLED().oledWord(currentWord);
         }
       }
@@ -426,7 +421,8 @@ void einkHandler_TASKS() {
           EINK().drawStatusBar(TR(STR_TASKS_SELECT_HINT));
 
           int maxScroll = tasks.size() > MAX_FILES ? tasks.size() - MAX_FILES : 0;
-          if (taskScrollIndex > maxScroll) taskScrollIndex = maxScroll;
+          if (taskScrollIndex > maxScroll)
+            taskScrollIndex = maxScroll;
 
           int startIdx = taskScrollIndex;
           int endIdx = std::min((int)tasks.size(), startIdx + MAX_FILES);
@@ -435,22 +431,27 @@ void einkHandler_TASKS() {
           for (int i = startIdx; i < endIdx; i++) {
             String tName = truncateWithEllipsis(tasks[i][0], TASKS_NAME_W, FontStyle::Body);
 
-            FontEngine::drawText(DisplayTarget::EINK, TASKS_NAME_X, TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), tName, FontStyle::Body);
-            
+            FontEngine::drawText(DisplayTarget::EINK, TASKS_NAME_X,
+                                 TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), tName,
+                                 FontStyle::Body);
+
             // PRINT TASK DUE DATE
-            FontEngine::drawText(DisplayTarget::EINK, TASKS_DATE_X, TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), convertDateFormat(tasks[i][1]), FontStyle::Body);
+            FontEngine::drawText(DisplayTarget::EINK, TASKS_DATE_X,
+                                 TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow),
+                                 convertDateFormat(tasks[i][1]), FontStyle::Body);
 
             displayRow++;
           }
 
-          drawScrollbar(tasks.size(), MAX_FILES, taskScrollIndex, TASKS_SCROLL_X, TASKS_SCROLL_Y, TASKS_SCROLL_H, TASKS_SCROLL_W);
-        }
-        else EINK().drawStatusBar(TR(STR_TASKS_NO_TASKS));
+          drawScrollbar(tasks.size(), MAX_FILES, taskScrollIndex, TASKS_SCROLL_X, TASKS_SCROLL_Y,
+                        TASKS_SCROLL_H, TASKS_SCROLL_W);
+        } else
+          EINK().drawStatusBar(TR(STR_TASKS_NO_TASKS));
 
         EINK().refresh();
       }
       break;
-      
+
     case TASKS0_NEWTASK:
       if (newState) {
         newState = false;
@@ -463,7 +464,8 @@ void einkHandler_TASKS() {
           ESP_LOGV(TAG, "Printing Tasks");
 
           int maxScroll = tasks.size() > MAX_FILES ? tasks.size() - MAX_FILES : 0;
-          if (taskScrollIndex > maxScroll) taskScrollIndex = maxScroll;
+          if (taskScrollIndex > maxScroll)
+            taskScrollIndex = maxScroll;
 
           int startIdx = taskScrollIndex;
           int endIdx = std::min((int)tasks.size(), startIdx + MAX_FILES);
@@ -472,17 +474,22 @@ void einkHandler_TASKS() {
           for (int i = startIdx; i < endIdx; i++) {
             String tName = truncateWithEllipsis(tasks[i][0], TASKS_NAME_W, FontStyle::Body);
 
-            FontEngine::drawText(DisplayTarget::EINK, TASKS_NAME_X, TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), tName, FontStyle::Body);
-            
+            FontEngine::drawText(DisplayTarget::EINK, TASKS_NAME_X,
+                                 TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), tName,
+                                 FontStyle::Body);
+
             // PRINT TASK DUE DATE
-            FontEngine::drawText(DisplayTarget::EINK, TASKS_DATE_X, TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow), convertDateFormat(tasks[i][1]), FontStyle::Body);
+            FontEngine::drawText(DisplayTarget::EINK, TASKS_DATE_X,
+                                 TASKS_ROW_Y0 + (TASKS_ROW_PITCH * displayRow),
+                                 convertDateFormat(tasks[i][1]), FontStyle::Body);
 
             displayRow++;
           }
 
-          drawScrollbar(tasks.size(), MAX_FILES, taskScrollIndex, TASKS_SCROLL_X, TASKS_SCROLL_Y, TASKS_SCROLL_H, TASKS_SCROLL_W);
+          drawScrollbar(tasks.size(), MAX_FILES, taskScrollIndex, TASKS_SCROLL_X, TASKS_SCROLL_Y,
+                        TASKS_SCROLL_H, TASKS_SCROLL_W);
         }
-        
+
         switch (newTaskState) {
           case 0:
             EINK().drawStatusBar(TR(STR_TASKS_ENTER_NAME));
@@ -495,7 +502,7 @@ void einkHandler_TASKS() {
         EINK().refresh();
       }
       break;
-      
+
     case TASKS1:
       if (newState) {
         newState = false;
