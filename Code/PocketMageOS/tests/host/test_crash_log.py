@@ -10,7 +10,8 @@ from native import ROOT, TESTS, build, run
 _SHADOWED_HEADERS = (
     "Arduino.h", "pocketmage.h", "pocketmage_globals.h", "elf_runner.h", "esp_app_desc.h",
     "esp_attr.h", "esp_heap_caps.h", "esp_memory_utils.h", "esp_random.h", "esp_timer.h",
-    "esp_private/panic_internal.h", "xtensa_context.h", "pocketmage_sys/usb_role.h")
+    "esp_private/panic_internal.h", "xtensa_context.h", "pocketmage_sys/usb_role.h",
+    "pocketmage_log/pocketmage_log.h")
 
 
 class CrashLogTest(unittest.TestCase):

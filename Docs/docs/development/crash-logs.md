@@ -15,11 +15,11 @@ card as a text report. Both firmware environments have this turned on.
    together. Rebuilding can change code addresses.
 2. Reproduce the failure with a writable SD card installed.
 3. Let the device reboot and finish starting up without removing power.
-4. Copy `/logs/crash-*.txt` from the card, either through USB file transfer or
+4. Copy `/logs/crash/crash-*.txt` from the card, either through USB file transfer or
    by reading the card on a computer.
 
 The filename is `crash-<boot nonce>-<record CRC>.txt`. The serial log's `CRASH` tag
-prints `Saved /logs/...` when the report is written. If saving fails, the report
+prints `Saved /logs/crash/...` when the report is written. If saving fails, the report
 stays pending and the OS tries again every five seconds. If no card was mounted at
 boot, insert one and restart without removing power; inserting a card alone does
 not mount it.
@@ -36,9 +36,14 @@ monitor after the device was already connected.
 - The Xtensa registers (A0-A15, PS, SAR, EXCCAUSE, EXCVADDR, LBEG, LEND, LCOUNT)
   when an exception frame is available.
 - The firmware's ELF SHA256 and the uptime in milliseconds.
-- A snapshot of the OS taken by the main loop shortly before the crash: audio
-  state and output, USB mode, the active app, whether an ELF app was running and
-  free internal heap. The report shows how old the snapshot is.
+- A snapshot of the OS taken by the main loop shortly before the crash: the
+  active app, whether an ELF app was running, which feature owned the USB port,
+  the free, largest and lowest-ever internal heap, and the number of tasks. The
+  report shows how old the snapshot is.
+- The last 1 KB of SDK log lines, under `Recent log:`. These come from the
+  logger's memory, so they are there even when logging to a file is off. See
+  [Logging](https://talismandesign.github.io/PocketMage_SDK/docs/api/log/)
+  for the line format.
 
 ## Decode firmware addresses
 

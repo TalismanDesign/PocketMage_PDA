@@ -28,6 +28,9 @@ void updateFastRef() {
     EINK().markPanelNeedsFullRefresh();
 }
 void updateBlank() {}
+void updateLogFile() {
+  pm_log::setFileEnabled(LOG_TO_FILE);
+}
 
 // Action Callbacks for specialized prompts
 void actionSetTime() {
@@ -104,6 +107,8 @@ static std::vector<SettingItem> settingsList = {
                 &FAST_REFRESH, 0, 0, updateFastRef},
     SettingItem{"DEBUG_VERBOSE", STR_SETTINGS_NAME_DEBUG, SetType::BOOLEAN, nullptr, &DEBUG_VERBOSE,
                 0, 0, updateBlank},
+    SettingItem{"LOG_TO_FILE", STR_SETTINGS_NAME_LOG_FILE, SetType::BOOLEAN, nullptr, &LOG_TO_FILE,
+                0, 0, updateLogFile},
     SettingItem{"HOME_ON_BOOT", STR_SETTINGS_NAME_HOME_BOOT, SetType::BOOLEAN, nullptr,
                 &HOME_ON_BOOT, 0, 0, updateBlank},
     SettingItem{"ALLOW_NO_SD", STR_SETTINGS_NAME_ALLOW_SD, SetType::BOOLEAN, nullptr,

@@ -8,8 +8,10 @@ namespace pm_crash {
 
 /** Maximum number of PCs provided by Arduino's panic callback. */
 constexpr size_t kBacktraceCapacity = 60;
+/** Newest SDK log text kept with a crash, including NUL. */
+constexpr size_t kLogTailCapacity = 1024;
 /** Buffer size, including NUL, sufficient for a fully populated text report. */
-constexpr size_t kReportCapacity = 4096;
+constexpr size_t kReportCapacity = 5120;
 
 /** Availability and backtrace quality flags stored in Record::flags. */
 enum RecordFlag : uint32_t {
@@ -27,9 +29,8 @@ struct Snapshot {
   uint32_t elfRunning;
   uint32_t freeInternalHeap;
   uint32_t largestInternalBlock;
-  uint32_t usbConnected;
-  char audioState[16];
-  char audioOutput[8];
+  uint32_t minimumInternalHeap;
+  uint32_t taskCount;
   char usbOwner[16];
 };
 
@@ -62,6 +63,7 @@ struct Record {
   char task[32];
   char reason[192];
   char abortDetails[192];
+  char logTail[kLogTailCapacity];
 };
 
 /** Commit record's schema and CRC, writing magic last. Does not validate payload. */

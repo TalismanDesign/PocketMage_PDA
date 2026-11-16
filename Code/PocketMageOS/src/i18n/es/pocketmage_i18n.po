@@ -288,6 +288,10 @@ msgctxt "STR_SETTINGS_NAME_DEBUG"
 msgid "Debug Verbose"
 msgstr "Depuración detallada"
 
+msgctxt "STR_SETTINGS_NAME_LOG_FILE"
+msgid "Log to File"
+msgstr "Registro en archivo"
+
 msgctxt "STR_SETTINGS_NAME_HOME_BOOT"
 msgid "Home on Boot"
 msgstr "Inicio al encender"

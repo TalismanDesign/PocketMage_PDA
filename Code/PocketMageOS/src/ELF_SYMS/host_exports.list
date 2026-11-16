@@ -129,6 +129,7 @@ pm_layout_slice_that_fits
 pm_layout_truncate_with_ellipsis
 pm_layout_word_wrap_count
 pm_layout_word_wrap_get
+pm_log_write
 pm_media_probe
 pm_oled_box
 pm_oled_clear

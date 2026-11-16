@@ -9,12 +9,12 @@
 namespace pm_crash {
 namespace {
 constexpr uint32_t kMagic = 0x504d4352;
-constexpr uint32_t kVersion = 1;
+constexpr uint32_t kVersion = 2;
 constexpr uint32_t kCrcPolynomial = 0xedb88320;
 constexpr size_t kChecksumOffset = offsetof(Record, version);
 
 static_assert(std::is_trivial<Record>::value, "RTC records must not run constructors");
-static_assert(sizeof(Snapshot) == 64 && sizeof(Record) == 884,
+static_assert(sizeof(Snapshot) == 44 && sizeof(Record) == 1888,
               "The retained schema must have no padding or platform-sized fields");
 
 uint32_t checksum(const Record& record) {
@@ -60,6 +60,17 @@ class Writer {
     append("\n");
   }
 
+  /** Write text under a heading line, keeping its line breaks and blanking other control bytes. */
+  void block(const char* heading, const char* text) {
+    append("%s:\n", heading);
+    for (; *text; ++text) {
+      const unsigned char c = static_cast<unsigned char>(*text);
+      append("%c", c == '\n' || (c >= ' ' && c <= '~') ? c : ' ');
+    }
+    if (text[-1] != '\n')
+      append("\n");
+  }
+
   size_t finish() {
     if (failed_) {
       output_[0] = '\0';
@@ -91,8 +102,8 @@ bool valid(const Record& record) {
   return record.magic == kMagic && record.version == kVersion && record.size == sizeof(record) &&
          record.backtraceCount <= kBacktraceCapacity && record.core >= 0 && record.core < 2 &&
          terminated(record.task) && terminated(record.reason) && terminated(record.abortDetails) &&
-         terminated(record.snapshot.audioState) && terminated(record.snapshot.audioOutput) &&
-         terminated(record.snapshot.usbOwner) && record.checksum == checksum(record);
+         terminated(record.snapshot.usbOwner) && terminated(record.logTail) &&
+         record.checksum == checksum(record);
 }
 
 size_t format(const Record& record, char* output, size_t capacity) {
@@ -132,15 +143,16 @@ size_t format(const Record& record, char* output, size_t capacity) {
     const Snapshot& sample = record.snapshot;
     writer.append("Sample uptime ms (mod 2^32): %u\nSample age ms (mod 2^32): %u\n"
                   "OS app state: %d\nELF app running: %s\n"
-                  "Free internal heap: %u\nLargest internal block: %u\n",
+                  "Free internal heap: %u\nLargest internal block: %u\n"
+                  "Lowest internal heap: %u\nTasks: %u\n",
                   unsigned(sample.uptimeMs), unsigned(record.uptimeMs - sample.uptimeMs),
                   int(sample.appState), sample.elfRunning ? "yes" : "no",
-                  unsigned(sample.freeInternalHeap), unsigned(sample.largestInternalBlock));
-    writer.field("Audio state", sample.audioState);
-    writer.field("Audio output", sample.audioOutput);
+                  unsigned(sample.freeInternalHeap), unsigned(sample.largestInternalBlock),
+                  unsigned(sample.minimumInternalHeap), unsigned(sample.taskCount));
     writer.field("USB owner", sample.usbOwner);
-    writer.append("USB speaker connected: %s\n", sample.usbConnected ? "yes" : "no");
   }
+  if (record.logTail[0])
+    writer.block("Recent log", record.logTail);
   writer.append("End PocketMage crash report\n");
   return writer.finish();
 }

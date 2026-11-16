@@ -22,7 +22,7 @@ inline void testLog(const char*, const char*, ...) {}
 #define ESP_LOGI(...) testLog(__VA_ARGS__)
 
 inline unsigned runtimeQueries = 0;
-inline void (*onAudioSample)() = nullptr;
+inline void (*onTaskCount)() = nullptr;
 
 struct arduino_panic_info_t {
   int core;
@@ -75,6 +75,26 @@ inline size_t heap_caps_get_largest_free_block(unsigned) {
   ++runtimeQueries;
   return 32768;
 }
+inline size_t heap_caps_get_minimum_free_size(unsigned) {
+  ++runtimeQueries;
+  return 16384;
+}
+inline unsigned uxTaskGetNumberOfTasks() {
+  ++runtimeQueries;
+  if (onTaskCount)
+    onTaskCount();
+  return 17;
+}
+
+namespace pm_log {
+inline std::string tail = "120 I [SYSTEM] setup sd\n130 E [USB] endpoint stall\n";
+inline size_t copyTail(char* out, size_t capacity) {
+  const size_t length = std::min(tail.size(), capacity - 1);
+  std::memcpy(out, tail.data(), length);
+  out[length] = '\0';
+  return length;
+}
+}  // namespace pm_log
 struct esp_app_desc_t {
   uint8_t app_elf_sha256[32];
 };
@@ -83,25 +103,6 @@ inline const esp_app_desc_t* esp_app_get_description() {
   return &description;
 }
 
-enum class AudioState { Idle, Opening, Playing, Paused, Stopping };
-enum class AudioOutput { Piezo, Usb, Auto };
-struct TestAudio {
-  AudioState getState() const {
-    ++runtimeQueries;
-    if (onAudioSample)
-      onAudioSample();
-    return AudioState::Playing;
-  }
-  AudioOutput getActiveOutput() const {
-    ++runtimeQueries;
-    return AudioOutput::Usb;
-  }
-  bool usbConnected() const {
-    ++runtimeQueries;
-    return true;
-  }
-};
-inline TestAudio P_AUDIO;
 inline int CurrentAppState = 42;
 inline bool elfAppRunning() {
   return true;

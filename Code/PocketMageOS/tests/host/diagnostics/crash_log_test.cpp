@@ -199,15 +199,19 @@ int main(int argc, char** argv) {
           "signed Xtensa register fields must preserve all 32 bits");
   require(report.find("abcd0000") != std::string::npos,
           "report must identify the exact firmware ELF");
-  require(report.find("Audio state: Playing") != std::string::npos,
-          "report must include sampled audio state");
+  require(report.find("Lowest internal heap: 16384") != std::string::npos &&
+              report.find("Tasks: 17") != std::string::npos,
+          "report must include sampled heap and task counts");
+  require(report.find("Recent log:\n120 I [SYSTEM] setup sd\n130 E [USB] endpoint stall\n") !=
+              std::string::npos,
+          "report must include the log tail captured at panic time");
   require(report.find("USB owner: Audio") != std::string::npos,
           "report must include sampled USB ownership");
   const unsigned previousWrites = sd.writes;
   if (scenario == "serial-ownership") {
     Serial.connected = true;
     pm_usb::currentOwner = pm_usb::Owner::DebugSerial;
-    onAudioSample = [] { pm_usb::currentOwner = pm_usb::Owner::Audio; };
+    onTaskCount = [] { pm_usb::currentOwner = pm_usb::Owner::Audio; };
     pm_crash::poll();
     require(Serial.output.empty(),
             "serial replay must not use an owner sampled before USB handoff");

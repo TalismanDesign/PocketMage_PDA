@@ -997,6 +997,7 @@ extern const struct esp_elfsym g_customer_elfsyms[] = {
     ESP_ELFSYM_EXPORT(pm_layout_truncate_with_ellipsis),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_count),
     ESP_ELFSYM_EXPORT(pm_layout_word_wrap_get),
+    ESP_ELFSYM_EXPORT(pm_log_write),
     ESP_ELFSYM_EXPORT(pm_media_probe),
     ESP_ELFSYM_EXPORT(pm_oled_box),
     ESP_ELFSYM_EXPORT(pm_oled_clear),

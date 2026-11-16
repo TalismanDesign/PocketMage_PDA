@@ -10,6 +10,7 @@
 #include <esp_random.h>
 #include <pocketmage.h>
 #include <pocketmage_globals.h>
+#include <pocketmage_log/pocketmage_log.h>
 #include <pocketmage_sys/usb_role.h>
 #include <xtensa_context.h>
 
@@ -29,7 +30,8 @@
 namespace pm_crash {
 namespace {
 constexpr const char* kTag = "CRASH";
-constexpr const char* kDirectory = "/logs";
+constexpr const char* kLogDirectory = "/logs";
+constexpr const char* kDirectory = "/logs/crash";
 constexpr uint32_t kRetryMs = 5000;
 constexpr size_t kPathCapacity = 64;
 constexpr size_t kIoChunk = 256;
@@ -78,34 +80,6 @@ template <size_t N> void copyText(char (&destination)[N], const char* source) {
   destination[i] = '\0';
 }
 
-const char* audioStateName(AudioState state) {
-  switch (state) {
-    case AudioState::Idle:
-      return "Idle";
-    case AudioState::Opening:
-      return "Opening";
-    case AudioState::Playing:
-      return "Playing";
-    case AudioState::Paused:
-      return "Paused";
-    case AudioState::Stopping:
-      return "Stopping";
-  }
-  return "Unknown";
-}
-
-const char* audioOutputName(AudioOutput output) {
-  switch (output) {
-    case AudioOutput::Piezo:
-      return "Piezo";
-    case AudioOutput::Usb:
-      return "Usb";
-    case AudioOutput::Auto:
-      return "Auto";
-  }
-  return "Unknown";
-}
-
 const char* usbOwnerName(pm_usb::Owner owner) {
   switch (owner) {
     case pm_usb::Owner::DebugSerial:
@@ -129,9 +103,9 @@ void sampleRuntime(pm_usb::Owner owner) {
   sample.freeInternalHeap = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   sample.largestInternalBlock =
       heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  sample.usbConnected = P_AUDIO.usbConnected();
-  copyText(sample.audioState, audioStateName(P_AUDIO.getState()));
-  copyText(sample.audioOutput, audioOutputName(P_AUDIO.getActiveOutput()));
+  sample.minimumInternalHeap =
+      heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  sample.taskCount = uxTaskGetNumberOfTasks();
   copyText(sample.usbOwner, usbOwnerName(owner));
   sampleIndex.store(next, std::memory_order_release);
   samplePresent.store(true, std::memory_order_release);
@@ -197,6 +171,8 @@ void capture(arduino_panic_info_t* info, void*) {
     retained.snapshot = samples[sampleIndex.load(std::memory_order_acquire)];
     retained.flags |= SnapshotPresent;
   }
+  // The log tail is lock-free and bounds every index, so a half-written line costs at most a line.
+  pm_log::copyTail(retained.logTail, sizeof(retained.logTail));
   seal(retained);
 }
 
@@ -236,7 +212,7 @@ bool matchesReport(const char* path) {
 }
 
 bool exportReport() {
-  if (PM_SD().getNoSD() || !PM_SD().mkdirPath(kDirectory))
+  if (PM_SD().getNoSD() || !PM_SD().mkdirPath(kLogDirectory) || !PM_SD().mkdirPath(kDirectory))
     return false;
   std::vector<PocketmageSD::DirItem> entries;
   // A failed stat cannot distinguish absence from an I/O error. Require a full
