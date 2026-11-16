@@ -14,3 +14,6 @@
 [submodule "Code/PocketMageOS/lib/microtar"]
 	path = Code/PocketMageOS/lib/microtar/microtar
 	url = https://github.com/rxi/microtar
+[submodule "Code/PocketMageOS/components/arduino_tinyusb/tinyusb"]
+	path = Code/PocketMageOS/components/arduino_tinyusb/tinyusb
+	url = https://github.com/hathach/tinyusb.git

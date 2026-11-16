@@ -45,6 +45,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('Code/PocketMageOS/platformio.ini', 'Code/PocketMageOS/components/**') }}
+
       - name: Summon PlatformIO, esptool & jq
         run: |
           set -euo pipefail

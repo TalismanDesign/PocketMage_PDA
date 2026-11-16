@@ -1,0 +1,296 @@
+menu "Arduino TinyUSB"
+    depends on ENABLE_ARDUINO_DEPENDS && SOC_USB_OTG_SUPPORTED
+
+    config TINYUSB_ENABLED
+        bool "Enable TinyUSB driver"
+        default y
+        depends on IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32P4
+        select FREERTOS_SUPPORT_STATIC_ALLOCATION
+        select FREERTOS_USE_AUTHENTIC_INCLUDE_PATHS
+        help
+            Adds support for TinyUSB
+
+    menu "Serial (CDC) driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_CDC_ENABLED
+            bool "Enable USB Serial (CDC) TinyUSB driver"
+            default y
+            help
+                Enable USB Serial (CDC) TinyUSB driver.
+
+        config TINYUSB_DESC_CDC_STRING
+            string "CDC Device String"
+            default "Espressif CDC Device"
+            depends on TINYUSB_CDC_ENABLED
+            help
+                Specify name of the CDC device
+
+        config TINYUSB_CDC_RX_BUFSIZE
+            int "CDC FIFO size of RX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_CDC_ENABLED
+            help
+                CDC FIFO size of RX
+
+        config TINYUSB_CDC_TX_BUFSIZE
+            int "CDC FIFO size of TX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_CDC_ENABLED
+            help
+                CDC FIFO size of TX
+
+        config TINYUSB_CDC_MAX_PORTS
+            int "Maximum enabled CDC ports"
+            range 1 2
+            default 1
+            depends on TINYUSB_CDC_ENABLED
+            help
+                Maximum enabled CDC ports
+
+    endmenu
+
+    menu "Mass Storage (MSC) driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_MSC_ENABLED
+            bool "Enable USB Mass Storage (MSC) TinyUSB driver"
+            default y
+            help
+                Enable USB Mass Storage (MSC) TinyUSB driver.
+
+        config TINYUSB_DESC_MSC_STRING
+            string "MSC Device String"
+            default "Espressif MSC Device"
+            depends on TINYUSB_MSC_ENABLED
+            help
+                Specify name of the MSC device
+
+        config TINYUSB_MSC_BUFSIZE
+            int "MSC Buffer size"
+            range 512 4096
+            default 4096
+            depends on TINYUSB_MSC_ENABLED
+            help
+                MSC Buffer size
+
+    endmenu
+
+    menu "Human Interface (HID) driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_HID_ENABLED
+            bool "Enable USB Human Interface (HID) TinyUSB driver"
+            default y
+            help
+                Enable USB Human Interface (HID) TinyUSB driver.
+
+        config TINYUSB_DESC_HID_STRING
+            string "HID Device String"
+            default "Espressif HID Device"
+            depends on TINYUSB_HID_ENABLED
+            help
+                Specify name of the HID device
+
+        config TINYUSB_HID_BUFSIZE
+            int "HID Buffer size"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_HID_ENABLED
+            help
+                HID Buffer size. Should be sufficient to hold ID (if any) + Data
+
+    endmenu
+
+    menu "MIDI driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_MIDI_ENABLED
+            bool "Enable USB MIDI TinyUSB driver"
+            default y
+            help
+                Enable USB MIDI TinyUSB driver.
+
+        config TINYUSB_DESC_MIDI_STRING
+            string "MIDI Device String"
+            default "Espressif MIDI Device"
+            depends on TINYUSB_MIDI_ENABLED
+            help
+                Specify name of the MIDI device
+
+        config TINYUSB_MIDI_RX_BUFSIZE
+            int "MIDI FIFO size of RX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_MIDI_ENABLED
+            help
+                MIDI FIFO size of RX
+
+        config TINYUSB_MIDI_TX_BUFSIZE
+            int "MIDI FIFO size of TX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_MIDI_ENABLED
+            help
+                MIDI FIFO size of TX
+
+    endmenu
+
+    menu "AUDIO driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_AUDIO_ENABLED
+            bool "Enable USB AUDIO TinyUSB driver"
+            default y
+            help
+                Enable USB AUDIO TinyUSB driver.
+
+        config TINYUSB_DESC_AUDIO_STRING
+            string "AUDIO Device String"
+            default "Espressif AUDIO Device"
+            depends on TINYUSB_AUDIO_ENABLED
+            help
+                Specify name of the AUDIO device
+    endmenu
+
+    menu "VIDEO driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_VIDEO_ENABLED
+            bool "Enable USB VIDEO TinyUSB driver"
+            default y
+            help
+                Enable USB VIDEO TinyUSB driver.
+
+        config TINYUSB_DESC_VIDEO_STRING
+            string "VIDEO Device String"
+            default "Espressif VIDEO Device"
+            depends on TINYUSB_VIDEO_ENABLED
+            help
+                Specify name of the VIDEO device
+
+        config TINYUSB_VIDEO_STREAMING_BUFSIZE
+            int "VIDEO streaming endpoint size"
+            range 0 512
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_VIDEO_ENABLED
+            help
+                VIDEO streaming endpoint size
+
+        config TINYUSB_VIDEO_STREAMING_IFS
+            int "Number of VIDEO streaming interfaces"
+            range 1 3
+            default 1
+            depends on TINYUSB_VIDEO_ENABLED
+            help
+                The number of VIDEO streaming interfaces
+    endmenu
+
+    menu "DFU Runtime driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_DFU_RT_ENABLED
+            bool "Enable USB DFU Runtime TinyUSB driver"
+            default y
+            help
+                Enable USB DFU Runtime TinyUSB driver.
+
+        config TINYUSB_DESC_DFU_RT_STRING
+            string "DFU_RT Device String"
+            default "Espressif DFU_RT Device"
+            depends on TINYUSB_DFU_RT_ENABLED
+            help
+                Specify name of the DFU_RT device
+
+    endmenu
+
+    menu "DFU driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_DFU_ENABLED
+            bool "Enable USB DFU TinyUSB driver"
+            default y
+            help
+                Enable USB DFU TinyUSB driver.
+
+        config TINYUSB_DESC_DFU_STRING
+            string "DFU Device String"
+            default "Espressif DFU Device"
+            depends on TINYUSB_DFU_ENABLED
+            help
+                Specify name of the DFU device
+
+        config TINYUSB_DFU_BUFSIZE
+            int "DFU buffer size"
+            default 4096
+            depends on TINYUSB_DFU_ENABLED
+            help
+                DFU buffer size
+
+    endmenu
+
+    menu "VENDOR driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_VENDOR_ENABLED
+            bool "Enable USB VENDOR TinyUSB driver"
+            default y
+            help
+                Enable USB VENDOR TinyUSB driver.
+
+        config TINYUSB_DESC_VENDOR_STRING
+            string "VENDOR Device String"
+            default "Espressif VENDOR Device"
+            depends on TINYUSB_VENDOR_ENABLED
+            help
+                Specify name of the VENDOR device
+
+        config TINYUSB_VENDOR_RX_BUFSIZE
+            int "VENDOR FIFO size of RX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_VENDOR_ENABLED
+            help
+                VENDOR FIFO size of RX
+
+        config TINYUSB_VENDOR_TX_BUFSIZE
+            int "VENDOR FIFO size of TX"
+            default 64 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
+            default 512 if IDF_TARGET_ESP32P4
+            depends on TINYUSB_VENDOR_ENABLED
+            help
+                VENDOR FIFO size of TX
+
+    endmenu
+
+    menu "NCM driver"
+        depends on TINYUSB_ENABLED
+
+        config TINYUSB_NCM_ENABLED
+            bool "Enable USB NCM TinyUSB driver"
+            default y
+            help
+                Enable USB NCM TinyUSB driver.
+
+    endmenu
+
+    config TINYUSB_HOST_ENABLED
+        bool "Enable TinyUSB host stack"
+        default y
+        depends on TINYUSB_ENABLED
+        help
+            Builds the TinyUSB host drivers (hub, CDC, HID, MSC, MIDI).
+            Not needed when USB host is handled by the ESP-IDF usb_host driver.
+
+    config TINYUSB_DEBUG_LEVEL
+        int "TinyUSB log level (0-3)"
+        default 0
+        range 0 3
+        depends on TINYUSB_ENABLED
+        help
+            Define amount of log output from TinyUSB
+
+endmenu

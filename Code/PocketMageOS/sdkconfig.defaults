@@ -1,5 +1,0 @@
-# Disable hardware-accelerated SHA in mbedTLS.
-# LibSSH-ESP32 (libssh port) is unstable when CONFIG_MBEDTLS_HARDWARE_SHA is
-# enabled under concurrency; software SHA is slower but reliable.
-# See: https://github.com/ewpa/LibSSH-ESP32
-CONFIG_MBEDTLS_HARDWARE_SHA=n
