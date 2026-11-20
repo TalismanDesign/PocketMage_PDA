@@ -9,8 +9,6 @@
 #include <globals.h>
 #include <pocketmage_sd/pocketmage_sd.h>
 
-#include "esp32-hal-log.h"
-#include "esp_log.h"
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 enum TasksState { TASKS0, TASKS0_NEWTASK, TASKS1, TASKS1_EDITTASK };
 TasksState CurrentTasksState = TASKS0;
@@ -86,7 +84,7 @@ void updateTasksFile() {
     saveOk = PM_SD().renamePath(tempFile, tasksFile);
   }
   if (!saveOk) {
-    ESP_LOGE(TAG, "Failed to write to temporary tasks file.");
+    PM_LOGE(TAG, "Failed to write to temporary tasks file.");
     OLED().sysMessage(TR(STR_SAVE_FAILED), 1000);
   }
 
@@ -108,7 +106,7 @@ void updateTaskArray() {
   if (!PM_SD().exists(tasksFile)) {
     int slot = PM_SD().streamOpen(tasksFile, 'w');
     if (slot < 0) {
-      ESP_LOGE(TAG, "Failed to create tasks file.");
+      PM_LOGE(TAG, "Failed to create tasks file.");
       PM_SDAUTO().endIO();
       return;
     }
@@ -138,7 +136,7 @@ void updateTaskArray() {
 
     // Basic validation for substrings
     if (delimiterPos1 == -1 || delimiterPos2 == -1 || delimiterPos3 == -1) {
-      ESP_LOGW(TAG, "Malformed line in tasks file: %s", line.c_str());
+      PM_LOGW(TAG, "Malformed line in tasks file: %s", line.c_str());
       continue;
     }
 
@@ -163,7 +161,7 @@ void deleteTask(int index) {
 
 String convertDateFormat(String yyyymmdd) {
   if (yyyymmdd.length() != 8) {
-    ESP_LOGE(TAG, "Invalid Date: %s", yyyymmdd.c_str());
+    PM_LOGE(TAG, "Invalid Date: %s", yyyymmdd.c_str());
     return TR(STR_INVALID);
   }
 
@@ -417,7 +415,6 @@ void einkHandler_TASKS() {
         display.drawBitmap(0, 0, tasksApp0, 320, 218, GxEPD_BLACK);
 
         if (!tasks.empty()) {
-          ESP_LOGV(TAG, "Printing Tasks");
           EINK().drawStatusBar(TR(STR_TASKS_SELECT_HINT));
 
           int maxScroll = tasks.size() > MAX_FILES ? tasks.size() - MAX_FILES : 0;
@@ -461,7 +458,6 @@ void einkHandler_TASKS() {
         display.drawBitmap(0, 0, tasksApp0, 320, 218, GxEPD_BLACK);
 
         if (!tasks.empty()) {
-          ESP_LOGV(TAG, "Printing Tasks");
 
           int maxScroll = tasks.size() > MAX_FILES ? tasks.size() - MAX_FILES : 0;
           if (taskScrollIndex > maxScroll)

@@ -342,8 +342,6 @@ static void vtFeed(Vt* vt, char ch, int (*writeFn)(const char*, size_t)) {
           return;
         }
         if (ch == 'J') {
-          ESP_LOGI(kSshTag, "seq eraseDisplay param='%.*s' cursor r=%d c=%d", vt->paramLen,
-                   vt->paramBuf, vt->r, vt->c);
           vtEraseDisplay(vt, vtParam(vt, 0, 0));
           return;
         }
@@ -479,8 +477,6 @@ static void vtFeed(Vt* vt, char ch, int (*writeFn)(const char*, size_t)) {
             if (mode == 7) {
               vt->wrap = on;
             } else if (mode == 1047 || mode == 1049) {
-              ESP_LOGI(kSshTag, "seq altScreen %s mode=%d cursor r=%d c=%d", on ? "on" : "off",
-                       mode, vt->r, vt->c);
               if (on && vt->screen != s_sshState->altScreen) {
                 memcpy(s_sshState->altScreen, vt->screen, sizeof(SshCell) * vt->rows * vt->cols);
                 if (mode == 1049) {
@@ -803,7 +799,7 @@ static void sshTask(void* p) {
     vTaskDelete(NULL);
     return;
   }
-  ESP_LOGI(kSshTag, "connected to %s:%d", sshHost.c_str(), sshPort);
+  PM_LOGI(kSshTag, "connected to %s:%d", sshHost.c_str(), sshPort);
 
   if (sshDisconnectReq) {
     sshExitMsg = TR(STR_SSH_DISCONNECTED);
@@ -894,7 +890,7 @@ static void sshTask(void* p) {
     return;
   }
   memset(password, 0, sizeof(password));
-  ESP_LOGI(kSshTag, "authenticated as %s", sshUser.c_str());
+  PM_LOGI(kSshTag, "authenticated as %s", sshUser.c_str());
 
   sshChannel = ssh_channel_new(sshSession);
   if (!sshChannel) {
@@ -920,7 +916,7 @@ static void sshTask(void* p) {
     vTaskDelete(NULL);
     return;
   }
-  ESP_LOGI(kSshTag, "shell started pty=%dx%d", vt->cols, vt->rows);
+  PM_LOGI(kSshTag, "shell started pty=%dx%d", vt->cols, vt->rows);
 
   vtReset(vt);
   sshScreenDirty = true;
@@ -982,7 +978,7 @@ static void sshTask(void* p) {
       sshScreenDirty = true;
     if (fed > 0 && fed != lastFedBatch) {
       lastFedBatch = fed;
-      ESP_LOGI(kSshTag, "fed %d bytes this tick", fed);
+      PM_LOGD(kSshTag, "Fed %d bytes this tick", fed);
     }
 
     if (ssh_channel_is_eof(sshChannel))
@@ -1050,7 +1046,7 @@ void sshStartSession(const String& host, const String& user, int port) {
                        // finished session between launch and first task tick
   sshSession = nullptr;
   sshChannel = nullptr;
-  ESP_LOGI(kSshTag, "session start %s:%d user='%s' advance=%d cols=%d", host.c_str(), port,
+  PM_LOGI(kSshTag, "session start %s:%d user='%s' advance=%d cols=%d", host.c_str(), port,
            user.c_str(), advance, sshCols);
   xTaskCreatePinnedToCore(sshTask, "pmssh", 51200, nullptr, 2, &sshTaskHandle, 0);
 }
@@ -1235,8 +1231,8 @@ void sshEinkHandler() {
     if (firstRow >= 0 && !blank)
       break;
   }
-  ESP_LOGI(kSshTag, "eink paint force=%d blank=%d cols=%d firstRow=%d", force, blank, cols,
-           firstRow);
+  PM_LOGD(kSshTag, "E-ink paint force=%d blank=%d cols=%d firstRow=%d", force, blank, cols,
+          firstRow);
 
   uint16_t bgColor = GxEPD_WHITE;
   uint16_t fgColor = GxEPD_BLACK;

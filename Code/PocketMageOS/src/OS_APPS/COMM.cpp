@@ -187,7 +187,7 @@ static void meshRecvCb(const mesh_message_t* msg) {
 // INIT
 static void commInitFailed(const char* operation, esp_err_t error) {
   constexpr unsigned long kErrorMessageMs = 1500;
-  ESP_LOGE(TAG, "%s: %s", operation, esp_err_to_name(error));
+  PM_LOGE(TAG, "%s: %s", operation, esp_err_to_name(error));
   free(msgs);
   msgs = nullptr;
   msgCount = 0;
@@ -261,7 +261,7 @@ void COMM_INIT() {
   if (error != ESP_OK) {
     const esp_err_t cleanup = mesh_now_deinit();
     if (cleanup != ESP_OK)
-      ESP_LOGE(TAG, "Failed mesh cleanup: %s", esp_err_to_name(cleanup));
+      PM_LOGE(TAG, "Failed mesh cleanup: %s", esp_err_to_name(cleanup));
     commInitFailed("Mesh startup", error);
     return;
   }

@@ -10,7 +10,6 @@
 #include <globals.h>
 #include <pocketmage_sd/pocketmage_sd.h>
 
-#include "esp_log.h"
 
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 static String currentLine = "";
@@ -481,8 +480,6 @@ void einkHandler_HOME() {
         // TASKS/CALENDAR
         // 151,68
         if (!tasks.empty()) {
-          ESP_LOGV("CALENDAR", "Printing Tasks\n");
-
           int loopCount = std::min((int)tasks.size(), HOME_TASKS_MAX);
           for (int i = 0; i < loopCount; i++) {
             FontEngine::drawText(

@@ -302,9 +302,9 @@ void poll() {
     lastAttemptMs = now;
     if (exportReport()) {
       acknowledge();
-      ESP_LOGI(kTag, "Saved %s", reportPath);
+      PM_LOGI(kTag, "Saved %s", reportPath);
     } else {
-      ESP_LOGE(kTag, "Report pending: %s; retry in %u ms", reportPath, unsigned(kRetryMs));
+      PM_LOGE(kTag, "Report pending: %s; retry in %u ms", reportPath, unsigned(kRetryMs));
     }
   }
   replaySerial();

@@ -179,8 +179,6 @@ void loop() {
     // NOWLATER shutdown screen is exempt: power-off must work while locked.
     if (deviceLocked && CurrentHOMEState != NOWLATER)
       lockEnsureUnlocked();
-    if (DEBUG_VERBOSE)
-      printDebug();
   }
 #endif
   checkTimeout();

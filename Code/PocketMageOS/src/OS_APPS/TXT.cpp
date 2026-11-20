@@ -11,8 +11,6 @@
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 static constexpr const char* TAG = "TXT_NEW";
 
-#include "esp32-hal-log.h"
-#include "esp_log.h"
 
 // ------------------ General ------------------
 enum TXTState_NEW { TXT_, FONT, SAVE_AS, LOAD_FILE, JOURNAL_MODE, NEW_FILE };
@@ -147,9 +145,9 @@ void initDocMemory() {
   if (doc_ptr == nullptr) {
 #if BOARD_HAS_PSRAM
     doc_ptr = (Document*)ps_malloc(sizeof(Document));
-    ESP_LOGI(TAG, "Allocated document memory in PSRAM");
+    PM_LOGI(TAG, "Allocated document memory in PSRAM");
     if (doc_ptr == nullptr) {
-      ESP_LOGW(TAG, "Fallback to normal RAM");
+      PM_LOGW(TAG, "Fallback to normal RAM");
       doc_ptr = (Document*)malloc(sizeof(Document));
     }
 #else
@@ -162,7 +160,7 @@ void initDocMemory() {
         initLine(doc_ptr->lines[i]);
       }
     } else {
-      ESP_LOGE(TAG, "FATAL: Failed to allocate memory for TXT Document!");
+      PM_LOGE(TAG, "FATAL: Failed to allocate memory for TXT Document!");
     }
   }
 }
@@ -1301,7 +1299,7 @@ void saveMarkdownFile(const String& path) {
   int slot = PM_SD().streamOpen(savePath.c_str(), 'w');
   if (slot < 0) {
     OLED().sysMessage(TR(STR_TXT_SAVE_FAILED_OPEN), 2000);
-    ESP_LOGE("SD", "Failed to open file for writing: %s", savePath.c_str());
+    PM_LOGE("SD", "Failed to open file for writing: %s", savePath.c_str());
     PM_SDAUTO().endIO();
     return;
   }
@@ -1576,7 +1574,7 @@ void newMarkdownFile(const String& path) {
   int slot = PM_SD().streamOpen(savePath.c_str(), 'w');
   if (slot < 0) {
     OLED().sysMessage(TR(STR_TXT_CREATE_FAILED), 2000);
-    ESP_LOGE("SD", "Failed to create file: %s", savePath.c_str());
+    PM_LOGE("SD", "Failed to create file: %s", savePath.c_str());
     PM_SDAUTO().endIO();
     return;
   }

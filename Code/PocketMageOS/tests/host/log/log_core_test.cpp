@@ -202,11 +202,41 @@ static void tailChecks() {
   require(tailText(noBreak).empty(), "a wrapped tail without a newline shows nothing partial");
 }
 
+static void replayChecks() {
+  pm_log::TagLevels<3> levels{Level::Info};
+  require(levels.set("USB_STREAM", Level::Error), "a tag entry is stored before the replay");
+  require(levels.set("ELF", Level::Debug), "a second entry is stored before the replay");
+
+  // IDF clears every per-tag level when the default changes, so the replay has to follow it.
+  std::string order;
+  const size_t applied = pm_log::replayLevels(levels, [&order](const char* tag,
+                                                               pm_log_level level) {
+    order += std::string(tag) + "=" + std::to_string(static_cast<int>(level)) + " ";
+  });
+  require(applied == 2, "the replay applies every stored entry");
+  require(order == "USB_STREAM=1 ELF=4 ", "the replay keeps the order the tags were set in");
+
+  require(levels.set("*", Level::Warn), "\"*\" still sets the fallback");
+  require(levels.levelFor("other") == Level::Warn, "\"*\" changes unknown tags only");
+  require(levels.levelFor("USB_STREAM") == Level::Error, "\"*\" keeps the stored entries");
+  require(pm_log::replayLevels(levels, [](const char*, pm_log_level) {}) == 2,
+          "the entries are still there to put back after a \"*\" change");
+
+  pm_log::TagLevels<1> full{Level::Info};
+  require(full.set("ONE", Level::Warn), "the single slot fills");
+  require(full.copyEntries(nullptr, 1) == 1, "a null output still reports the entry count");
+  pm_log::TagLevels<1>::Entry copied[2];
+  require(full.copyEntries(copied, 2) == 1 && std::string(copied[0].tag) == "ONE" &&
+              copied[0].level == Level::Warn,
+          "the snapshot copies the stored entry");
+}
+
 int main() {
   levelChecks();
   formatChecks();
   idfParseChecks();
   levelTableChecks();
+  replayChecks();
   queueChecks();
   rotationChecks();
   tailChecks();

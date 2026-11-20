@@ -3,26 +3,6 @@
 #include <pocketmage_sd/sd_gateway.h>
 static constexpr const char* TAG = "UTILS";
 
-static uint8_t prevSec = 0;
-
-void printDebug() {
-  DateTime now = CLOCK().nowDT();
-  if (now.second() != prevSec) {
-    prevSec = now.second();
-    float batteryVoltage = getBatteryVoltage();
-
-    // Display GPIO states and system info
-    ESP_LOGD(
-        TAG, "PWR_BTN: %d, KB_INT: %d, CHRG: %d, RTC_INT: %d, BAT: %.2f, CPU_FRQ: %.1f, FFU: %d",
-        digitalRead(PWR_BTN), digitalRead(KB_IRQ), digitalRead(CHRG_SENS), digitalRead(RTC_INT),
-        batteryVoltage, (float)getCpuFrequencyMhz(), (int)GxEPD2_310_GDEQ031T10::useFastFullUpdate);
-
-    // Display system time
-    ESP_LOGD(TAG, "SYSTEM_CLOCK: %d/%d/%d (%s) %d:%d:%d", now.month(), now.day(), now.year(),
-             I18n::dayName(now.dayOfTheWeek()), now.hour(), now.minute(), now.second());
-  }
-}
-
 void pocketmage::checkIdleSleep() {
   bool inhibited = !SAVE_POWER || disableTimeout || noTimeout ||
                    pm_sd_gateway::streamsOpen() || CurrentAppState == USB_APP ||
@@ -30,7 +10,7 @@ void pocketmage::checkIdleSleep() {
   if (!idleSleepDue(inhibited))
     return;
 
-  ESP_LOGD(TAG, "Device idle... Deep sleeping");
+  PM_LOGD(TAG, "Idle timeout, deep sleeping");
 #if PM_TARGET_HOST
   saveEditingFile();
   bool textScreen = CurrentAppState == TXT && SLEEPMODE == "TEXT" &&
@@ -48,11 +28,11 @@ void checkTimeout() {
   // Power Button Event sleep
   if (PWR_BTN_event && CurrentHOMEState != NOWLATER) {
     PWR_BTN_event = false;
-    ESP_LOGE(TAG, "Power Button Event: Sleeping now");
+    PM_LOGI(TAG, "Power button, sleeping now");
     pocketmage::deepSleep();
 
   } else if (PWR_BTN_event && CurrentHOMEState == NOWLATER) {
-    ESP_LOGE(TAG, "Power Button Event: powering off from NOWLATER");
+    PM_LOGI(TAG, "Power button in NOWLATER, powering off");
     PWR_BTN_event = false;
     pocketmage::deepSleep();
   }
@@ -82,7 +62,7 @@ void checkTimeout() {
   // Power Button Event sleep
   if (PWR_BTN_event && CurrentHOMEState != NOWLATER) {
     PWR_BTN_event = false;
-    ESP_LOGE(TAG, "Power Button Event: Sleeping now");
+    PM_LOGI(TAG, "Power button, sleeping now");
 
     saveEditingFile();
 
@@ -113,11 +93,9 @@ void checkTimeout() {
       display.fillScreen(GxEPD_WHITE);
 
     } else {
-      ESP_LOGD(TAG, "Not charging");
       switch (CurrentAppState) {
         case TXT:
           if (SLEEPMODE == "TEXT" && PM_SDAUTO().getEditingFile() != "") {
-            ESP_LOGE(TAG, "text sleep mode");
             EINK().setFullRefreshAfter(FULL_REFRESH_AFTER + 1);
             display.setFullWindow();
 
@@ -143,7 +121,7 @@ void checkTimeout() {
     }
 
   } else if (PWR_BTN_event && CurrentHOMEState == NOWLATER) {
-    ESP_LOGE(TAG, "Power Button Event: powering off from NOWLATER");
+    PM_LOGI(TAG, "Power button in NOWLATER, powering off");
     PWR_BTN_event = false;
     pocketmage::deepSleep();
   }
@@ -214,7 +192,6 @@ void loadState(bool changeState, char bootKey) {
   prefs.begin("PocketMage", true);  // Read-Only
   // Misc
   TIMEOUT = prefs.getInt("TIMEOUT", 120);
-  DEBUG_VERBOSE = prefs.getBool("DEBUG_VERBOSE", true);
   LOG_TO_FILE = prefs.getBool("LOG_TO_FILE", false);
   SYSTEM_CLOCK = prefs.getBool("SYSTEM_CLOCK", true);
   SHOW_YEAR = prefs.getBool("SHOW_YEAR", true);
@@ -377,8 +354,6 @@ String textPrompt(String promptText, String prefix, bool mask, bool lockGlyph) {
 #if PM_TARGET_HOST
     if (!noTimeout)
       checkTimeout();
-    if (DEBUG_VERBOSE)
-      printDebug();
     if (CurrentHOMEState == NOWLATER)
       return "_RETURN_";
 #endif
@@ -618,8 +593,6 @@ int boolPrompt(String promptText) {
 #if PM_TARGET_HOST
     if (!noTimeout)
       checkTimeout();
-    if (DEBUG_VERBOSE)
-      printDebug();
 #endif
 
     CLOCK().setPrevTimeMillis(millis());
@@ -692,8 +665,6 @@ int timePrompt(int defaultTime) {
 #if PM_TARGET_HOST
     if (!noTimeout)
       checkTimeout();
-    if (DEBUG_VERBOSE)
-      printDebug();
 #endif
 
     // Update scroll
@@ -912,8 +883,6 @@ String datePrompt(String defaultYYYYMMDD) {
 #if PM_TARGET_HOST
     if (!noTimeout)
       checkTimeout();
-    if (DEBUG_VERBOSE)
-      printDebug();
 #endif
 
     int scrollVec = TOUCH().getScrollVector();
@@ -1184,8 +1153,6 @@ void waitForKeypress(String message) {
 #if PM_TARGET_HOST
     if (!noTimeout)
       checkTimeout();
-    if (DEBUG_VERBOSE)
-      printDebug();
 #endif
 
     updateBattState();
@@ -1362,9 +1329,8 @@ void saveEditingFile() {
   if (savePath != "" && savePath != "-" && savePath != "/temp.txt" && fileLoaded) {
     if (!savePath.startsWith("/"))
       savePath = "/" + savePath;
-    ESP_LOGI(TAG, "Saving MarkdownFile");
+    PM_LOGI(TAG, "Saving %s", savePath.c_str());
     saveMarkdownFile(savePath);
-    ESP_LOGI(TAG, "Done saving MarkdownFile");
   }
 }
 #endif

@@ -28,13 +28,13 @@ class UsbIoLock {
  public:
   UsbIoLock() : locked_(ioMutex && xSemaphoreTake(ioMutex, portMAX_DELAY) == pdTRUE) {
     if (ioMutex && !locked_) {
-      ESP_LOGE(TAG, "USB I/O mutex acquisition failed");
+      PM_LOGE(TAG, "USB I/O mutex acquisition failed");
       std::abort();
     }
   }
   ~UsbIoLock() {
     if (locked_ && xSemaphoreGive(ioMutex) != pdTRUE) {
-      ESP_LOGE(TAG, "USB I/O mutex release failed");
+      PM_LOGE(TAG, "USB I/O mutex release failed");
       std::abort();
     }
   }
@@ -79,7 +79,7 @@ static void failStartup(const String& message) {
   startupError = message;
   msc.mediaPresent(false);
   mscEnabled = false;
-  ESP_LOGE(TAG, "USB startup failed: %s", message.c_str());
+  PM_LOGE(TAG, "USB startup failed: %s", message.c_str());
   drawUsbStatus();
 }
 
@@ -87,7 +87,7 @@ static void failStartup(const String& message) {
 void USBAppShutdown() {
   usb_is_shutting_down = true;
   UsbIoLock lock;
-  ESP_LOGI(TAG, "Shutting down USB MSC...");
+  PM_LOGI(TAG, "Shutting down USB MSC...");
   msc.mediaPresent(false);
   msc.end();
   // The SD service owns this allocation and host. Its FAT volume stays
@@ -103,10 +103,10 @@ void USB_EXIT() {
   if (prefs.begin("PocketMage", false)) {
     if (prefs.putInt("CurrentAppState", static_cast<int>(HOME)) != sizeof(int) ||
         prefs.putBool("Seamless_Reboot", true) != sizeof(bool))
-      ESP_LOGE(TAG, "Could not persist USB exit state");
+      PM_LOGE(TAG, "Could not persist USB exit state");
     prefs.end();
   } else {
-    ESP_LOGE(TAG, "Could not open preferences for USB exit");
+    PM_LOGE(TAG, "Could not open preferences for USB exit");
   }
   pm_usb::restoreSerialForRestart();
   esp_restart();
@@ -218,7 +218,7 @@ static int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufs
 }
 
 static bool onStartStop(uint8_t power_condition, bool start, bool eject) {
-  ESP_LOGI(TAG, "MSC Start/Stop: power=%u, start=%d, eject=%d\n", power_condition, start, eject);
+  PM_LOGI(TAG, "MSC start/stop: power=%u start=%d eject=%d", power_condition, start, eject);
   if (eject && !start)
     usbStatus = UsbStatus::Ejected;
   else if (start)
@@ -232,19 +232,19 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
     switch (event_id) {
       case ARDUINO_USB_STARTED_EVENT:
         usbStatus = UsbStatus::Connected;
-        ESP_LOGI(TAG, "USB Connected");
+        PM_LOGI(TAG, "USB Connected");
         break;
       case ARDUINO_USB_STOPPED_EVENT:
         usbStatus = UsbStatus::Waiting;
-        ESP_LOGI(TAG, "USB Disconnected");
+        PM_LOGI(TAG, "USB Disconnected");
         break;
       case ARDUINO_USB_SUSPEND_EVENT:
         usbStatus = UsbStatus::Suspended;
-        ESP_LOGI(TAG, "USB Suspended");
+        PM_LOGI(TAG, "USB Suspended");
         break;
       case ARDUINO_USB_RESUME_EVENT:
         usbStatus = UsbStatus::Connected;
-        ESP_LOGI(TAG, "USB Resumed");
+        PM_LOGI(TAG, "USB Resumed");
         break;
     }
   }
@@ -299,7 +299,7 @@ void USB_INIT() {
   }
 
   PowerSystem.setUSBControlESP();
-  ESP_LOGI(TAG, "Initializing USB MSC...");
+  PM_LOGI(TAG, "Initializing USB MSC...");
 
   msc.vendorID("ESP32");
   msc.productID("PocketMage");

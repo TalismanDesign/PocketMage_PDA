@@ -8,6 +8,7 @@
 #define TEMP_DIR "/apps/temp"
 #define PREFS_NAMESPACE "AppLoader"
 #if PM_TARGET_HOST  // POCKETMAGE_OS
+static constexpr const char* TAG = "APP";
 static String currentLine = "";
 
 enum AppLoaderState { MENU, SWAP_OR_EDIT, INSTALLING, SWAP };
@@ -171,7 +172,7 @@ static void installTask(void* param) {
 
   // --- Check TAR exists ---
   if (!PM_SD().exists(tarPath.c_str())) {
-    Serial.printf("Tar not found: %s\n", tarPath.c_str());
+    PM_LOGE(TAG, "Tar not found: %s", tarPath.c_str());
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -180,7 +181,7 @@ static void installTask(void* param) {
 
   // --- Ensure directories ---
   if (!ensureDir(APP_DIRECTORY) || !ensureDir(TEMP_DIR)) {
-    Serial.println("Failed to prepare TEMP_DIR");
+    PM_LOGE(TAG, "Failed to prepare %s", TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -191,7 +192,7 @@ static void installTask(void* param) {
   // mkdirs for missing parents, 4KB streaming; runs at 240MHz on the
   // gateway task while it blocks here) ---
   if (!PM_SD().extractTar(tarPath.c_str(), TEMP_DIR, &g_extractProgress)) {
-    Serial.println("Extraction failed");
+    PM_LOGE(TAG, "Extraction failed: %s", tarPath.c_str());
     g_installFailed = true;
     g_installDone = true;
     delete p;
@@ -235,14 +236,14 @@ static void installTask(void* param) {
   }
 
   if (elfPath.length() == 0 || base.length() == 0) {
-    Serial.printf("ELF not found after extraction in %s\n", TEMP_DIR);
+    PM_LOGE(TAG, "ELF not found after extraction in %s", TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
     delete p;
     vTaskDelete(NULL);
   }
 
-  Serial.printf("App base name determined: '%s'\n", base.c_str());
+  PM_LOGD(TAG, "App base name is '%s'", base.c_str());
 
   // --- Icon scan (order-independent): <base>_ICON.bin anywhere in TEMP_DIR ---
   {
@@ -260,9 +261,9 @@ static void installTask(void* param) {
       }
     }
     if (iconPath.length() == 0) {
-      Serial.printf("Icon not found for app '%s' (non-fatal)\n", base.c_str());
+      PM_LOGD(TAG, "No icon for '%s'", base.c_str());
     } else {
-      Serial.printf("Icon found: %s\n", iconPath.c_str());
+      PM_LOGD(TAG, "Icon: %s", iconPath.c_str());
     }
   }
 
@@ -276,17 +277,8 @@ static void installTask(void* param) {
     }
   }
 
-  Serial.println("Listing /apps/temp:");
-  {
-    std::vector<PocketmageSD::DirItem> items;
-    PM_SD().listDirItems(TEMP_DIR, items);
-    for (const auto& item : items) {
-      Serial.printf("  %s%s\n", item.name.c_str(), item.isDir ? "/" : "");
-    }
-  }
-
   if (elfPath.length() == 0 || !PM_SD().exists(elfPath.c_str())) {
-    Serial.printf("ELF not found after extraction: %s\n", elfPath.c_str());
+    PM_LOGE(TAG, "ELF not found after extraction: %s", elfPath.c_str());
     cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
@@ -302,9 +294,9 @@ static void installTask(void* param) {
 
   if (PM_SD().statIsDir(assetsSrc.c_str())) {
     rmRF(assetsDst.c_str());  // clean old assets
-    Serial.printf("Copying assets: %s -> %s\n", assetsSrc.c_str(), assetsDst.c_str());
+    PM_LOGD(TAG, "Copying assets: %s -> %s", assetsSrc.c_str(), assetsDst.c_str());
     if (!copyAssetsFlat(assetsSrc.c_str(), assetsDst.c_str())) {
-      Serial.println("Failed to copy assets!");
+      PM_LOGE(TAG, "Failed to copy assets: %s", assetsSrc.c_str());
       g_installFailed = true;
       g_installDone = true;
       cleanupAppsTempRecursive(TEMP_DIR);
@@ -317,7 +309,7 @@ static void installTask(void* param) {
   char slotDir[32];
   elfAppSlotDir(p->slot, slotDir, sizeof(slotDir));
   if (!ensureDir(slotDir)) {
-    Serial.printf("Failed to create slot dir %s\n", slotDir);
+    PM_LOGE(TAG, "Failed to create slot dir %s", slotDir);
     cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
@@ -329,7 +321,7 @@ static void installTask(void* param) {
   String iconDst = iconPath.length() > 0 ? pathJoin(slotDir, base + "_ICON.bin") : String();
 
   if (!PM_SD().exists(elfPath.c_str())) {
-    Serial.printf("Failed to open: %s\n", elfPath.c_str());
+    PM_LOGE(TAG, "Failed to open: %s", elfPath.c_str());
     cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
@@ -338,10 +330,10 @@ static void installTask(void* param) {
   }
   size_t sz = 0;
   PM_SD().statPath(elfPath.c_str(), &sz, nullptr);
-  Serial.printf("Installing %s (%u bytes) -> %s\n", elfPath.c_str(), sz, elfDst.c_str());
+  PM_LOGI(TAG, "Installing %s (%u bytes) -> %s", elfPath.c_str(), (unsigned)sz, elfDst.c_str());
 
   if (!copyFile(elfPath.c_str(), elfDst.c_str())) {
-    Serial.println("ELF copy failed");
+    PM_LOGE(TAG, "ELF copy failed: %s", elfDst.c_str());
     cleanupAppsTempRecursive(TEMP_DIR);
     g_installFailed = true;
     g_installDone = true;
@@ -352,7 +344,7 @@ static void installTask(void* param) {
 
   if (iconDst.length() > 0) {
     if (!copyFile(iconPath.c_str(), iconDst.c_str())) {
-      Serial.println("Icon copy failed (non-fatal)");
+      PM_LOGW(TAG, "Icon copy failed: %s", iconDst.c_str());
       iconDst = "";
     }
   }
@@ -363,7 +355,7 @@ static void installTask(void* param) {
   String propsDst = pathJoin(slotDir, "app.properties");
   if (PM_SD().exists(propsSrc.c_str())) {
     if (!copyFile(propsSrc.c_str(), propsDst.c_str())) {
-      Serial.println("app.properties copy failed (non-fatal)");
+      PM_LOGW(TAG, "app.properties copy failed: %s", propsDst.c_str());
     }
   } else if (PM_SD().exists(propsDst.c_str())) {
     PM_SD().removeFile(propsDst.c_str());
@@ -401,9 +393,9 @@ static void installTask(void* param) {
     if (PM_SD().exists(overlayDst.c_str()))
       PM_SD().removeFile(overlayDst.c_str());
     if (copyFile(overlaySrc.c_str(), overlayDst.c_str())) {
-      Serial.printf("Overlay copied: %s -> %s\n", overlaySrc.c_str(), overlayDst.c_str());
+      PM_LOGD(TAG, "Overlay copied: %s -> %s", overlaySrc.c_str(), overlayDst.c_str());
     } else {
-      Serial.printf("Overlay copy failed (non-fatal): %s\n", overlaySrc.c_str());
+      PM_LOGW(TAG, "Overlay copy failed: %s", overlaySrc.c_str());
     }
   }
 
@@ -415,10 +407,10 @@ static void installTask(void* param) {
 
   clearElfAppInfo(p->slot);
   if (!saveElfAppInfo(p->slot, info)) {
-    Serial.printf("Failed to save ElfAppInfo for slot %d\n", p->slot);
+    PM_LOGE(TAG, "Failed to save ElfAppInfo for slot %d", p->slot);
     g_installFailed = true;
   } else {
-    Serial.println("Install OK");
+    PM_LOGI(TAG, "Install OK: %s in slot %d", info.name, p->slot);
   }
 
   cleanupAppsTempRecursive(TEMP_DIR);
@@ -442,7 +434,7 @@ bool installAppTarToSlotAsync(const char* tarRelName, int slot) {
                                params, 1, NULL);
 
   if (res != pdPASS) {
-    Serial.println("Failed to create install task");
+    PM_LOGE(TAG, "Failed to create install task");
     delete params;
     return false;
   }
@@ -553,7 +545,7 @@ void processKB_APPLOADER() {
             char slotDir[32];
             elfAppSlotDir(selectedSlot, slotDir, sizeof(slotDir));
             if (rmRF(slotDir)) {
-              Serial.printf("Slot %d cleared\n", selectedSlot);
+              PM_LOGI(TAG, "Slot %d cleared", selectedSlot);
             }
 
             OLED().sysMessage(TR(STR_APPLOADER_APP_REMOVED), 2000);
@@ -598,8 +590,8 @@ void processKB_APPLOADER() {
             relName = relName.substring(strlen(APP_DIRECTORY) + 1);
           }
 
-          Serial.printf("Installing app from %s (rel=%s) into slot %d\n", outPath.c_str(),
-                        relName.c_str(), selectedSlot);
+          PM_LOGI(TAG, "Installing app from %s (rel=%s) into slot %d", outPath.c_str(),
+                  relName.c_str(), selectedSlot);
 
           installAppTarToSlotAsync(relName.c_str(), selectedSlot);
           CurrentAppLoaderState = INSTALLING;

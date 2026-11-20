@@ -284,10 +284,6 @@ msgctxt "STR_SETTINGS_NAME_FAST_REFRESH"
 msgid "Fast Refresh (Unstable!)"
 msgstr "Refresh rapide (Instable)"
 
-msgctxt "STR_SETTINGS_NAME_DEBUG"
-msgid "Debug Verbose"
-msgstr "Débogage verbeux"
-
 msgctxt "STR_SETTINGS_NAME_LOG_FILE"
 msgid "Log to File"
 msgstr "Journal dans fichier"

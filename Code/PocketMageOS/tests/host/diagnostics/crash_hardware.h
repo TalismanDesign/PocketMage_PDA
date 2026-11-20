@@ -20,6 +20,11 @@
 inline void testLog(const char*, const char*, ...) {}
 #define ESP_LOGE(...) testLog(__VA_ARGS__)
 #define ESP_LOGI(...) testLog(__VA_ARGS__)
+#define PM_LOGE(...) testLog(__VA_ARGS__)
+#define PM_LOGW(...) testLog(__VA_ARGS__)
+#define PM_LOGI(...) testLog(__VA_ARGS__)
+#define PM_LOGD(...) testLog(__VA_ARGS__)
+#define PM_LOGV(...) testLog(__VA_ARGS__)
 
 inline unsigned runtimeQueries = 0;
 inline void (*onTaskCount)() = nullptr;

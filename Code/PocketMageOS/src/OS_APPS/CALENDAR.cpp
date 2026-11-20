@@ -4,7 +4,7 @@
 
 #include <cstdio>
 #if PM_TARGET_HOST                              // POCKETMAGE_OS
-static constexpr const char* TAG = "CALENDAR";  // Tag for all calls to ESP_LOG
+static constexpr const char* TAG = "CALENDAR";  // Tag for all logging calls
 
 // Layout constants
 constexpr int CAL_MONTH_GRID_X = 7;     // month view: first cell x
@@ -145,7 +145,7 @@ void updateEventArray() {
   // Keep the current events when the card is unreachable instead of
   // swapping in an empty file
   if (!PM_SD().exists(eventsFile)) {
-    ESP_LOGE(TAG, "Failed to open file for reading: %s", eventsFile);
+    PM_LOGE(TAG, "Failed to open file for reading: %s", eventsFile);
     PM_SDAUTO().endIO();
     return;
   }

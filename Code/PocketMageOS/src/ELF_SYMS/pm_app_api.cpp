@@ -74,5 +74,5 @@ bool pm_sd_stream_seek(int slot, uint32_t offset) {
 
 void pm_sd_stream_close(int slot) {
   if (!PM_SD().streamClose(slot))
-    ESP_LOGW("ELF", "legacy stream close failed for slot %d", slot);
+    PM_LOGW("ELF", "legacy stream close failed for slot %d", slot);
 }

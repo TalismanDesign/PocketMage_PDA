@@ -21,6 +21,7 @@
 
 #if PM_TARGET_HOST
 
+static constexpr const char* TAG = "ELF";
 static volatile bool s_running = false;
 static TaskHandle_t s_task = NULL;
 
@@ -48,14 +49,14 @@ bool loadElfAppManifest(int slot, ElfAppManifest& out) {
     return true;
 
   if (fsz > ELF_APP_PROPERTIES_MAX_BYTES) {
-    Serial.printf("[ELF] %s too large (%u bytes), ignoring\n", path, (unsigned)fsz);
+    PM_LOGW(TAG, "%s too large (%u bytes), ignoring", path, (unsigned)fsz);
     return false;
   }
 
   char text[ELF_APP_PROPERTIES_MAX_BYTES];
   size_t got = PM_SD().readBinaryFile(path, (uint8_t*)text, fsz) ? fsz : 0;
   int fields = elfManifestParse(text, got, out);
-  Serial.printf("[ELF] %s fields=%d\n", path, fields);
+  PM_LOGD(TAG, "%s has %d manifest fields", path, fields);
   return true;
 }
 
@@ -143,7 +144,7 @@ static int elfFileSourceRead(void* ctx, size_t offset, void* buf, size_t len) {
 static void stopAppAudio() {
   // Retain the image while a decoder or USB worker can still reference app state.
   while (!P_AUDIO.stopChecked()) {
-    Serial.println("[ELF] audio shutdown incomplete; retaining app and retrying");
+    PM_LOGW(TAG, "Audio shutdown incomplete; retaining app and retrying");
     delay(100);
   }
 }
@@ -157,13 +158,13 @@ static bool executeLoadedElf(esp_elf_t* elf, int argc, char** argv) {
   // runs against a resident image; esp_elf_deinit() later skips them.
   const int finalized = esp_elf_finalize(elf);
   if (finalized != 0)
-    Serial.printf("[ELF] finalize failed: %d\n", finalized);
+    PM_LOGE(TAG, "Finalize failed: %d", finalized);
   P_APP.finishSession();
   // Exit hooks may have started audio or opened another stream.
   stopAppAudio();
   const bool closed = pm_sd_gateway::closeCallerResources();
   if (!closed)
-    Serial.println("[ELF] app stream flush failed during cleanup");
+    PM_LOGW(TAG, "App stream flush failed during cleanup");
   return result == 0 && finalized == 0 && closed;
 }
 
@@ -175,10 +176,9 @@ static void elfAppTask(void* param) {
   // for each host symbol. Reset happens on every exit path below.
   elfScopeFromManifest(p->scope, s_scope);
   if (!s_scope.all) {
-    Serial.printf("[ELF] scope:");
+    PM_LOGD(TAG, "Scope has %d prefixes", s_scope.count);
     for (int i = 0; i < s_scope.count; i++)
-      Serial.printf(" %s", s_scope.prefix[i]);
-    Serial.println();
+      PM_LOGD(TAG, "  scope prefix %s", s_scope.prefix[i]);
   }
   elf_set_symbol_resolver(scopedSymResolver);
 
@@ -186,21 +186,21 @@ static void elfAppTask(void* param) {
   int slot = PM_SD().streamOpen(p->elfPath, 'r');
   if (slot >= 0) {
     size_t sz = PM_SD().streamSize(slot);
-    Serial.printf("[ELF] open %s size=%u t=%u\n", p->elfPath, (unsigned)sz,
-                  (unsigned)(millis() - t0));
+    PM_LOGD(TAG, "Open %s size=%u t=%u ms", p->elfPath, (unsigned)sz,
+            (unsigned)(millis() - t0));
 
     // The image is streamed by the loader, so the whole file is never held in
     // RAM. Only the transient section buffers (symtab/strtab/relocs) add to
     // the peak. Log the free heaps so a device run confirms the budget for the
     // no-PSRAM case (PM_BETA).
-    Serial.printf("[ELF] heap8 free=%u largest=%u exec free=%u largest=%u\n",
-                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
-                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
-                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_EXEC),
-                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_EXEC));
+    PM_LOGD(TAG, "heap8 free=%u largest=%u exec free=%u largest=%u",
+            (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+            (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+            (unsigned)heap_caps_get_free_size(MALLOC_CAP_EXEC),
+            (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_EXEC));
 
     if (sz == 0) {
-      Serial.println("ELF empty");
+      PM_LOGW(TAG, "ELF is empty");
     } else {
       ElfFileSource fileSrc = {slot};
       const elf_source_t src = {
@@ -263,10 +263,10 @@ static void elfAppTask(void* param) {
             found = true;
         }
         if (found) {
-          Serial.printf("[ELF] loading overlay from %s\n", ov_path);
+          PM_LOGD(TAG, "Loading overlay from %s", ov_path);
           int ov_rc = elf_overlay_load(&ov_loader, ov_path);
           if (ov_rc != ELF_OVERLAY_OK) {
-            Serial.printf("[ELF] overlay load skipped rc=%d path=%s\n", ov_rc, ov_path);
+            PM_LOGW(TAG, "Overlay load skipped rc=%d path=%s", ov_rc, ov_path);
             ov_loader = NULL;
           }
         }
@@ -277,12 +277,12 @@ static void elfAppTask(void* param) {
       slot = -1;
       if (!sourceClosed && rre == 0)
         rre = -EIO;
-      Serial.printf("[ELF] init=%d relocate=%d entry=%p t=%u\n", ire, rre, (void*)elf.entry,
-                    (unsigned)(millis() - t1));
+      PM_LOGD(TAG, "init=%d relocate=%d entry=%p t=%u ms", ire, rre, (void*)elf.entry,
+              (unsigned)(millis() - t1));
       if (ire == 0 && rre == 0) {
-        Serial.printf("[ELF] runtime_base=%p\n", (void*)esp_elf_runtime_base(&elf));
+        PM_LOGV(TAG, "runtime_base=%p", (void*)esp_elf_runtime_base(&elf));
         char* argv[4] = {p->appName, p->elfPath, p->version, p->author};
-        Serial.printf("[ELF] %s RUN v%s by %s\n", p->appName, p->version, p->author);
+        PM_LOGI(TAG, "%s RUN v%s by %s", p->appName, p->version, p->author);
         const bool prevFastRefresh = FAST_REFRESH;
         FAST_REFRESH = true;
 
@@ -294,28 +294,30 @@ static void elfAppTask(void* param) {
           elf_overlay_probe_host_refs(ov_loader);
           void* stub_base = elf_overlay_get_stub_block(ov_loader);
           if (stub_base) {
-            Serial.printf("[ELF] overlay loaded, stub_base=%p\n", stub_base);
+            PM_LOGD(TAG, "Overlay loaded, stub_base=%p", stub_base);
             uint32_t stub_off = 0;
             uint32_t entry_vaddr = (uint32_t)elf.entry - (uint32_t)elf.sec[ELF_SEC_TEXT].addr +
                                    elf.sec[ELF_SEC_TEXT].v_addr;
             if (elf_overlay_find_stub(ov_loader, entry_vaddr, &stub_off) == ELF_OVERLAY_OK) {
-              Serial.printf("[ELF] entry vaddr=0x%08x stub_off=0x%x\n", entry_vaddr, stub_off);
+              PM_LOGV(TAG, "Entry vaddr=0x%08x stub_off=0x%x", entry_vaddr, stub_off);
             } else {
-              Serial.printf("[ELF] no stub for entry 0x%08x; running unredirected\n", entry_vaddr);
+              PM_LOGD(TAG, "No stub for entry 0x%08x; running unredirected", entry_vaddr);
             }
           }
         }
         ok = executeLoadedElf(&elf, 4, argv);
         FAST_REFRESH = prevFastRefresh;
-        Serial.printf("[ELF] %s EXITED\n", p->appName);
-        Serial.printf("[ELF] heap8 free=%u largest=%u after exit\n",
-                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
-                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+        PM_LOGI(TAG, "%s EXITED", p->appName);
+        PM_LOGD(TAG, "heap8 free=%u largest=%u after exit",
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
       } else {
         // ENOSYS is what the loader returns for a symbol it cannot resolve,
         // which for a scoped app means the scope is too narrow.
-        Serial.println(rre == -ENOSYS ? "ELF needs symbols outside its scope"
-                                      : "ELF relocate failed");
+        if (rre == -ENOSYS)
+          PM_LOGE(TAG, "ELF needs symbols outside its scope");
+        else
+          PM_LOGE(TAG, "ELF relocate failed: %d", rre);
       }
       if (ire == 0)
         esp_elf_deinit(&elf);
@@ -324,9 +326,9 @@ static void elfAppTask(void* param) {
         elf_overlay_unload(ov_loader);
     }
     if (slot >= 0 && !PM_SD().streamClose(slot))
-      Serial.println("[ELF] source stream close failed");
+      PM_LOGW(TAG, "Source stream close failed");
   } else {
-    Serial.printf("ELF open failed: %s\n", p->elfPath);
+    PM_LOGE(TAG, "Open failed: %s", p->elfPath);
   }
 
   elf_reset_symbol_resolver();
@@ -381,7 +383,7 @@ bool runElfApp(int slot) {
   CurrentAppState = ELFAPP;
   s_running = true;
   if (xTaskCreatePinnedToCore(elfAppTask, "elfApp", 16384, p, 1, &s_task, 1) != pdPASS) {
-    Serial.println("ELF task create failed");
+    PM_LOGE(TAG, "Task create failed");
     delete p;
     s_running = false;
     HOME_INIT();
