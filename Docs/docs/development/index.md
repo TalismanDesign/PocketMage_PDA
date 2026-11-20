@@ -84,6 +84,7 @@ Both follow the same three-function shape. The difference is where the code ship
 - `Code/PocketMageOS/lib/PocketMage_SDK/` - the reusable hardware layer (the PocketMage SDK, vendored as a submodule)
 - `Code/PocketMageOS/lib/elf_overlay/` - the overlay runtime that pages ELF-app code into executable RAM
 - `Code/PocketMageOS/src/elf_runner.cpp` - loads and runs installed ELF apps
+- `Code/PocketMageOS/src/diagnostics/` - retained panic capture and post-reboot [crash reports](./crash-logs.md)
 
 ## Next steps
 
