@@ -956,7 +956,7 @@ void drawCalendarMonth(int monthOffset) {
 
   // Draw Background
   EINK().drawStatusBar(getMonthName(currentMonth) + " " + String(currentYear)+ TR(STR_CAL_TYPE_A_DATE));
-  display.drawBitmap(0, 0, calendar_allArray[1], 320, 218, GxEPD_BLACK);
+  drawThemeBackground("calendar_1", calendar_allArray[1]);
 
   // Step 2: Day of the week for the 1st of the month (0 = Sun, 6 = Sat)
   DateTime firstDay(year, month, 1);
@@ -1023,7 +1023,7 @@ void drawCalendarMonth(int monthOffset) {
 
 void drawCalendarWeek(int weekOffset) {
   EINK().drawStatusBar(TR(STR_CAL_WEEK_HINT));
-  display.drawBitmap(0, 0, calendar_allArray[0], 320, 218, GxEPD_BLACK);
+  drawThemeBackground("calendar_0", calendar_allArray[0]);
 
   // Get current date
   DateTime now = CLOCK().nowDT();
@@ -1487,7 +1487,7 @@ void einkHandler_CALENDAR() {
         newState = false;
         EINK().resetDisplay();
 
-        display.drawBitmap(0, 0, calendar_allArray[2], 320, 218, GxEPD_BLACK);
+        drawThemeBackground("calendar_2", calendar_allArray[2]);
 
         FontEngine::drawText(DisplayTarget::EINK, CAL_EDIT_X, CAL_EDIT_Y0 + (0 * CAL_EDIT_PITCH), truncateWithEllipsis(newEventName, CAL_EDIT_TEXT_W, FontStyle::Body), FontStyle::Body);
         FontEngine::drawText(DisplayTarget::EINK, CAL_EDIT_X, CAL_EDIT_Y0 + (1 * CAL_EDIT_PITCH), formatDateDisplay(newEventStartDate), FontStyle::Body);
@@ -1515,7 +1515,7 @@ void einkHandler_CALENDAR() {
         EINK().resetDisplay();
 
         EINK().drawStatusBar(TR(STR_CAL_VIEW_HINT));
-        display.drawBitmap(0, 0, calendar_allArray[3], 320, 218, GxEPD_BLACK);
+        drawThemeBackground("calendar_3", calendar_allArray[3]);
 
         FontEngine::drawText(DisplayTarget::EINK, CAL_EDIT_X, CAL_EDIT_Y0 + (0 * CAL_EDIT_PITCH), truncateWithEllipsis(newEventName, CAL_EDIT_TEXT_W, FontStyle::Body), FontStyle::Body);
         FontEngine::drawText(DisplayTarget::EINK, CAL_EDIT_X, CAL_EDIT_Y0 + (1 * CAL_EDIT_PITCH), formatDateDisplay(newEventStartDate), FontStyle::Body);
@@ -1552,7 +1552,7 @@ void einkHandler_CALENDAR() {
         EINK().resetDisplay();
 
         EINK().drawStatusBar(TR(STR_CAL_DAY_HINT));
-        display.drawBitmap(0, 0, calendar_allArray[CurrentCalendarState], 320, 218, GxEPD_BLACK);
+        drawThemeBackground("calendar_" + String(CurrentCalendarState), calendar_allArray[CurrentCalendarState]);
 
         u8g2f.setForegroundColor(GxEPD_BLACK);
         FontEngine::drawText(DisplayTarget::EINK, CAL_WEEK_X + (CAL_WEEK_COL_W * (CurrentCalendarState - 4)), 59, String(currentMonth) + "/" + String(currentDate), FontStyle::Body);

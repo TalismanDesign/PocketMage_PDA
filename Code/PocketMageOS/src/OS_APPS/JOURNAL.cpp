@@ -48,7 +48,7 @@ void drawJMENU() {
   // Display background
   u8g2f.setForegroundColor(GxEPD_BLACK);
   EINK().drawStatusBar(TR(STR_JOURNAL_CHOOSE));
-  display.drawBitmap(0, 0, _journal, 320, 218, GxEPD_BLACK);
+  drawThemeBackground("journal", _journal);
 
   // Update current progress graph
   DateTime now = CLOCK().nowDT();

@@ -339,7 +339,7 @@ void einkHandler_LEXICON() {
       if (newState) {
         newState = false;
         beginEinkScreen(true);
-        display.drawBitmap(0, 0, _lex0, 320, 218, GxEPD_BLACK);
+        drawThemeBackground("lexicon_0", _lex0);
 
         endEinkScreen(TR(STR_LEX_TYPE_WORD));
       }
@@ -351,7 +351,7 @@ void einkHandler_LEXICON() {
         
         beginEinkScreen();
 
-        display.drawBitmap(0, 0, _lex1, 320, 218, GxEPD_BLACK);
+        drawThemeBackground("lexicon_1", _lex1);
         u8g2f.setForegroundColor(GxEPD_BLACK);
 
         // Draw Word

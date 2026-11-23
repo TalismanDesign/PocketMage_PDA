@@ -95,6 +95,23 @@ Connect to a remote host over WiFi from the terminal app (`ssh` command).
 
 On battery, the device enters sleep and shows a random screensaver. When plugged into USB it uses a now-later screen with a clock, upcoming tasks, and weather (work in progress). Waking can go straight into a specific app via the boot shortcut keys, so common flows start with a single keypress.
 
+## Custom screensavers and themes
+
+Screensavers live in `/assets/backgrounds/` on the microSD card. Any `.bin` file there replaces the built-in screensavers.
+
+Themes replace the built-in app images. Put theme files in `/assets/theme/` on the microSD card. Each file replaces one built-in image. A file is used only when its size is exactly right. A missing, wrong-size, or unreadable file leaves the built-in image in place. The device reads the folder each time it draws, so a change shows the next time the app is drawn.
+
+Theme files use the same format as screensavers: a raw 1-bit bitmap from [image2cpp](https://javl.github.io/image2cpp/) with `Invert Image Colors` on and `Swap Bits in Byte` off, saved under the file name shown here.
+
+| File | Replaces | Size in pixels | Size in bytes |
+| --- | --- | --- | --- |
+| `home_0.bin` to `home_10.bin` | Home app icons in grid order: TXT, FILEWIZ, USB, CHAT, SETTINGS, TASKS, CALENDAR, JOURNAL, LEXICON, TERMINAL, LOADER | 40x40 | 200 |
+| `settings.bin`, `journal.bin` | Settings and Journal backgrounds | 320x218 | 8720 |
+| `tasks_0.bin`, `tasks_1.bin` | Tasks list and task detail backgrounds | 320x218 | 8720 |
+| `lexicon_0.bin`, `lexicon_1.bin` | Lexicon search and result backgrounds | 320x218 | 8720 |
+| `filewiz_0.bin`, `filewiz_1.bin` | File Wizard list and file backgrounds | 320x218 | 8720 |
+| `calendar_0.bin` to `calendar_10.bin` | Calendar week, month, new event, view event, then Sunday to Saturday day views | 320x218 | 8720 |
+
 ## What is next
 
 | Area | Status |

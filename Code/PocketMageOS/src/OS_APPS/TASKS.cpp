@@ -419,7 +419,7 @@ void einkHandler_TASKS() {
         EINK().resetDisplay();
 
         // DRAW APP
-        display.drawBitmap(0, 0, tasksApp0, 320, 218, GxEPD_BLACK);
+        drawThemeBackground("tasks_0", tasksApp0);
 
         if (!tasks.empty()) {
           ESP_LOGV(TAG, "Printing Tasks");
@@ -457,7 +457,7 @@ void einkHandler_TASKS() {
         EINK().resetDisplay();
 
         // DRAW APP
-        display.drawBitmap(0, 0, tasksApp0, 320, 218, GxEPD_BLACK);
+        drawThemeBackground("tasks_0", tasksApp0);
 
         if (!tasks.empty()) {
           ESP_LOGV(TAG, "Printing Tasks");
@@ -509,7 +509,7 @@ void einkHandler_TASKS() {
 
         // DRAW APP
         EINK().drawStatusBar(TR(STR_TASKS_T_PREFIX) + tasks[selectedTask][0]);
-        display.drawBitmap(0, 0, tasksApp1, 320, 218, GxEPD_BLACK);
+        drawThemeBackground("tasks_1", tasksApp1);
 
         EINK().refresh();
       }

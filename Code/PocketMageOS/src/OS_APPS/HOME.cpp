@@ -231,7 +231,7 @@ void drawHome() {
     int yPos = startY + (gridPitch * row);
     if (row == 2) yPos += row2Shift;
 
-    display.drawBitmap(xPos, yPos, appIcons[i], kIconCellSize, kIconCellSize, GxEPD_BLACK);
+    drawThemeBitmap("home_" + String(i), xPos, yPos, appIcons[i], kIconCellSize, kIconCellSize);
     const char* name = I18n::appName(i);
     FontStyle nameStyle = FontEngine::fitStyle(DisplayTarget::EINK, name,
                                                kGridLabelMaxW, kLabelCascade,

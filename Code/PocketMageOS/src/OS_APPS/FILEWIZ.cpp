@@ -536,7 +536,7 @@ void einkHandler_FILEWIZ() {
         beginEinkScreen();
 
         // DRAW APP
-        display.drawBitmap(0, 0, fileWizardallArray[0], 320, 218, GxEPD_BLACK);
+        drawThemeBackground("filewiz_0", fileWizardallArray[0]);
 
         // Update the backend array with the newest files
         updateRecentFilesList();
@@ -558,7 +558,7 @@ void einkHandler_FILEWIZ() {
         newState = false;
         beginEinkScreen();
         EINK().drawStatusBar("- " + PM_SDAUTO().getWorkingFile());
-        display.drawBitmap(0, 0, fileWizardallArray[1], 320, 218, GxEPD_BLACK);
+        drawThemeBackground("filewiz_1", fileWizardallArray[1]);
 
         EINK().refresh();
       }

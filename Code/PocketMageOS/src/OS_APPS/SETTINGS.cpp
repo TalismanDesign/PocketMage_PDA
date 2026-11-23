@@ -399,7 +399,7 @@ void einkHandler_SETTINGS() {
   if (newState) {
     newState = false;
     beginEinkScreen();
-    display.drawBitmap(0, 0, _settings, 320, 218, GxEPD_BLACK);
+    drawThemeBackground("settings", _settings);
 
     // Draw scrollbar vertically aligned to the left of the internal bounding box
     drawScrollbar(settingsList.size(), SETTINGS_ITEMS_PAGE, settingsScrollIndex, SETTINGS_BOX_X, SETTINGS_BOX_Y, SETTINGS_BOX_H, 4, false, GxEPD_BLACK, GxEPD_WHITE);

@@ -135,6 +135,10 @@ void processKB_APPLOADER();
 void einkHandler_APPLOADER();
 void loadAndDrawAppIcon(int x, int y, int slot, bool showName = true, int maxNameWidth = kGridLabelMaxW);
 
+// <THEME.cpp>
+void drawThemeBitmap(const String& name, int x, int y, const unsigned char* fallback, int w, int h);
+void drawThemeBackground(const String& name, const unsigned char* fallback);  // 320x218 app background
+
 // <TERMINAL.cpp>
 void processKB_TERMINAL();
 void einkHandler_TERMINAL();
