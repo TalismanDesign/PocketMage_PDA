@@ -11,6 +11,8 @@
     "includeDir": "../esp-iot-solution/components/audio/pwm_audio/include",
     "srcFilter": "+<pwm_audio.c>",
     "flags": [
+      "-I.",
+      "-include pwm_audio_alloc.h",
       "-DPWM_AUDIO_VER_MAJOR=1",
       "-DPWM_AUDIO_VER_MINOR=1",
       "-DPWM_AUDIO_VER_PATCH=2"

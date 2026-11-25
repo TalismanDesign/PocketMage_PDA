@@ -1,7 +1,7 @@
 name: Deploy GitHub Pages
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive        
+          submodules: recursive
 
       # Build everything
       - name: Use Node.js 20

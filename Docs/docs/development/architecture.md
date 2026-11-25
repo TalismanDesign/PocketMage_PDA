@@ -77,6 +77,31 @@ The OS keeps shared runtime state in `globals.h`: the active app, the home sub-s
 
 Files live on a microSD card, reached through the library's SD module (`PM_SD()`). The OS tracks a working file and an editing file for save/load flows, and installed ELF apps live in four slots under `/apps/slot1` through `/apps/slot4`, tracked in NVS as `ELFINFO1` through `ELFINFO4`.
 
+The SD gateway owns file I/O. Streams, directory cursors, and the snapshot are scoped to
+their calling task; app exit closes that task's resources after callbacks finish.
+The base ELF stream closes after relocation, and overlays use logical handles
+with short-lived reads. USB transfer claims exclusive card access only after
+audio and HID shutdown and a successful FAT unmount. The card is not unmounted
+or put to sleep while a directory is still open.
+
+Wi-Fi setup at boot does not create the Wi-Fi worker task or its 10,240-byte
+stack. The first `enable()` creates them, and `stop()` frees them again.
+
+## Shared audio and USB
+
+Native and ELF apps share the SDK's audio, media, drawing, and idle services.
+Generated C wrappers preserve the ABI 2 boundary; compatibility adapters retain
+legacy signatures. Metadata parsing, PCM gain/timing, and NVS audio preferences
+live in the SDK rather than in PocketMuse. USB and piezo audio each use an 8 KiB
+buffer, which holds a full 4,608-byte decoded MP3 frame.
+
+The connector has one owner: debug serial, audio host, keyboard host, or storage
+device. Serial is the default, including Piezo and unattached Auto audio use.
+Unsupported audio probes are bounded and suppressed until reattachment or an
+output-selection change. HID teardown joins workers and drains devices before
+releasing the PHY. Failed teardown retains ownership for retry. Transfer mode
+and deep sleep both require checked audio/HID shutdown.
+
 ## How apps run
 
 Native and ELF apps share the three-function shape; they differ only in where the code ships and how it is loaded.
@@ -97,6 +122,7 @@ sequenceDiagram
     RN->>APP: start 16 KB task, run entry
     Note over OS,APP: OS loop and E-Ink task stand down
     APP-->>RN: entry returns
+    RN->>APP: stop audio, run finalizers and exit hooks, close task SD resources
     RN->>OV: unload overlay
     RN->>OS: reopen HOME
 ```
