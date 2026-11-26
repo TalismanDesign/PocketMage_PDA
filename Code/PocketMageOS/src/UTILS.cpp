@@ -4,6 +4,8 @@
 static constexpr const char* TAG = "UTILS";
 
 void pocketmage::checkIdleSleep() {
+  pocketmage::maintainDebugConsoleCpuSpeed();
+
   bool inhibited = !SAVE_POWER || disableTimeout || noTimeout ||
                    pm_sd_gateway::streamsOpen() || CurrentAppState == USB_APP ||
                    P_AUDIO.usbConnected() || P_AUDIO.getState() != AudioState::Idle;
