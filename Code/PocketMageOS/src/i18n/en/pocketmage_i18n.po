@@ -284,9 +284,9 @@ msgctxt "STR_SETTINGS_NAME_FAST_REFRESH"
 msgid "Fast Refresh (Unstable!)"
 msgstr "Fast Refresh (Unstable!)"
 
-msgctxt "STR_SETTINGS_NAME_DEBUG"
-msgid "Debug Verbose"
-msgstr "Debug Verbose"
+msgctxt "STR_SETTINGS_NAME_LOG_FILE"
+msgid "Log to File"
+msgstr "Log to File"
 
 msgctxt "STR_SETTINGS_NAME_HOME_BOOT"
 msgid "Home on Boot"
@@ -387,6 +387,34 @@ msgstr "Please type 'sdreset' in home"
 msgctxt "STR_USB_CONNECT"
 msgid "Connect to a Computer:"
 msgstr "Connect to a Computer:"
+
+msgctxt "STR_USB_WAITING"
+msgid "USB: waiting for computer"
+msgstr "USB: waiting for computer"
+
+msgctxt "STR_USB_CONNECTED"
+msgid "USB connected"
+msgstr "USB connected"
+
+msgctxt "STR_USB_SUSPENDED"
+msgid "USB suspended"
+msgstr "USB suspended"
+
+msgctxt "STR_USB_EJECTED"
+msgid "USB ejected: exit to restart"
+msgstr "USB ejected: exit to restart"
+
+msgctxt "STR_USB_CARD_BUSY"
+msgid "SD unavailable or busy"
+msgstr "SD unavailable or busy"
+
+msgctxt "STR_USB_MSC_FAIL"
+msgid "USB storage init failed"
+msgstr "USB storage init failed"
+
+msgctxt "STR_USB_DEVICE_FAIL"
+msgid "USB device init failed"
+msgstr "USB device init failed"
 
 msgctxt "STR_CAL_TYPE_A_DATE"
 msgid " | Type a Date:"
@@ -1268,3 +1296,15 @@ msgstr "Clock:"
 msgctxt "STR_ONBOARD_SKIPPED"
 msgid "Skipped"
 msgstr "Skipped"
+
+msgctxt "STR_COMM_INIT_FAILED"
+msgid "Chat unavailable"
+msgstr "Chat unavailable"
+
+msgctxt "STR_TXT_FILE_TOO_LARGE"
+msgid "FILE TOO LARGE"
+msgstr "FILE TOO LARGE"
+
+msgctxt "STR_TXT_MEMORY_FULL"
+msgid "MEMORY FULL"
+msgstr "MEMORY FULL"

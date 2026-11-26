@@ -1,0 +1,7 @@
+{
+  "search.exclude": {
+    "Code/PocketMageOS/lib/*": true,
+    "!Code/PocketMageOS/lib/PocketMage_SDK": true,
+    "!Code/PocketMageOS/lib/lib_readme.md": true
+  }
+}

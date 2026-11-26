@@ -16,7 +16,10 @@
       "-I../esp-adf-libs/esp_audio_codec/include/simple_dec",
       "-DCONFIG_AUDIO_DECODER_MP3_SUPPORT=1",
       "-DCONFIG_AUDIO_DECODER_PCM_SUPPORT=1",
-      "-DCONFIG_AUDIO_SIMPLE_DEC_WAV_SUPPORT=1"
+      "-DCONFIG_AUDIO_DECODER_VORBIS_SUPPORT=1",
+      "-DCONFIG_AUDIO_DECODER_OPUS_SUPPORT=1",
+      "-DCONFIG_AUDIO_SIMPLE_DEC_WAV_SUPPORT=1",
+      "-DCONFIG_AUDIO_SIMPLE_DEC_OGG_SUPPORT=1"
     ],
     "extraScript": "link_prebuilt.py"
   }

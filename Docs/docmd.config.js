@@ -117,6 +117,7 @@ export default {
       path: "/development/build-environments",
       children: [
         { title: "Build Environments", path: "/development/build-environments", icon: "settings" },
+        { title: "Crash logs", path: "/development/crash-logs", icon: "file-text" },
       ],
     },
     {

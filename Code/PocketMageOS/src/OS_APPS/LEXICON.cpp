@@ -1,6 +1,9 @@
-// AUDIT 1
 
 #include <globals.h>
+#include <pocketmage_sd/pocketmage_sd.h>
+
+#include <cstring>
+
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 enum LexState { MENU, DEF };
 LexState CurrentLexState = MENU;
@@ -80,13 +83,14 @@ void LEXICON_INIT() {
   // Verify that dict is installed
   pocketmage::setCpuSpeed(240);
   delay(50);
-  if (!global_fs->exists("/dict/A.txt")) {
-    OLED().sysMessage(TR(STR_LEX_INSTALL_DICT),5000);
+  if (!PM_SD().exists("/dict/A.txt")) {
+    OLED().sysMessage(TR(STR_LEX_INSTALL_DICT), 5000);
     pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
     HOME_INIT();
     return;
   }
-  if (SAVE_POWER) pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
+  if (SAVE_POWER)
+    pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
 }
 
 void loadDefinitions(String input) {
@@ -118,10 +122,9 @@ void loadDefinitions(String input) {
   }
 
   String filePath = "/dict/" + String((char)toupper(firstChar)) + ".txt";
-
-  File file = global_fs->open(filePath);
-  if (!file) {
-    OLED().sysMessage(TR(STR_LEX_MISSING),2000);
+  int slot = PM_SD().streamOpen(filePath.c_str(), 'r');
+  if (slot < 0) {
+    OLED().sysMessage(TR(STR_LEX_MISSING), 2000);
     PM_SDAUTO().endIO();
     if (SAVE_POWER)
       pocketmage::setCpuSpeed(POWER_SAVE_FREQ);
@@ -130,43 +133,82 @@ void loadDefinitions(String input) {
 
   word.toLowerCase();
 
+  // Stream the letter file in bounded chunks.  The old whole-file String failed
+  // once the heap fragmented; one small buffer works regardless of file size.
+  // Entries are alphabetically sorted, so scanning stops once we pass the word.
+  constexpr size_t kChunkSize = 1024;
+  char chunk[kChunkSize];
+  String line;
+  bool done = false;
   int lineScanCount = 0;
 
-  while (file.available()) {
-
-    if (++lineScanCount % 100 == 0) yield(); 
-
-    String line = file.readStringUntil('\n');
-    line.trim();
-    if (line.length() == 0)
-      continue;
-
-    int defSplit = line.indexOf(')');
-    if (defSplit == -1)
-      continue;
-
-    // Extract key and definition
-    String key = line.substring(0, defSplit + 1);
-    String def = line.substring(defSplit + 1);
-    def.trim();
-
-    String keyLower = key;
-    keyLower.toLowerCase();
-
-    if (keyLower.startsWith(word)) {
-      defList.push_back({key, def});
-    } else if (!defList.empty()) {
-      // No more definitions for this word (Dictionary is alphabetically sorted)
+  while (!done) {
+    const size_t n = PM_SD().streamRead(slot, chunk, sizeof(chunk));
+    if (n == 0)
       break;
+
+    size_t pos = 0;
+    while (pos < n && !done) {
+      const char *start = chunk + pos;
+      const char *nl = static_cast<const char *>(memchr(start, '\n', n - pos));
+      const size_t segLen = nl ? static_cast<size_t>(nl - start) : (n - pos);
+
+      line += String(start, segLen);
+      pos += segLen + (nl ? 1 : 0);
+
+      // Without a newline the line continues in the next chunk.
+      if (!nl)
+        break;
+
+      line.trim();
+      if (++lineScanCount % 100 == 0)
+        yield();
+
+      if (line.length() > 0) {
+        const int defSplit = line.indexOf(')');
+        if (defSplit != -1) {
+          String key = line.substring(0, defSplit + 1);
+          String keyLower = key;
+          keyLower.toLowerCase();
+
+          if (keyLower.startsWith(word)) {
+            String def = line.substring(defSplit + 1);
+            def.trim();
+            defList.push_back({key, def});
+          } else if (!defList.empty()) {
+            done = true;  // past the query; entries are sorted
+          }
+        }
+      }
+      line.remove(0);
     }
   }
 
-  file.close();
+  // Handle a final line without a trailing newline.
+  if (!done && line.length() > 0) {
+    line.trim();
+    const int defSplit = line.indexOf(')');
+    if (defSplit != -1) {
+      String key = line.substring(0, defSplit + 1);
+      String keyLower = key;
+      keyLower.toLowerCase();
+      if (keyLower.startsWith(word)) {
+        String def = line.substring(defSplit + 1);
+        def.trim();
+        defList.push_back({key, def});
+      }
+    }
+  }
+
+  PM_SD().streamClose(slot);
+
+  if (!defList.empty())
+    EINK().setFullRefreshAfter(FULL_REFRESH_AFTER);
 
   if (defList.empty()) {
-    OLED().sysMessage(TR(STR_LEX_NONE),2000);    
+    OLED().sysMessage(TR(STR_LEX_NONE), 2000);
 
-    CurrentLexState = MENU; 
+    CurrentLexState = MENU;
     newState = true;
 
   } else {
@@ -198,9 +240,12 @@ void processKB_LEXICON() {
     case MENU:
       KB().setKeyboardState(NORMAL);
       command = textPrompt();
-      if (command == "_RETURN_") return;
-      else if (command != "_EXIT_") loadDefinitions(command);
-      else HOME_INIT();
+      if (command == "_RETURN_")
+        return;
+      else if (command != "_EXIT_")
+        loadDefinitions(command);
+      else
+        HOME_INIT();
       break;
 
     case DEF:
@@ -215,7 +260,7 @@ void processKB_LEXICON() {
           loadDefinitions(currentLine);
           currentLine = "";
           cursor_pos = 0;
-        }                                       
+        }
         // SHIFT Recieved
         else if (inchar == 17) {
           KB().toggleShift();
@@ -229,7 +274,7 @@ void processKB_LEXICON() {
           if (currentLine.length() > 0 && cursor_pos != 0) {
             if (cursor_pos == currentLine.length()) {
               currentLine.remove(currentLine.length() - 1, 1);
-            } else { 
+            } else {
               currentLine.remove(cursor_pos - 1, 1);
             }
             cursor_pos--;
@@ -279,8 +324,8 @@ void processKB_LEXICON() {
           KB().setKeyboardState(NORMAL);
         }
         // FN+LEFT
-        else if (inchar == 12 ) {
-           HOME_INIT();
+        else if (inchar == 12) {
+          HOME_INIT();
         }
         // FN+RIGHT
         else if (inchar == 6) {
@@ -295,9 +340,8 @@ void processKB_LEXICON() {
         // TAB, SHIFT+TAB / FN+TAB, FN+SHIFT+TAB
         else if (inchar == 9 || inchar == 14) {
           KB().setKeyboardState(NORMAL);
-        }
-        else {
-          //split line at cursor_pos
+        } else {
+          // split line at cursor_pos
           if (cursor_pos == 0) {
             currentLine = inchar + currentLine;
           } else if (cursor_pos == currentLine.length()) {
@@ -327,11 +371,11 @@ void processKB_LEXICON() {
 }
 
 // Layout constants
-constexpr int LEX_MARGIN        = 8;    // left/right margin
-constexpr int LEX_WORD_X        = 12;   // word x
-constexpr int LEX_WORD_Y        = 50;   // word baseline
-constexpr int LEX_DEF_Y0        = 87;   // first definition-line baseline
-constexpr int LEX_LINE_HEIGHT   = 20;   // definition line pitch
+constexpr int LEX_MARGIN = 8;        // left/right margin
+constexpr int LEX_WORD_X = 12;       // word x
+constexpr int LEX_WORD_Y = 50;       // word baseline
+constexpr int LEX_DEF_Y0 = 87;       // first definition-line baseline
+constexpr int LEX_LINE_HEIGHT = 20;  // definition line pitch
 
 void einkHandler_LEXICON() {
   switch (CurrentLexState) {
@@ -344,21 +388,22 @@ void einkHandler_LEXICON() {
         endEinkScreen(TR(STR_LEX_TYPE_WORD));
       }
       break;
-      
+
     case DEF:
       if (newState) {
         newState = false;
-        
+
         beginEinkScreen();
 
         display.drawBitmap(0, 0, _lex1, 320, 218, GxEPD_BLACK);
         u8g2f.setForegroundColor(GxEPD_BLACK);
 
         // Draw Word
-        FontEngine::drawText(DisplayTarget::EINK, LEX_WORD_X, LEX_WORD_Y, defList[definitionIndex].first, FontStyle::Body);
+        FontEngine::drawText(DisplayTarget::EINK, LEX_WORD_X, LEX_WORD_Y,
+                             defList[definitionIndex].first, FontStyle::Body);
 
         // Draw Definition with Word Wrap
-        
+
         String defText = defList[definitionIndex].second;
         int maxW = kEinkWidth - (2 * LEX_MARGIN);
         int cursorY = LEX_DEF_Y0;

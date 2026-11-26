@@ -284,9 +284,9 @@ msgctxt "STR_SETTINGS_NAME_FAST_REFRESH"
 msgid "Fast Refresh (Unstable!)"
 msgstr "Schnell-Refresh (Instabil)"
 
-msgctxt "STR_SETTINGS_NAME_DEBUG"
-msgid "Debug Verbose"
-msgstr "Ausführliches Debugging"
+msgctxt "STR_SETTINGS_NAME_LOG_FILE"
+msgid "Log to File"
+msgstr "Protokoll in Datei"
 
 msgctxt "STR_SETTINGS_NAME_HOME_BOOT"
 msgid "Home on Boot"
@@ -387,6 +387,34 @@ msgstr "Bitte 'sdreset' im Home-Menü eingeben"
 msgctxt "STR_USB_CONNECT"
 msgid "Connect to a Computer:"
 msgstr "Mit Computer verbinden:"
+
+msgctxt "STR_USB_WAITING"
+msgid "USB: waiting for computer"
+msgstr "USB: Warten auf Computer"
+
+msgctxt "STR_USB_CONNECTED"
+msgid "USB connected"
+msgstr "USB verbunden"
+
+msgctxt "STR_USB_SUSPENDED"
+msgid "USB suspended"
+msgstr "USB im Ruhezustand"
+
+msgctxt "STR_USB_EJECTED"
+msgid "USB ejected: exit to restart"
+msgstr "USB ausgeworfen: Beenden für Neustart"
+
+msgctxt "STR_USB_CARD_BUSY"
+msgid "SD unavailable or busy"
+msgstr "SD fehlt oder ist belegt"
+
+msgctxt "STR_USB_MSC_FAIL"
+msgid "USB storage init failed"
+msgstr "USB-Speicherstart fehlgeschlagen"
+
+msgctxt "STR_USB_DEVICE_FAIL"
+msgid "USB device init failed"
+msgstr "USB-Gerätestart fehlgeschlagen"
 
 msgctxt "STR_CAL_TYPE_A_DATE"
 msgid " | Type a Date:"
@@ -1267,3 +1295,15 @@ msgstr "Uhr:"
 msgctxt "STR_ONBOARD_SKIPPED"
 msgid "Skipped"
 msgstr "Übersprungen"
+
+msgctxt "STR_COMM_INIT_FAILED"
+msgid "Chat unavailable"
+msgstr "Chat nicht verfügbar"
+
+msgctxt "STR_TXT_FILE_TOO_LARGE"
+msgid "FILE TOO LARGE"
+msgstr "DATEI ZU GROSS"
+
+msgctxt "STR_TXT_MEMORY_FULL"
+msgid "MEMORY FULL"
+msgstr "SPEICHER VOLL"
