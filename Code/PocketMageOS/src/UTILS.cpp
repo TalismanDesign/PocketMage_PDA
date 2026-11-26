@@ -88,9 +88,10 @@ void checkTimeout() {
       // Shutdown Jingle
       BZ().playJingle(Jingles::Shutdown);
 
-      // Clear screen
+      EINK().lockPanel();
       display.setFullWindow();
       display.fillScreen(GxEPD_WHITE);
+      EINK().unlockPanel();
 
     } else {
       switch (CurrentAppState) {
@@ -148,8 +149,10 @@ void wakeFromNowlater(char bootKey) {
   if (deviceLocked)
     return;
 
+  EINK().lockPanel();
   display.fillScreen(GxEPD_WHITE);
   EINK().refresh();
+  EINK().unlockPanel();
   delay(200);
 }
 

@@ -27,10 +27,12 @@ TXTState_NEW CurrentTXTState_NEW = TXT_;
 #pragma region Fonts
 
 // --- UTF-8 Decoding System ---
-inline uint16_t decodeUTF8(const char* str, uint16_t* index, uint16_t len) {
+// Decodes one scalar and advances *index past the whole sequence so cursor
+// movement and backspace never split a multi-byte glyph.
+inline uint32_t decodeUTF8(const char* str, uint16_t* index, uint16_t len) {
   if (*index >= len)
     return 0;
-  uint8_t c = str[*index];
+  uint8_t c = static_cast<uint8_t>(str[*index]);
   (*index)++;
 
   if (c < 0x80)
@@ -38,20 +40,85 @@ inline uint16_t decodeUTF8(const char* str, uint16_t* index, uint16_t len) {
   if ((c & 0xE0) == 0xC0) {  // 2-byte sequence
     if (*index >= len)
       return c;  // Incomplete, fallback safely
-    uint8_t c2 = str[*index];
+    uint8_t c2 = static_cast<uint8_t>(str[*index]);
     (*index)++;
-    return ((c & 0x1F) << 6) | (c2 & 0x3F);
+    return ((static_cast<uint32_t>(c & 0x1F) << 6) | (c2 & 0x3F));
   }
   if ((c & 0xF0) == 0xE0) {  // 3-byte sequence
     if (*index + 1 >= len)
       return c;
-    uint8_t c2 = str[*index];
+    uint8_t c2 = static_cast<uint8_t>(str[*index]);
     (*index)++;
-    uint8_t c3 = str[*index];
+    uint8_t c3 = static_cast<uint8_t>(str[*index]);
     (*index)++;
-    return ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+    return ((static_cast<uint32_t>(c & 0x0F) << 12) | (static_cast<uint32_t>(c2 & 0x3F) << 6) |
+            (c3 & 0x3F));
   }
-  return c;  // Fallback
+  if ((c & 0xF8) == 0xF0) {  // 4-byte sequence (emoji, rare CJK ext)
+    if (*index + 2 >= len)
+      return c;
+    uint8_t c2 = static_cast<uint8_t>(str[*index]);
+    (*index)++;
+    uint8_t c3 = static_cast<uint8_t>(str[*index]);
+    (*index)++;
+    uint8_t c4 = static_cast<uint8_t>(str[*index]);
+    (*index)++;
+    return ((static_cast<uint32_t>(c & 0x07) << 18) | (static_cast<uint32_t>(c2 & 0x3F) << 12) |
+            (static_cast<uint32_t>(c3 & 0x3F) << 6) | (c4 & 0x3F));
+  }
+  return c;  // Invalid lead byte: expose it so a bad byte is visible.
+}
+
+// The txt font API is uint16_t/BMP only. Supplementary scalars advance the
+// cursor correctly but render as the replacement character.
+inline uint16_t renderableCodepoint(uint32_t unicode) {
+  return unicode > 0xFFFF ? 0xFFFD : static_cast<uint16_t>(unicode);
+}
+
+struct StarRun {
+  uint8_t count;   // 1, 2 or 3 stars
+  uint16_t end;    // index just past the opening run
+  bool paired;     // a matching run exists on either side in the line
+};
+
+// A star run is markup only when another run of the same length exists on
+// either side. Lone runs stay literal so an asterisk can be typed as text.
+inline StarRun scanStarRun(const char* text, uint16_t len, uint16_t start) {
+  StarRun run{0, start, false};
+  uint16_t i = start;
+  while (i < len && text[i] == '*' && run.count < 3) {
+    run.count++;
+    i++;
+  }
+  run.end = i;
+
+  for (uint16_t j = 0; j < len && !run.paired;) {
+    if (text[j] != '*') {
+      j++;
+      continue;
+    }
+    uint8_t candidate = 0;
+    while (j < len && text[j] == '*' && candidate < 3) {
+      candidate++;
+      j++;
+    }
+    if (candidate == run.count && j != run.end)
+      run.paired = true;
+  }
+  return run;
+}
+
+inline void applyStarVariant(StarRun run, bool& bold, bool& italic) {
+  if (!run.paired)
+    return;
+  if (run.count == 1)
+    italic = !italic;
+  else if (run.count == 2)
+    bold = !bold;
+  else {
+    bold = !bold;
+    italic = !italic;
+  }
 }
 
 // Font setup
@@ -102,6 +169,7 @@ TxtSpec fontSpec(char style, uint8_t variant) {
 static bool updateScreen = false;
 static ulong currentLineNum = 0;
 static ulong topVisibleLine = 0;
+static bool documentLoadTruncated = false;
 
 #if BOARD_HAS_PSRAM
 #define MAX_LINES 4000
@@ -133,7 +201,7 @@ struct Document {
 };
 
 Document* doc_ptr = nullptr;
-#define document (*doc_ptr)
+#define txtDoc (*doc_ptr)
 
 void initLine(Line& line) {
   line.type = ' ';
@@ -141,12 +209,13 @@ void initLine(Line& line) {
   line.text[0] = '\0';
 }
 
-void initDocMemory() {
+bool initDocMemory() {
   if (doc_ptr == nullptr) {
 #if BOARD_HAS_PSRAM
     doc_ptr = (Document*)ps_malloc(sizeof(Document));
-    PM_LOGI(TAG, "Allocated document memory in PSRAM");
-    if (doc_ptr == nullptr) {
+    if (doc_ptr != nullptr) {
+      PM_LOGI(TAG, "Allocated document memory in PSRAM");
+    } else {
       PM_LOGW(TAG, "Fallback to normal RAM");
       doc_ptr = (Document*)malloc(sizeof(Document));
     }
@@ -163,6 +232,7 @@ void initDocMemory() {
       PM_LOGE(TAG, "FATAL: Failed to allocate memory for TXT Document!");
     }
   }
+  return doc_ptr != nullptr;
 }
 
 #pragma region Editor Helpers
@@ -174,20 +244,20 @@ uint16_t getLineMaxHeight(Line& line) {
   if (line.type == ' ')
     return 0;
 
-  for (uint16_t i = 0; i < line.len; i++) {
+  for (uint16_t i = 0; i < line.len;) {
     if (line.text[i] == '*') {
-      if (i == 0 || line.text[i - 1] != '*') {
-        uint8_t starCount = 0;
-        while (i + starCount < line.len && line.text[i + starCount] == '*' && starCount < 3) {
-          starCount++;
-        }
-        if (starCount == 1)
+      StarRun run = scanStarRun(line.text, line.len, i);
+      if (run.paired) {
+        if (run.count == 1)
           italicExists = true;
-        else if (starCount == 2)
+        else if (run.count == 2)
           boldExists = true;
-        else if (starCount == 3)
+        else
           boldItalicExists = true;
       }
+      i = run.end;
+    } else {
+      i++;
     }
   }
 
@@ -268,28 +338,15 @@ int drawLineEink(Document& doc, ulong lineIndex, int startX, int startY, bool is
       break;
 
     // Decode UTF-8 string into Unicode Code Point (Advances i automatically)
-    uint16_t unicode = decodeUTF8(line.text, &i, line.len);
+    uint32_t unicode = decodeUTF8(line.text, &i, line.len);
 
     if (unicode == '*') {
-      // Toggle formatting
-      int starCount = 1;
-      while (i < line.len && line.text[i] == '*' && starCount < 3) {
-        starCount++;
-        i++;
+      StarRun run = scanStarRun(line.text, line.len, static_cast<uint16_t>(i - 1));
+      applyStarVariant(run, bold, italic);
+      if (run.paired) {
+        i = run.end;
+        continue;
       }
-      switch (starCount) {
-        case 1:
-          italic = !italic;
-          break;
-        case 2:
-          bold = !bold;
-          break;
-        case 3:
-          bold = !bold;
-          italic = !italic;
-          break;
-      }
-      continue;
     }
 
     if (unicode == '`') {
@@ -298,11 +355,11 @@ int drawLineEink(Document& doc, ulong lineIndex, int startX, int startY, bool is
     }
 
     TxtSpec spec = fontSpec(inlineCode ? 'C' : style, txtVariant(bold, italic));
-    FontEngine::drawGlyphTxt(DisplayTarget::EINK, xpos, baselineY, unicode, spec.family, spec.size,
-                             spec.variant);
+    FontEngine::drawGlyphTxt(DisplayTarget::EINK, xpos, baselineY, renderableCodepoint(unicode),
+                             spec.family, spec.size, spec.variant);
 
-    xpos += FontEngine::charWidthTxt(DisplayTarget::EINK, unicode, spec.family, spec.size,
-                                     spec.variant);
+    xpos += FontEngine::charWidthTxt(DisplayTarget::EINK, renderableCodepoint(unicode), spec.family,
+                                     spec.size, spec.variant);
   }
 
   // ---------- Post-Render Formatting ---------- //
@@ -350,39 +407,42 @@ int drawLineEink(Document& doc, ulong lineIndex, int startX, int startY, bool is
   return hpx;
 }
 
-void insertLineArray(ulong index) {
-  if (document.lineCount >= MAX_LINES)
-    return;
-  if (index < document.lineCount) {
-    memmove(&document.lines[index + 1], &document.lines[index],
-            sizeof(Line) * (document.lineCount - index));
+bool insertLineArray(ulong index) {
+  if (txtDoc.lineCount >= MAX_LINES)
+    return false;
+  if (index > txtDoc.lineCount)
+    index = txtDoc.lineCount;
+  if (index < txtDoc.lineCount) {
+    memmove(&txtDoc.lines[index + 1], &txtDoc.lines[index],
+            sizeof(Line) * (txtDoc.lineCount - index));
   }
-  initLine(document.lines[index]);
-  document.lineCount++;
+  initLine(txtDoc.lines[index]);
+  txtDoc.lineCount++;
+  return true;
 }
 
 void deleteLineArray(ulong index) {
-  if (index >= document.lineCount)
+  if (index >= txtDoc.lineCount)
     return;
-  if (index < document.lineCount - 1) {
-    memmove(&document.lines[index], &document.lines[index + 1],
-            sizeof(Line) * (document.lineCount - index - 1));
+  if (index < txtDoc.lineCount - 1) {
+    memmove(&txtDoc.lines[index], &txtDoc.lines[index + 1],
+            sizeof(Line) * (txtDoc.lineCount - index - 1));
   }
-  document.lineCount--;
+  txtDoc.lineCount--;
 }
 
 void deleteLinesMultiple(ulong index, int count) {
-  if (count <= 0 || index >= document.lineCount)
+  if (count <= 0 || index >= txtDoc.lineCount)
     return;
   int actualCount = count;
-  if (index + count > document.lineCount) {
-    actualCount = document.lineCount - index;
+  if (index + count > txtDoc.lineCount) {
+    actualCount = txtDoc.lineCount - index;
   }
-  if (index + actualCount < document.lineCount) {
-    memmove(&document.lines[index], &document.lines[index + actualCount],
-            sizeof(Line) * (document.lineCount - index - actualCount));
+  if (index + actualCount < txtDoc.lineCount) {
+    memmove(&txtDoc.lines[index], &txtDoc.lines[index + actualCount],
+            sizeof(Line) * (txtDoc.lineCount - index - actualCount));
   }
-  document.lineCount -= actualCount;
+  txtDoc.lineCount -= actualCount;
 }
 
 int getLineEinkWidth(Line& line) {
@@ -404,28 +464,16 @@ int getLineEinkWidth(Line& line) {
   uint16_t i = 0;
 
   while (i < line.len) {
-    uint16_t unicode = decodeUTF8(line.text, &i, line.len);
+    uint32_t unicode = decodeUTF8(line.text, &i, line.len);
 
-    // Handle inline formatting toggles (stars have 0 visual width)
+    // Paired runs are markup with no visual width; lone stars are measured.
     if (unicode == '*') {
-      int starCount = 1;
-      while (i < line.len && line.text[i] == '*' && starCount < 3) {
-        starCount++;
-        i++;
+      StarRun run = scanStarRun(line.text, line.len, static_cast<uint16_t>(i - 1));
+      applyStarVariant(run, bold, italic);
+      if (run.paired) {
+        i = run.end;
+        continue;
       }
-      switch (starCount) {
-        case 1:
-          italic = !italic;
-          break;
-        case 2:
-          bold = !bold;
-          break;
-        case 3:
-          bold = !bold;
-          italic = !italic;
-          break;
-      }
-      continue;
     }
 
     if (unicode == '`') {
@@ -435,8 +483,8 @@ int getLineEinkWidth(Line& line) {
 
     // Resolve the active font and measure glyph width
     TxtSpec spec = fontSpec(inlineCode ? 'C' : style, txtVariant(bold, italic));
-    width += FontEngine::charWidthTxt(DisplayTarget::EINK, unicode, spec.family, spec.size,
-                                      spec.variant);
+    width += FontEngine::charWidthTxt(DisplayTarget::EINK, renderableCodepoint(unicode), spec.family,
+                                      spec.size, spec.variant);
   }
 
   // 3. Account for the structural right-side padding (Code blocks have right-side borders)
@@ -467,30 +515,19 @@ int findWrapIndex(const String& content, int startIndex, char style) {
   uint16_t i = 0;
   while (i < maxLen) {
     uint16_t charStart = i;
-    uint16_t unicode = decodeUTF8(content.c_str() + startIndex, &i, maxLen);
+    uint32_t unicode = decodeUTF8(content.c_str() + startIndex, &i, maxLen);
 
     if (unicode == ' ')
       lastSpaceIndex = charStart;
 
     if (unicode == '*') {
-      uint8_t starCount = 1;
-      while (i < maxLen && content[startIndex + i] == '*' && starCount < 3) {
-        starCount++;
-        i++;
+      uint16_t absStart = static_cast<uint16_t>(startIndex + i - 1);
+      StarRun run = scanStarRun(content.c_str(), static_cast<uint16_t>(content.length()), absStart);
+      applyStarVariant(run, bold, italic);
+      if (run.paired) {
+        i = static_cast<uint16_t>(run.end - startIndex);
+        continue;
       }
-      switch (starCount) {
-        case 1:
-          italic = !italic;
-          break;
-        case 2:
-          bold = !bold;
-          break;
-        case 3:
-          bold = !bold;
-          italic = !italic;
-          break;
-      }
-      continue;
     }
 
     if (unicode == '`') {
@@ -499,8 +536,8 @@ int findWrapIndex(const String& content, int startIndex, char style) {
     }
 
     TxtSpec spec = fontSpec(inlineCode ? 'C' : style, txtVariant(bold, italic));
-    currentWidth += FontEngine::charWidthTxt(DisplayTarget::EINK, unicode, spec.family, spec.size,
-                                             spec.variant);
+    currentWidth += FontEngine::charWidthTxt(DisplayTarget::EINK, renderableCodepoint(unicode),
+                                             spec.family, spec.size, spec.variant);
 
     if (currentWidth > availableWidth) {
       if (lastSpaceIndex > 0)
@@ -516,7 +553,7 @@ int findWrapIndex(const String& content, int startIndex, char style) {
 }
 
 ulong reflowParagraphCore(ulong startLine, uint16_t* cursorRef) {
-  char baseStyle = document.lines[startLine].type;
+  char baseStyle = txtDoc.lines[startLine].type;
   char contStyle = baseStyle;
 
   if (baseStyle == 'U' || baseStyle == 'u')
@@ -526,13 +563,13 @@ ulong reflowParagraphCore(ulong startLine, uint16_t* cursorRef) {
 
   String fullText;
   fullText.reserve(512);
-  fullText = document.lines[startLine].text;
+  fullText = txtDoc.lines[startLine].text;
 
   ulong endLine = startLine + 1;
-  while (endLine < document.lineCount && document.lines[endLine].type == contStyle) {
-    if (document.lines[endLine].len > 0) {
+  while (endLine < txtDoc.lineCount && txtDoc.lines[endLine].type == contStyle) {
+    if (txtDoc.lines[endLine].len > 0) {
       fullText += " ";
-      fullText += document.lines[endLine].text;
+      fullText += txtDoc.lines[endLine].text;
     }
     endLine++;
   }
@@ -543,7 +580,7 @@ ulong reflowParagraphCore(ulong startLine, uint16_t* cursorRef) {
   int textIndex = 0;
   int textLen = fullText.length();
 
-  while (textIndex < textLen) {
+  while (textIndex < textLen && currWriteIdx < MAX_LINES) {
     char currentStyle = (currWriteIdx == startLine) ? baseStyle : contStyle;
 
     int wrapLen = findWrapIndex(fullText, textIndex, currentStyle);
@@ -552,11 +589,12 @@ ulong reflowParagraphCore(ulong startLine, uint16_t* cursorRef) {
     textIndex += wrapLen;
 
     if (currWriteIdx >= endLine) {
-      insertLineArray(currWriteIdx);
+      if (!insertLineArray(currWriteIdx))
+        break;
       endLine++;
     }
 
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = currentStyle;
     strncpy(writeLine.text, chunk.c_str(), LINE_CAP);
     writeLine.text[LINE_CAP] = '\0';
@@ -581,16 +619,15 @@ ulong reflowParagraphCore(ulong startLine, uint16_t* cursorRef) {
     currWriteIdx++;
   }
 
-  if (absoluteCursor != -1) {
+  if (absoluteCursor != -1 && currWriteIdx < MAX_LINES) {
     char currentStyle = (currWriteIdx == startLine) ? baseStyle : contStyle;
 
-    if (currWriteIdx >= document.lineCount || currWriteIdx >= endLine) {
-      insertLineArray(currWriteIdx);
-      if (currWriteIdx >= endLine)
+    if (currWriteIdx >= txtDoc.lineCount || currWriteIdx >= endLine) {
+      if (insertLineArray(currWriteIdx) && currWriteIdx >= endLine)
         endLine++;
     }
 
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = currentStyle;
     writeLine.text[0] = '\0';
     writeLine.len = 0;
@@ -617,15 +654,15 @@ void reflowParagraph(ulong startLine, uint16_t& activeCursor) {
 // lines left over from a wider font are dropped. The edit cursor is pinned to
 // its original line/column, clamped to the new layout.
 void reflowAllLines(ulong& currLine, uint16_t& cursor) {
-  if (document.lineCount == 0)
+  if (txtDoc.lineCount == 0)
     return;
 
   ulong savedLine = currLine;
   uint16_t savedCursor = cursor;
 
   ulong i = 0;
-  while (i < document.lineCount) {
-    char type = document.lines[i].type;
+  while (i < txtDoc.lineCount) {
+    char type = txtDoc.lines[i].type;
     // Blank lines and horizontal rules carry no re-flowable text.
     if (type == ' ' || type == 'B' || type == 'H') {
       i++;
@@ -635,18 +672,18 @@ void reflowAllLines(ulong& currLine, uint16_t& cursor) {
   }
 
   currLine = savedLine;
-  if (currLine >= document.lineCount)
-    currLine = document.lineCount - 1;
+  if (currLine >= txtDoc.lineCount)
+    currLine = txtDoc.lineCount - 1;
   cursor = savedCursor;
-  if (cursor > document.lines[currLine].len)
-    cursor = document.lines[currLine].len;
+  if (cursor > txtDoc.lines[currLine].len)
+    cursor = txtDoc.lines[currLine].len;
 }
 
 void mergeLinesUp(ulong currLine, uint16_t& cursor) {
   if (currLine == 0)
     return;
   ulong prevLine = currLine - 1;
-  char pType = document.lines[prevLine].type;
+  char pType = txtDoc.lines[prevLine].type;
 
   if (pType == 'B' || pType == 'H') {
     deleteLineArray(prevLine);
@@ -663,11 +700,11 @@ void mergeLinesUp(ulong currLine, uint16_t& cursor) {
 
   String fullText;
   fullText.reserve(512);
-  fullText = document.lines[prevLine].text;
+  fullText = txtDoc.lines[prevLine].text;
   cursor = fullText.length();
-  fullText += document.lines[currLine].text;
+  fullText += txtDoc.lines[currLine].text;
 
-  char currBase = document.lines[currLine].type;
+  char currBase = txtDoc.lines[currLine].type;
   char currContStyle = currBase;
   if (currBase == 'U' || currBase == 'u')
     currContStyle = 'u';
@@ -675,10 +712,10 @@ void mergeLinesUp(ulong currLine, uint16_t& cursor) {
     currContStyle = 'o';
 
   ulong endLine = currLine + 1;
-  while (endLine < document.lineCount && document.lines[endLine].type == currContStyle) {
-    if (document.lines[endLine].len > 0) {
+  while (endLine < txtDoc.lineCount && txtDoc.lines[endLine].type == currContStyle) {
+    if (txtDoc.lines[endLine].len > 0) {
       fullText += " ";
-      fullText += document.lines[endLine].text;
+      fullText += txtDoc.lines[endLine].text;
     }
     endLine++;
   }
@@ -691,18 +728,19 @@ void mergeLinesUp(ulong currLine, uint16_t& cursor) {
   int textIndex = 0;
   int textLen = fullText.length();
 
-  while (textIndex < textLen) {
+  while (textIndex < textLen && currWriteIdx < MAX_LINES) {
     char currentStyle = (currWriteIdx == prevLine) ? pType : contStyle;
     int wrapLen = findWrapIndex(fullText, textIndex, currentStyle);
 
     String chunk = fullText.substring(textIndex, textIndex + wrapLen);
     textIndex += wrapLen;
 
-    if (currWriteIdx >= document.lineCount || currWriteIdx > prevLine) {
-      insertLineArray(currWriteIdx);
+    if (currWriteIdx >= txtDoc.lineCount || currWriteIdx > prevLine) {
+      if (!insertLineArray(currWriteIdx))
+        break;
     }
 
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = currentStyle;
     strncpy(writeLine.text, chunk.c_str(), LINE_CAP);
     writeLine.text[LINE_CAP] = '\0';
@@ -728,7 +766,7 @@ void mergeLinesUp(ulong currLine, uint16_t& cursor) {
   }
 
   if (currWriteIdx == prevLine) {
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = pType;
     writeLine.text[0] = '\0';
     writeLine.len = 0;
@@ -882,21 +920,21 @@ void cycleTextStyle(Line& line, uint16_t& cursor) {
 }
 
 void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
-  char activeType = document.lines[currLine].type;
+  char activeType = txtDoc.lines[currLine].type;
   ulong startLine = currLine;
   char oldContStyle = activeType;
 
   if (activeType == 'u' || activeType == 'U') {
     oldContStyle = 'u';
-    while (startLine > 0 && document.lines[startLine].type == 'u')
+    while (startLine > 0 && txtDoc.lines[startLine].type == 'u')
       startLine--;
   } else if (activeType == 'o' || activeType == 'O') {
     oldContStyle = 'o';
-    while (startLine > 0 && document.lines[startLine].type == 'o')
+    while (startLine > 0 && txtDoc.lines[startLine].type == 'o')
       startLine--;
   } else {
     oldContStyle = activeType;
-    while (startLine > 0 && document.lines[startLine - 1].type == activeType) {
+    while (startLine > 0 && txtDoc.lines[startLine - 1].type == activeType) {
       startLine--;
     }
   }
@@ -904,7 +942,7 @@ void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
   static const char styleCycle[] = {'T', '1', '2', '3', '>', 'O', 'U', 'C', 'H'};
   static const int numStyles = sizeof(styleCycle) / sizeof(styleCycle[0]);
 
-  char oldBaseStyle = document.lines[startLine].type;
+  char oldBaseStyle = txtDoc.lines[startLine].type;
   int currentIndex = 0;
   for (int i = 0; i < numStyles; i++) {
     if (oldBaseStyle == styleCycle[i]) {
@@ -925,16 +963,16 @@ void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
   fullText.reserve(512);
   ulong endLine = startLine;
 
-  while (endLine < document.lineCount) {
-    if (endLine > startLine && document.lines[endLine].type != oldContStyle)
+  while (endLine < txtDoc.lineCount) {
+    if (endLine > startLine && txtDoc.lines[endLine].type != oldContStyle)
       break;
     if (endLine == currLine) {
       absoluteCursor = fullText.length() + (fullText.length() > 0 ? 1 : 0) + cursor;
     }
-    if (document.lines[endLine].len > 0) {
+    if (txtDoc.lines[endLine].len > 0) {
       if (fullText.length() > 0)
         fullText += " ";
-      fullText += document.lines[endLine].text;
+      fullText += txtDoc.lines[endLine].text;
     }
     endLine++;
   }
@@ -943,7 +981,7 @@ void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
   int textIndex = 0;
   int textLen = fullText.length();
 
-  while (textIndex < textLen) {
+  while (textIndex < textLen && currWriteIdx < MAX_LINES) {
     char currentStyle = (currWriteIdx == startLine) ? newBaseStyle : newContStyle;
     int wrapLen = findWrapIndex(fullText, textIndex, currentStyle);
 
@@ -951,11 +989,12 @@ void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
     textIndex += wrapLen;
 
     if (currWriteIdx >= endLine) {
-      insertLineArray(currWriteIdx);
+      if (!insertLineArray(currWriteIdx))
+        break;
       endLine++;
     }
 
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = currentStyle;
     strncpy(writeLine.text, chunk.c_str(), LINE_CAP);
     writeLine.text[LINE_CAP] = '\0';
@@ -980,7 +1019,7 @@ void cycleParagraphStyle(ulong& currLine, uint16_t& cursor) {
   }
 
   if (currWriteIdx == startLine) {
-    Line& writeLine = document.lines[currWriteIdx];
+    Line& writeLine = txtDoc.lines[currWriteIdx];
     writeLine.type = newBaseStyle;
     writeLine.text[0] = '\0';
     writeLine.len = 0;
@@ -1021,6 +1060,7 @@ void toolBar(Line& line, bool bold, bool italic) {
            FontEngine::textWidth(DisplayTarget::OLED, TR(STR_KB_FN_SHIFT), FontStyle::Tiny)) /
               2,
           u8g2.getDisplayHeight(), TR(STR_KB_FN_SHIFT), FontStyle::Tiny);
+      break;
     default:
       break;
   }
@@ -1257,15 +1297,21 @@ void displayScrollPreviewOLED(Document& doc, ulong activeCursorLine) {
       if (prevCursorX > rightEdge)
         break;
 
-      uint16_t unicode = decodeUTF8(activeLine.text, &i, activeLine.len);
-      if (unicode == '*')
-        continue;
+      uint32_t unicode = decodeUTF8(activeLine.text, &i, activeLine.len);
+      if (unicode == '*') {
+        StarRun run = scanStarRun(activeLine.text, activeLine.len, static_cast<uint16_t>(i - 1));
+        if (run.paired) {
+          i = run.end;
+          continue;
+        }
+      }
       if (unicode == '`')
         continue;
 
-      int charWidth = FontEngine::charWidth(DisplayTarget::OLED, unicode, FontStyle::Large);
+      uint16_t glyph = renderableCodepoint(unicode);
+      int charWidth = FontEngine::charWidth(DisplayTarget::OLED, glyph, FontStyle::Large);
 
-      FontEngine::drawGlyph(DisplayTarget::OLED, prevCursorX, u8g2.getDisplayHeight(), unicode,
+      FontEngine::drawGlyph(DisplayTarget::OLED, prevCursorX, u8g2.getDisplayHeight(), glyph,
                             FontStyle::Large);
       prevCursorX += charWidth;
     }
@@ -1283,6 +1329,14 @@ bool isFolderEmpty(const char* dirPath) {
 
 #pragma region Mrkdn File Ops
 void saveMarkdownFile(const String& path) {
+  if (doc_ptr == nullptr)
+    return;
+
+  if (documentLoadTruncated) {
+    OLED().sysMessage(TR(STR_TXT_FILE_TOO_LARGE), 3000);
+    return;
+  }
+
   if (PM_SDAUTO().getNoSD()) {
     OLED().sysMessage(TR(STR_SD_SAVE_FAILED), 3000);
     return;
@@ -1304,12 +1358,12 @@ void saveMarkdownFile(const String& path) {
     return;
   }
 
-  for (ulong i = 0; i < document.lineCount; i++) {
-    Line& line = document.lines[i];
+  for (ulong i = 0; i < txtDoc.lineCount; i++) {
+    Line& line = txtDoc.lines[i];
 
     bool isContinuation = false;
     if (i > 0) {
-      char pType = document.lines[i - 1].type;
+      char pType = txtDoc.lines[i - 1].type;
       if (line.type == 'T' && pType == 'T')
         isContinuation = true;
       else if (line.type == 'u' && (pType == 'U' || pType == 'u'))
@@ -1324,13 +1378,13 @@ void saveMarkdownFile(const String& path) {
         isContinuation = true;
       else if (line.type == '>' && pType == '>')
         isContinuation = true;
-      else if (line.type == 'C' && pType == 'C')
-        isContinuation = true;
+      // Code lines are never joined: each stored code line is a separate
+      // source line, so joining them with a space destroys fenced blocks.
     }
 
     if (!isContinuation) {
       if (i > 0) {
-        if (document.lines[i - 1].type == 'C')
+        if (txtDoc.lines[i - 1].type == 'C')
           PM_SD().streamWrite(slot, "`", 1);
         PM_SD().streamWrite(slot, "\n", 1);
       }
@@ -1372,8 +1426,8 @@ void saveMarkdownFile(const String& path) {
     }
   }
 
-  if (document.lineCount > 0) {
-    if (document.lines[document.lineCount - 1].type == 'C')
+  if (txtDoc.lineCount > 0) {
+    if (txtDoc.lines[txtDoc.lineCount - 1].type == 'C')
       PM_SD().streamWrite(slot, "`", 1);
     PM_SD().streamWrite(slot, "\n", 1);
   }
@@ -1389,8 +1443,9 @@ void saveMarkdownFile(const String& path) {
 }
 
 // Parse one raw source line (without its newline) into wrapped document
-// lines. inCodeFence carries the ``` state across lines.
-void appendMarkdownLine(const String& rawLine, bool& inCodeFence) {
+// lines. inCodeFence carries the ``` state across lines. Returns false when
+// the document filled up before the whole source line was consumed.
+bool appendMarkdownLine(const String& rawLine, bool& inCodeFence) {
   String line = rawLine;
   // Strip only the trailing CR so code-block content keeps its indentation.
   if (line.endsWith("\r"))
@@ -1453,7 +1508,10 @@ void appendMarkdownLine(const String& rawLine, bool& inCodeFence) {
   }
 
   bool hadContent = content.length() > 0;
-  while (content.length() > 0 && document.lineCount < MAX_LINES) {
+  while (content.length() > 0) {
+    if (txtDoc.lineCount >= MAX_LINES)
+      return false;
+
     int splitIndex = findWrapIndex(content, 0, style);
 
     String chunk = content.substring(0, splitIndex);
@@ -1463,13 +1521,13 @@ void appendMarkdownLine(const String& rawLine, bool& inCodeFence) {
     if (style != 'C')
       content.trim();
 
-    Line& docLine = document.lines[document.lineCount];
+    Line& docLine = txtDoc.lines[txtDoc.lineCount];
     docLine.type = style;
     strncpy(docLine.text, chunk.c_str(), LINE_CAP);
     docLine.text[LINE_CAP] = '\0';
     docLine.len = strlen(docLine.text);
 
-    document.lineCount++;
+    txtDoc.lineCount++;
 
     if (content.length() > 0) {
       if (style == 'U')
@@ -1481,17 +1539,22 @@ void appendMarkdownLine(const String& rawLine, bool& inCodeFence) {
 
   // Placeholder line only when the source produced no content (blank line,
   // hrule, fence, empty code line); a consumed code line was already added.
-  if (!hadContent && (style == 'B' || style == 'H' || style == 'C') &&
-      document.lineCount < MAX_LINES) {
-    Line& docLine = document.lines[document.lineCount];
+  if (!hadContent && (style == 'B' || style == 'H' || style == 'C')) {
+    if (txtDoc.lineCount >= MAX_LINES)
+      return false;
+    Line& docLine = txtDoc.lines[txtDoc.lineCount];
     docLine.type = style;
     docLine.text[0] = '\0';
     docLine.len = 0;
-    document.lineCount++;
+    txtDoc.lineCount++;
   }
+  return true;
 }
 
 bool loadMarkdownFile(const String& path) {
+  if (doc_ptr == nullptr)
+    return false;
+
   PM_SDAUTO().beginIO();
 
   if (path == "" || path == " " || path == "-") {
@@ -1511,46 +1574,65 @@ bool loadMarkdownFile(const String& path) {
     return false;
   }
 
-  document.lineCount = 0;
+  txtDoc.lineCount = 0;
   for (ulong i = 0; i < MAX_LINES; i++) {
-    initLine(document.lines[i]);
+    initLine(txtDoc.lines[i]);
   }
 
   bool inCodeFence = false;
+  bool truncated = false;
 
   // Stream the file through the SD gateway and split it on newlines so the
   // parse never needs the whole file in RAM.
   char readBuf[512];
   String pendingLine;
-  while (document.lineCount < MAX_LINES) {
+  for (;;) {
     size_t n = PM_SD().streamRead(slot, readBuf, sizeof(readBuf));
     if (n == 0)
       break;
-    for (size_t b = 0; b < n && document.lineCount < MAX_LINES; b++) {
+    for (size_t b = 0; b < n; b++) {
+      if (txtDoc.lineCount >= MAX_LINES) {
+        truncated = true;
+        break;
+      }
       if (readBuf[b] == '\n') {
-        appendMarkdownLine(pendingLine, inCodeFence);
+        if (!appendMarkdownLine(pendingLine, inCodeFence))
+          truncated = true;
         pendingLine = "";
       } else {
         pendingLine += readBuf[b];
       }
     }
+    if (truncated)
+      break;
   }
-  if (document.lineCount < MAX_LINES && pendingLine.length() > 0) {
-    appendMarkdownLine(pendingLine, inCodeFence);
+  if (!truncated && pendingLine.length() > 0) {
+    if (!appendMarkdownLine(pendingLine, inCodeFence))
+      truncated = true;
   }
 
   PM_SD().streamClose(slot);
+  PM_SDAUTO().endIO();
 
-  if (document.lineCount == 0) {
-    document.lineCount = 1;
-    initLine(document.lines[0]);
-    document.lines[0].type = 'T';
+  documentLoadTruncated = truncated;
+
+  if (truncated) {
+    txtDoc.lineCount = 1;
+    initLine(txtDoc.lines[0]);
+    txtDoc.lines[0].type = 'T';
     currentLineNum = 0;
-  } else {
-    currentLineNum = document.lineCount - 1;
+    OLED().sysMessage(TR(STR_TXT_FILE_TOO_LARGE), 5000);
+    return false;
   }
 
-  PM_SDAUTO().endIO();
+  if (txtDoc.lineCount == 0) {
+    txtDoc.lineCount = 1;
+    initLine(txtDoc.lines[0]);
+    txtDoc.lines[0].type = 'T';
+    currentLineNum = 0;
+  } else {
+    currentLineNum = txtDoc.lineCount - 1;
+  }
 
   OLED().sysMessage(TR(STR_TXT_FILE_LOADED), 500);
 
@@ -1585,6 +1667,7 @@ void newMarkdownFile(const String& path) {
 
   OLED().sysMessage(TR(STR_TXT_CREATED), 1000);
 
+  documentLoadTruncated = false;
   loadMarkdownFile(savePath);
 
   currentLineNum = 0;
@@ -1614,39 +1697,25 @@ void editorOledDisplay(Line& line, uint16_t cursor_pos, bool currentlyTyping) {
   bool italic = false;
   bool inlineCode = false;
 
-  auto charWidth = [&](uint16_t code, bool isSpecial) -> int {
+  auto charWidth = [&](uint32_t code, bool isSpecial) -> int {
+    uint16_t glyph = renderableCodepoint(code);
     if (isSpecial) {
-      return FontEngine::charWidth(DisplayTarget::OLED, code, FontStyle::Tiny);
+      return FontEngine::charWidth(DisplayTarget::OLED, glyph, FontStyle::Tiny);
     }
-    return FontEngine::charWidth(DisplayTarget::OLED, code, FontStyle::OledWord);
+    return FontEngine::charWidth(DisplayTarget::OLED, glyph, FontStyle::OledWord);
   };
 
   // --- PASS 1: Single-sweep UTF-8 width and cursor calculation ---
   uint16_t i = 0;
   while (i < line.len) {
     uint16_t start_i = i;
-    uint16_t unicode = decodeUTF8(line.text, &i, line.len);
+    uint32_t unicode = decodeUTF8(line.text, &i, line.len);
 
     if (unicode == '*') {
-      if (start_i == 0 || line.text[start_i - 1] != '*') {
-        uint8_t starCount = 1;
-        while (i < line.len && line.text[i] == '*' && starCount < 3) {
-          starCount++;
-          i++;
-        }
-        switch (starCount) {
-          case 1:
-            italic = !italic;
-            break;
-          case 2:
-            bold = !bold;
-            break;
-          case 3:
-            bold = !bold;
-            italic = !italic;
-            break;
-        }
-      }
+      StarRun run = scanStarRun(line.text, line.len, start_i);
+      applyStarVariant(run, bold, italic);
+      if (run.paired)
+        i = run.end;
       total_pixel_width += charWidth('*', true);
     } else if (unicode == '`') {
       inlineCode = !inlineCode;
@@ -1688,28 +1757,13 @@ void editorOledDisplay(Line& line, uint16_t cursor_pos, bool currentlyTyping) {
   i = 0;
   while (i < line.len) {
     uint16_t start_i = i;
-    uint16_t unicode = decodeUTF8(line.text, &i, line.len);
+    uint32_t unicode = decodeUTF8(line.text, &i, line.len);
 
     if (unicode == '*') {
-      if (start_i == 0 || line.text[start_i - 1] != '*') {
-        uint8_t starCount = 1;
-        while (i < line.len && line.text[i] == '*' && starCount < 3) {
-          starCount++;
-          i++;
-        }
-        switch (starCount) {
-          case 1:
-            italic = !italic;
-            break;
-          case 2:
-            bold = !bold;
-            break;
-          case 3:
-            bold = !bold;
-            italic = !italic;
-            break;
-        }
-      }
+      StarRun run = scanStarRun(line.text, line.len, start_i);
+      applyStarVariant(run, bold, italic);
+      if (run.paired)
+        i = run.end;
 
       int w = FontEngine::charWidth(DisplayTarget::OLED, '*', FontStyle::Tiny);
       if (xpos + w >= 0 && xpos <= display_w)
@@ -1725,7 +1779,8 @@ void editorOledDisplay(Line& line, uint16_t cursor_pos, bool currentlyTyping) {
       int char_w = charWidth(unicode, false);
 
       if (xpos + char_w >= 0 && xpos <= display_w) {
-        FontEngine::drawGlyph(DisplayTarget::OLED, xpos, bodyY, unicode, FontStyle::OledWord);
+        FontEngine::drawGlyph(DisplayTarget::OLED, xpos, bodyY, renderableCodepoint(unicode),
+                              FontStyle::OledWord);
       }
 
       xpos += char_w;
@@ -1736,7 +1791,7 @@ void editorOledDisplay(Line& line, uint16_t cursor_pos, bool currentlyTyping) {
   }
 
   // Draw progress bar if on the last line
-  if (currentLineNum == (document.lineCount - 1)) {
+  if (currentLineNum == (txtDoc.lineCount - 1)) {
     int width = getLineEinkWidth(line);
     long progress = map(width, 0, display.width(), 0, u8g2.getDisplayWidth());
 
@@ -1758,16 +1813,16 @@ void editorOledDisplay(Line& line, uint16_t cursor_pos, bool currentlyTyping) {
 
 #pragma region E-Ink Editor
 // E-Ink Editor
-void editorEinkDisplay(Document& doc, uint16_t currentLineNum) {
-  if (currentLineNum < topVisibleLine) {
-    topVisibleLine = currentLineNum;
+void editorEinkDisplay(Document& doc, ulong activeLineNum) {
+  if (activeLineNum < topVisibleLine) {
+    topVisibleLine = activeLineNum;
   }
 
   uint16_t j = 0;
   while (j <= doc.lineCount) {
     int cursorBottomY = 0;
 
-    for (uint16_t i = topVisibleLine; i <= currentLineNum; i++) {
+    for (ulong i = topVisibleLine; i <= activeLineNum; i++) {
       cursorBottomY += getCalculatedLineHeight(doc.lines[i]);
     }
 
@@ -1783,8 +1838,8 @@ void editorEinkDisplay(Document& doc, uint16_t currentLineNum) {
   int currentY = 0;
   int linesDrawn = 0;
 
-  for (uint16_t i = topVisibleLine; i < doc.lineCount; i++) {
-    bool isSelected = (i == currentLineNum);
+  for (ulong i = topVisibleLine; i < doc.lineCount; i++) {
+    bool isSelected = (i == activeLineNum);
     int heightUsed = drawLineEink(doc, i, 0, currentY, isSelected);
 
     currentY += heightUsed;
@@ -1804,7 +1859,7 @@ void editor(char inchar) {
   static unsigned long lastStyleCycleMillis = 0;
   static bool pendingStyleRefresh = false;
 
-  Line& line = document.lines[currentLineNum];
+  Line& line = txtDoc.lines[currentLineNum];
 
   if (cursor_pos > line.len)
     cursor_pos = line.len;
@@ -1814,7 +1869,16 @@ void editor(char inchar) {
 
     // ENTER KEY
     if (inchar == 13) {
-      Line& activeLine = document.lines[currentLineNum];
+      ulong available = MAX_LINES - txtDoc.lineCount;
+      if (available == 0) {
+        OLED().sysMessage(TR(STR_TXT_FILE_TOO_LARGE), 2000);
+        return;
+      }
+
+      // Two slots are preferred (blank line + new text line). With one slot
+      // left, keep the new text and drop only the separator.
+      bool withSeparator = available >= 2;
+      Line& activeLine = txtDoc.lines[currentLineNum];
 
       String leftHalf = String(activeLine.text).substring(0, cursor_pos);
       String rightHalf = String(activeLine.text).substring(cursor_pos);
@@ -1823,11 +1887,14 @@ void editor(char inchar) {
       activeLine.text[LINE_CAP] = '\0';
       activeLine.len = leftHalf.length();
 
-      insertLineArray(currentLineNum + 1);
-      document.lines[currentLineNum + 1].type = 'B';
+      if (withSeparator) {
+        insertLineArray(currentLineNum + 1);
+        txtDoc.lines[currentLineNum + 1].type = 'B';
+      }
 
-      insertLineArray(currentLineNum + 2);
-      Line& newLine = document.lines[currentLineNum + 2];
+      ulong newIndex = currentLineNum + (withSeparator ? 2 : 1);
+      insertLineArray(newIndex);
+      Line& newLine = txtDoc.lines[newIndex];
 
       if (activeLine.type == 'U' || activeLine.type == 'u')
         newLine.type = 'U';
@@ -1844,7 +1911,7 @@ void editor(char inchar) {
       newLine.text[LINE_CAP] = '\0';
       newLine.len = rightHalf.length();
 
-      currentLineNum += 2;
+      currentLineNum = newIndex;
       cursor_pos = 0;
       updateScreen = true;
 
@@ -1860,12 +1927,12 @@ void editor(char inchar) {
     // BKSP Recieved
     else if (inchar == 8) {
       if (cursor_pos > 0) {
-        deleteChar(document.lines[currentLineNum], cursor_pos);
+        deleteChar(txtDoc.lines[currentLineNum], cursor_pos);
 
         bool hasContinuation = false;
-        if (currentLineNum + 1 < document.lineCount) {
-          char bType = document.lines[currentLineNum].type;
-          char nextType = document.lines[currentLineNum + 1].type;
+        if (currentLineNum + 1 < txtDoc.lineCount) {
+          char bType = txtDoc.lines[currentLineNum].type;
+          char nextType = txtDoc.lines[currentLineNum + 1].type;
           if (bType == nextType)
             hasContinuation = true;
           else if ((bType == 'U' || bType == 'u') && nextType == 'u')
@@ -1891,22 +1958,22 @@ void editor(char inchar) {
         do {
           cursor_pos--;
         } while (cursor_pos > 0 &&
-                 (document.lines[currentLineNum].text[cursor_pos] & 0xC0) == 0x80);
+                 (txtDoc.lines[currentLineNum].text[cursor_pos] & 0xC0) == 0x80);
       } else if (currentLineNum > 0) {
         currentLineNum--;
-        cursor_pos = document.lines[currentLineNum].len;
+        cursor_pos = txtDoc.lines[currentLineNum].len;
         updateScreen = true;
       }
     }
 
     // RIGHT
     else if (inchar == 21) {
-      if (cursor_pos < document.lines[currentLineNum].len) {
+      if (cursor_pos < txtDoc.lines[currentLineNum].len) {
         do {
           cursor_pos++;
-        } while (cursor_pos < document.lines[currentLineNum].len &&
-                 (document.lines[currentLineNum].text[cursor_pos] & 0xC0) == 0x80);
-      } else if (currentLineNum < document.lineCount - 1) {
+        } while (cursor_pos < txtDoc.lines[currentLineNum].len &&
+                 (txtDoc.lines[currentLineNum].text[cursor_pos] & 0xC0) == 0x80);
+      } else if (currentLineNum < txtDoc.lineCount - 1) {
         currentLineNum++;
         cursor_pos = 0;
         updateScreen = true;
@@ -1923,7 +1990,7 @@ void editor(char inchar) {
     }
 
     else if (inchar == 30) {
-      cycleTextStyle(document.lines[currentLineNum], cursor_pos);
+      cycleTextStyle(txtDoc.lines[currentLineNum], cursor_pos);
       lastStyleCycleMillis = millis();
       pendingStyleRefresh = true;
     }
@@ -1976,21 +2043,21 @@ void editor(char inchar) {
     else if (inchar == 24)
       cursor_pos = 0;
     else if (inchar == 26)
-      cursor_pos = document.lines[currentLineNum].len;
+      cursor_pos = txtDoc.lines[currentLineNum].len;
     else if (inchar == 25) {
       KB().setKeyboardState(FUNC);
       {
         String cmd = textPrompt(TR(STR_GOTO_LINE));
         if (cmd != "_RETURN_" && cmd != "_EXIT_") {
           int line = atoi(cmd.c_str());
-          if (line >= 0 && line < document.lineCount) {
+          if (line >= 0 && line < txtDoc.lineCount) {
             currentLineNum = line;
           } else if (line < 0) {
             currentLineNum = 0;
           } else {
-            currentLineNum = document.lineCount - 1;
+            currentLineNum = txtDoc.lineCount - 1;
           }
-          cursor_pos = document.lines[currentLineNum].len;
+          cursor_pos = txtDoc.lines[currentLineNum].len;
           updateScreen = true;
         }
       }
@@ -2008,15 +2075,15 @@ void editor(char inchar) {
         updateScreen = true;
       } else {
         if (cursor_pos >= line.len) {
-          if (currentLineNum < document.lineCount - 1) {
+          if (currentLineNum < txtDoc.lineCount - 1) {
             currentLineNum++;
             cursor_pos = 0;
             updateScreen = true;
           }
         } else {
-          while (cursor_pos < line.len && document.lines[currentLineNum].text[cursor_pos] != ' ')
+          while (cursor_pos < line.len && txtDoc.lines[currentLineNum].text[cursor_pos] != ' ')
             cursor_pos++;
-          while (cursor_pos < line.len && document.lines[currentLineNum].text[cursor_pos] == ' ')
+          while (cursor_pos < line.len && txtDoc.lines[currentLineNum].text[cursor_pos] == ' ')
             cursor_pos++;
         }
       }
@@ -2027,13 +2094,13 @@ void editor(char inchar) {
       if (cursor_pos == 0) {
         if (currentLineNum > 0) {
           currentLineNum--;
-          cursor_pos = document.lines[currentLineNum].len;
+          cursor_pos = txtDoc.lines[currentLineNum].len;
           updateScreen = true;
         }
       } else {
-        while (cursor_pos > 0 && document.lines[currentLineNum].text[cursor_pos - 1] == ' ')
+        while (cursor_pos > 0 && txtDoc.lines[currentLineNum].text[cursor_pos - 1] == ' ')
           cursor_pos--;
-        while (cursor_pos > 0 && document.lines[currentLineNum].text[cursor_pos - 1] != ' ')
+        while (cursor_pos > 0 && txtDoc.lines[currentLineNum].text[cursor_pos - 1] != ' ')
           cursor_pos--;
       }
     }
@@ -2042,12 +2109,17 @@ void editor(char inchar) {
     else {
       ulong preReflowLine = currentLineNum;
 
-      if (document.lines[currentLineNum].type == ' ' ||
-          document.lines[currentLineNum].type == 'B') {
-        document.lines[currentLineNum].type = 'T';
+      if (txtDoc.lines[currentLineNum].type == ' ' ||
+          txtDoc.lines[currentLineNum].type == 'B') {
+        txtDoc.lines[currentLineNum].type = 'T';
       }
 
-      insertChar(document.lines[currentLineNum], cursor_pos, inchar);
+      // A full line still has wrap capacity. Re-wrap before inserting so the
+      // keystroke is not discarded just because the byte buffer is at LINE_CAP.
+      if (txtDoc.lines[currentLineNum].len >= LINE_CAP)
+        reflowParagraph(currentLineNum, cursor_pos);
+
+      insertChar(txtDoc.lines[currentLineNum], cursor_pos, inchar);
 
       reflowParagraph(currentLineNum, cursor_pos);
 
@@ -2080,16 +2152,20 @@ void editor(char inchar) {
       if (!currentlyTyping)
         keypad.flush();
       lastInput = millis();
-      editorOledDisplay(document.lines[currentLineNum], cursor_pos, currentlyTyping);
+      editorOledDisplay(txtDoc.lines[currentLineNum], cursor_pos, currentlyTyping);
     } else {
-      displayScrollPreviewOLED(document, currentLineNum);
+      displayScrollPreviewOLED(txtDoc, currentLineNum);
     }
   }
 }
 
 #pragma region INIT
 void TXT_INIT(String inPath) {
-  initDocMemory();
+  if (!initDocMemory()) {
+    OLED().sysMessage(TR(STR_TXT_MEMORY_FULL), 3000);
+    return;
+  }
+
   setFontStyle(serif);
   bool fileLoaded = loadMarkdownFile(inPath);
   if (fileLoaded) {
@@ -2111,12 +2187,17 @@ void TXT_INIT(String inPath) {
 }
 
 void TXT_INIT_JournalMode() {
-  initDocMemory();
+  if (!initDocMemory()) {
+    OLED().sysMessage(TR(STR_TXT_MEMORY_FULL), 3000);
+    return;
+  }
 
   String outPath = getCurrentJournal();
   if (!outPath.startsWith("/"))
     outPath = "/" + outPath;
   loadMarkdownFile(outPath);
+  if (documentLoadTruncated)
+    return;
 
   setFontStyle(serif);
 
@@ -2132,16 +2213,75 @@ void einkHandler_TXT_NEW() {
     updateScreen = false;
     display.setFullWindow();
     u8g2f.setForegroundColor(GxEPD_BLACK);
-    editorEinkDisplay(document, currentLineNum);
+    editorEinkDisplay(txtDoc, currentLineNum);
     EINK().refresh();
+  }
+}
+
+static void processFileNamePrompt(char inchar, unsigned long currentMillis, bool forSave) {
+  static String inputBuffer = "";
+
+  if (currentMillis - KBBounceMillis >= KB_COOLDOWN && inchar != 0) {
+    KBBounceMillis = currentMillis;
+
+    if (inchar == 13) {
+      if (inputBuffer != "" && inputBuffer != "-") {
+        if (!inputBuffer.startsWith("/notes/"))
+          inputBuffer = "/notes/" + inputBuffer;
+        if (!inputBuffer.endsWith(".txt") && !inputBuffer.endsWith(".md"))
+          inputBuffer += ".txt";
+
+        if (forSave)
+          saveMarkdownFile(inputBuffer);
+        else
+          newMarkdownFile(inputBuffer);
+
+        CurrentTXTState_NEW = TXT_;
+        if (!forSave)
+          updateScreen = true;
+      } else {
+        OLED().sysMessage(TR(STR_TXT_INVALID_NAME), 2000);
+      }
+      inputBuffer = "";
+    } else if (inchar == 17) {
+      KB().toggleShift();
+    } else if (inchar == 18) {
+      KB().toggleFn();
+    } else if (inchar == 32) {
+      // Spaces are excluded from generated filenames.
+    } else if (inchar == 20) {
+      inputBuffer = "";
+    } else if (inchar == 8) {
+      if (inputBuffer.length() > 0) {
+        uint16_t cut = inputBuffer.length() - 1;
+        while (cut > 0 && (static_cast<uint8_t>(inputBuffer[cut]) & 0xC0) == 0x80)
+          cut--;
+        inputBuffer.remove(cut);
+      }
+    } else if (inchar == 12) {
+      CurrentTXTState_NEW = TXT_;
+    } else {
+      inputBuffer += inchar;
+      if (inchar < 48 || inchar > 57) {
+        if (KB().getKeyboardState() != NORMAL)
+          KB().setKeyboardState(NORMAL);
+      }
+    }
+  }
+
+  currentMillis = millis();
+  if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
+    OLEDFPSMillis = currentMillis;
+    if (CurrentTXTState_NEW == (forSave ? SAVE_AS : NEW_FILE)) {
+      OLED().oledLine(inputBuffer, inputBuffer.length(), false,
+                      forSave ? TR(STR_TXT_INPUT_FILENAME) : TR(STR_TXT_NAME_NEW_FILE));
+    }
   }
 }
 
 void processKB_TXT_NEW() {
   OLED().setPowerSave(false);
   disableTimeout = false;
-
-  static String inputBuffer = "";
 
   // 1. Drain the hardware buffer continuously at loop speed
   char inchar = KB().updateKeypress();
@@ -2152,7 +2292,7 @@ void processKB_TXT_NEW() {
   }
 
   if (CurrentTXTState_NEW == TXT_ || CurrentTXTState_NEW == JOURNAL_MODE) {
-    if (TOUCH().updateScroll(document.lineCount, currentLineNum)) {
+    if (TOUCH().updateScroll(txtDoc.lineCount, currentLineNum)) {
       updateScreen = true;
     }
   }
@@ -2164,108 +2304,11 @@ void processKB_TXT_NEW() {
       break;
 
     case SAVE_AS:
-      // 2. Process input only if cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
-        if (inchar != 0) {
-          KBBounceMillis = currentMillis;  // Reset the debounce timer
-
-          if (inchar == 13) {
-            if (inputBuffer != "" && inputBuffer != "-") {
-              if (!inputBuffer.startsWith("/notes/"))
-                inputBuffer = "/notes/" + inputBuffer;
-              if (!inputBuffer.endsWith(".txt") && !inputBuffer.endsWith(".md"))
-                inputBuffer = inputBuffer + ".txt";
-              saveMarkdownFile(inputBuffer);
-              CurrentTXTState_NEW = TXT_;
-            } else {
-              OLED().sysMessage(TR(STR_TXT_INVALID_NAME), 2000);
-            }
-            inputBuffer = "";
-          } else if (inchar == 17) {
-            KB().toggleShift();
-          } else if (inchar == 18) {
-            KB().toggleFn();
-          } else if (inchar == 32) {
-          } else if (inchar == 20) {
-            inputBuffer = "";
-          } else if (inchar == 8) {
-            if (inputBuffer.length() > 0) {
-              inputBuffer.remove(inputBuffer.length() - 1);
-            }
-          } else if (inchar == 12) {
-            CurrentTXTState_NEW = TXT_;
-          } else {
-            inputBuffer += inchar;
-            if (inchar >= 48 && inchar <= 57) {
-            } else if (KB().getKeyboardState() != NORMAL) {
-              KB().setKeyboardState(NORMAL);
-            }
-          }
-        }
-      }
-
-      // 3. Update OLED at true OLED_MAX_FPS
-      currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
-        OLEDFPSMillis = currentMillis;
-        // Make sure we didn't just jump back to the text editor!
-        if (CurrentTXTState_NEW == SAVE_AS) {
-          OLED().oledLine(inputBuffer, inputBuffer.length(), false, TR(STR_TXT_INPUT_FILENAME));
-        }
-      }
+      processFileNamePrompt(inchar, currentMillis, true);
       break;
 
     case NEW_FILE:
-      // 2. Process input only if cooldown has expired
-      if (currentMillis - KBBounceMillis >= KB_COOLDOWN) {
-        if (inchar != 0) {
-          KBBounceMillis = currentMillis;  // Reset the debounce timer
-
-          if (inchar == 13) {
-            if (inputBuffer != "" && inputBuffer != "-") {
-              if (!inputBuffer.startsWith("/notes/"))
-                inputBuffer = "/notes/" + inputBuffer;
-              if (!inputBuffer.endsWith(".txt") && !inputBuffer.endsWith(".md"))
-                inputBuffer = inputBuffer + ".txt";
-              newMarkdownFile(inputBuffer);
-              CurrentTXTState_NEW = TXT_;
-              updateScreen = true;
-            } else {
-              OLED().sysMessage(TR(STR_TXT_INVALID_NAME), 2000);
-            }
-            inputBuffer = "";
-          } else if (inchar == 17) {
-            KB().toggleShift();
-          } else if (inchar == 18) {
-            KB().toggleFn();
-          } else if (inchar == 32) {
-          } else if (inchar == 20) {
-            inputBuffer = "";
-          } else if (inchar == 8) {
-            if (inputBuffer.length() > 0) {
-              inputBuffer.remove(inputBuffer.length() - 1);
-            }
-          } else if (inchar == 12) {
-            CurrentTXTState_NEW = TXT_;
-          } else {
-            inputBuffer += inchar;
-            if (inchar >= 48 && inchar <= 57) {
-            } else if (KB().getKeyboardState() != NORMAL) {
-              KB().setKeyboardState(NORMAL);
-            }
-          }
-        }
-      }
-
-      // 3. Update OLED at true OLED_MAX_FPS
-      currentMillis = millis();
-      if (currentMillis - OLEDFPSMillis >= (1000 / OLED_MAX_FPS)) {
-        OLEDFPSMillis = currentMillis;
-        // Make sure we didn't just jump back to the text editor!
-        if (CurrentTXTState_NEW == NEW_FILE) {
-          OLED().oledLine(inputBuffer, inputBuffer.length(), false, TR(STR_TXT_NAME_NEW_FILE));
-        }
-      }
+      processFileNamePrompt(inchar, currentMillis, false);
       break;
 
     case LOAD_FILE:

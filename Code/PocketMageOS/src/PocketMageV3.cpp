@@ -32,6 +32,8 @@ void applicationEinkHandler() {
     return;
   }
 
+  EINK().lockPanel();
+
   switch (CurrentAppState) {
     case HOME:
       einkHandler_HOME();
@@ -79,6 +81,8 @@ void applicationEinkHandler() {
       einkHandler_HOME();
       break;
   }
+
+  EINK().unlockPanel();
 #endif  // POCKETMAGE_OS
 }
 

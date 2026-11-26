@@ -1299,3 +1299,11 @@ msgstr "Übersprungen"
 msgctxt "STR_COMM_INIT_FAILED"
 msgid "Chat unavailable"
 msgstr "Chat nicht verfügbar"
+
+msgctxt "STR_TXT_FILE_TOO_LARGE"
+msgid "FILE TOO LARGE"
+msgstr "DATEI ZU GROSS"
+
+msgctxt "STR_TXT_MEMORY_FULL"
+msgid "MEMORY FULL"
+msgstr "SPEICHER VOLL"

@@ -1300,3 +1300,11 @@ msgstr "Passé"
 msgctxt "STR_COMM_INIT_FAILED"
 msgid "Chat unavailable"
 msgstr "Discussion indisponible"
+
+msgctxt "STR_TXT_FILE_TOO_LARGE"
+msgid "FILE TOO LARGE"
+msgstr "FICHIER TROP GRAND"
+
+msgctxt "STR_TXT_MEMORY_FULL"
+msgid "MEMORY FULL"
+msgstr "MÉMOIRE PLEINE"

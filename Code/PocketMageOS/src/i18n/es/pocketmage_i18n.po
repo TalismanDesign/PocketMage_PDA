@@ -1300,3 +1300,11 @@ msgstr "Omitido"
 msgctxt "STR_COMM_INIT_FAILED"
 msgid "Chat unavailable"
 msgstr "Chat no disponible"
+
+msgctxt "STR_TXT_FILE_TOO_LARGE"
+msgid "FILE TOO LARGE"
+msgstr "ARCHIVO DEMASIADO GRANDE"
+
+msgctxt "STR_TXT_MEMORY_FULL"
+msgid "MEMORY FULL"
+msgstr "MEMORIA LLENA"

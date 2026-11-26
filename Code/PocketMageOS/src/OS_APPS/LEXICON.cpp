@@ -1,6 +1,9 @@
 
 #include <globals.h>
 #include <pocketmage_sd/pocketmage_sd.h>
+
+#include <cstring>
+
 #if PM_TARGET_HOST  // POCKETMAGE_OS
 enum LexState { MENU, DEF };
 LexState CurrentLexState = MENU;
@@ -119,9 +122,8 @@ void loadDefinitions(String input) {
   }
 
   String filePath = "/dict/" + String((char)toupper(firstChar)) + ".txt";
-
-  String dictContents = PM_SD().readFileToString(filePath.c_str());
-  if (dictContents.length() == 0) {
+  int slot = PM_SD().streamOpen(filePath.c_str(), 'r');
+  if (slot < 0) {
     OLED().sysMessage(TR(STR_LEX_MISSING), 2000);
     PM_SDAUTO().endIO();
     if (SAVE_POWER)
@@ -131,47 +133,77 @@ void loadDefinitions(String input) {
 
   word.toLowerCase();
 
+  // Stream the letter file in bounded chunks.  The old whole-file String failed
+  // once the heap fragmented; one small buffer works regardless of file size.
+  // Entries are alphabetically sorted, so scanning stops once we pass the word.
+  constexpr size_t kChunkSize = 1024;
+  char chunk[kChunkSize];
+  String line;
+  bool done = false;
   int lineScanCount = 0;
 
-  const char* p = dictContents.c_str();
-  while (*p) {
-    // Extract one line (stop at '\n' or end)
-    const char* eol = strchr(p, '\n');
-    size_t linelen = eol ? (size_t)(eol - p) : strlen(p);
-
-    if (++lineScanCount % 100 == 0)
-      yield();
-
-    String line(p, linelen);
-    line.trim();
-    if (line.length() == 0) {
-      p = eol ? eol + 1 : eol;
-      continue;
-    }
-
-    int defSplit = line.indexOf(')');
-    if (defSplit == -1) {
-      p = eol ? eol + 1 : eol;
-      continue;
-    }
-
-    // Extract key and definition
-    String key = line.substring(0, defSplit + 1);
-    String def = line.substring(defSplit + 1);
-    def.trim();
-
-    String keyLower = key;
-    keyLower.toLowerCase();
-
-    if (keyLower.startsWith(word)) {
-      defList.push_back({key, def});
-    } else if (!defList.empty()) {
-      // No more definitions for this word (Dictionary is alphabetically sorted)
+  while (!done) {
+    const size_t n = PM_SD().streamRead(slot, chunk, sizeof(chunk));
+    if (n == 0)
       break;
-    }
 
-    p = eol ? eol + 1 : eol;
+    size_t pos = 0;
+    while (pos < n && !done) {
+      const char *start = chunk + pos;
+      const char *nl = static_cast<const char *>(memchr(start, '\n', n - pos));
+      const size_t segLen = nl ? static_cast<size_t>(nl - start) : (n - pos);
+
+      line += String(start, segLen);
+      pos += segLen + (nl ? 1 : 0);
+
+      // Without a newline the line continues in the next chunk.
+      if (!nl)
+        break;
+
+      line.trim();
+      if (++lineScanCount % 100 == 0)
+        yield();
+
+      if (line.length() > 0) {
+        const int defSplit = line.indexOf(')');
+        if (defSplit != -1) {
+          String key = line.substring(0, defSplit + 1);
+          String keyLower = key;
+          keyLower.toLowerCase();
+
+          if (keyLower.startsWith(word)) {
+            String def = line.substring(defSplit + 1);
+            def.trim();
+            defList.push_back({key, def});
+          } else if (!defList.empty()) {
+            done = true;  // past the query; entries are sorted
+          }
+        }
+      }
+      line.remove(0);
+    }
   }
+
+  // Handle a final line without a trailing newline.
+  if (!done && line.length() > 0) {
+    line.trim();
+    const int defSplit = line.indexOf(')');
+    if (defSplit != -1) {
+      String key = line.substring(0, defSplit + 1);
+      String keyLower = key;
+      keyLower.toLowerCase();
+      if (keyLower.startsWith(word)) {
+        String def = line.substring(defSplit + 1);
+        def.trim();
+        defList.push_back({key, def});
+      }
+    }
+  }
+
+  PM_SD().streamClose(slot);
+
+  if (!defList.empty())
+    EINK().setFullRefreshAfter(FULL_REFRESH_AFTER);
 
   if (defList.empty()) {
     OLED().sysMessage(TR(STR_LEX_NONE), 2000);
