@@ -16,6 +16,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://talismandesign.github.io/PocketMage_PDA/docs/development/crash-logs/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://talismandesign.github.io/PocketMage_PDA/docs/development/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

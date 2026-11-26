@@ -4,10 +4,10 @@ title: "PocketMage Library"
 description: "Shared hardware, UI, and system modules used by PocketMage."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/reference/pocketmage-library/"
 path: /reference/pocketmage-library/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.675Z"
+  generated_at: "2026-11-26T02:27:40.177Z"
 ---
 ---
 title: "PocketMage Library"

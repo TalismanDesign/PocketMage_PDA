@@ -4,10 +4,10 @@ title: PocketMageOS
 description: "The PocketMage operating system and app runtime."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/development/"
 path: /development/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.670Z"
+  generated_at: "2026-11-26T02:27:40.174Z"
 ---
 ---
 title: "PocketMageOS"
@@ -95,6 +95,7 @@ Both follow the same three-function shape. The difference is where the code ship
 - `Code/PocketMageOS/lib/PocketMage_SDK/` - the reusable hardware layer (the PocketMage SDK, vendored as a submodule)
 - `Code/PocketMageOS/lib/elf_overlay/` - the overlay runtime that pages ELF-app code into executable RAM
 - `Code/PocketMageOS/src/elf_runner.cpp` - loads and runs installed ELF apps
+- `Code/PocketMageOS/src/diagnostics/` - retained panic capture and post-reboot [crash reports](./crash-logs.md)
 
 ## Next steps
 

@@ -4,10 +4,10 @@ title: "System State Reference"
 description: "The AppState enum, boot shortcuts, and how the OS dispatches between apps."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/reference/system-state/"
 path: /reference/system-state/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.675Z"
+  generated_at: "2026-11-26T02:27:40.178Z"
 ---
 ---
 title: "System State Reference"

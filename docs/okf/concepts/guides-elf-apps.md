@@ -4,10 +4,10 @@ title: "ELF Apps"
 description: "How third-party PocketMage apps are built, installed, and loaded by the OS at runtime."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/guides/elf-apps/"
 path: /guides/elf-apps/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.672Z"
+  generated_at: "2026-11-26T02:27:40.175Z"
 ---
 ---
 title: "ELF Apps"

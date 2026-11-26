@@ -4,10 +4,10 @@ title: "Scripting Example: Basic Input/Output"
 description: "A simple PocketMage script demonstrating user input, OLED output, and terminal printing."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/scripting/example-c/"
 path: /scripting/example-c/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.676Z"
+  generated_at: "2026-11-26T02:27:40.178Z"
 ---
 ---
 title: "Scripting Example: Basic Input/Output"

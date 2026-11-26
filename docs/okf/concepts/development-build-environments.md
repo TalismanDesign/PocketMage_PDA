@@ -4,10 +4,10 @@ title: "Build Environments & PlatformIO Setup"
 description: "How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/"
 path: /development/build-environments/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.669Z"
+  generated_at: "2026-11-26T02:27:40.173Z"
 ---
 ---
 title: "Build Environments & PlatformIO Setup"
@@ -78,7 +78,15 @@ Third-party apps are not built with this environment set. They are compiled agai
 
 ## Testing
 
-There is no automated test suite for the firmware. Verify changes against real hardware, or review the build log for changes with no runtime effect. CI builds `PM_PRODUCTION` and `PM_BETA` on every push, so a clean build locally is the minimum bar before opening a pull request.
+Run the hardware-independent firmware tests from `Code/PocketMageOS` with Python 3
+and a C++ compiler supporting AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```sh
+python3 -m unittest discover -s tests/host -p 'test_*.py'
+```
+
+CI builds `PM_PRODUCTION` and `PM_BETA` on every push. Verify hardware behavior on
+the device; see [Crash logs](./crash-logs.md) for reading crash reports after a reboot.
 
 ## Next steps
 

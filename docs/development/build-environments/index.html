@@ -102,11 +102,11 @@
     
     
 
-    <link id="site-favicon" rel="icon" href="../../assets/favicon.png?v=mvxbe4hx">
-    <link rel="stylesheet" href="../../assets/css/docmd-main.css?v=mvxbe4hx">
+    <link id="site-favicon" rel="icon" href="../../assets/favicon.png?v=mwwxmrbb">
+    <link rel="stylesheet" href="../../assets/css/docmd-main.css?v=mwwxmrbb">
     
-    <link rel="stylesheet" href="../../assets/css/docmd-highlight-light.css?v=mvxbe4hx" id="hljs-light" >
-    <link rel="stylesheet" href="../../assets/css/docmd-highlight-dark.css?v=mvxbe4hx" id="hljs-dark" disabled>
+    <link rel="stylesheet" href="../../assets/css/docmd-highlight-light.css?v=mwwxmrbb" id="hljs-light" >
+    <link rel="stylesheet" href="../../assets/css/docmd-highlight-dark.css?v=mwwxmrbb" id="hljs-dark" disabled>
     
     
 <meta name="description" content="How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows.">
@@ -127,13 +127,13 @@
 
 
 
-<link rel="stylesheet" href="../../assets/css/docmd-theme-ruby.css?v=mvxbe4hx" >
-<link rel="stylesheet" href="../../assets/css/docmd-git.css?v=mvxbe4hx" >
-<link rel="stylesheet" href="../../assets/css/docmd-openapi.css?v=mvxbe4hx" >
-<link rel="stylesheet" href="../../assets/css/docmd-ai.css?v=mvxbe4hx" >
+<link rel="stylesheet" href="../../assets/css/docmd-theme-ruby.css?v=mwwxmrbb" >
+<link rel="stylesheet" href="../../assets/css/docmd-git.css?v=mwwxmrbb" >
+<link rel="stylesheet" href="../../assets/css/docmd-openapi.css?v=mwwxmrbb" >
+<link rel="stylesheet" href="../../assets/css/docmd-ai.css?v=mwwxmrbb" >
 
     
-      <link rel="stylesheet" href="../../assets/css/theme.css?v=mvxbe4hx">
+      <link rel="stylesheet" href="../../assets/css/theme.css?v=mwwxmrbb">
     
     
   </head>
@@ -750,6 +750,42 @@
           
           <span class="nav-item-title">
             Build Environments
+            </span>
+          
+          
+        </a>
+        
+
+        
+      </li>
+    
+      <li class="" >
+      
+        <a href="../../development/crash-logs/" class=" "
+          >
+           
+<svg class="lucide-icon icon-file-text " width="1em" height="1em" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"
+  class="lucide lucide-file-text"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" />
+</svg>
+
+          
+          <span class="nav-item-title">
+            Crash logs
             </span>
           
           
@@ -1471,7 +1507,7 @@
             <div class="content-layout">
               <div class="main-content">
                 <div class="docmd-breadcrumbs-row">
-                  <div id="docmd-raw-markdown" data-content="---%0Atitle%3A%20%22Build%20Environments%20%26%20PlatformIO%20Setup%22%0Adescription%3A%20%22How%20to%20set%20up%20PlatformIO%20and%20build%20PocketMage%20firmware%20on%20Linux%2C%20macOS%2C%20and%20Windows.%22%0A---%0A%0A%23%20Build%20Environments%20%26%20PlatformIO%20Setup%0A%0APocketMage%20firmware%20is%20built%20with%20%5BPlatformIO%5D(https%3A%2F%2Fplatformio.org%2F).%20The%20build%20configuration%20lives%20in%20%60Code%2FPocketMageOS%2Fplatformio.ini%60%20and%20defines%20two%20environments%20that%20produce%20the%20firmware%20variants.%20Third-party%20apps%20are%20not%20built%20in%20this%20tree%3B%20they%20are%20compiled%20against%20the%20PocketMage%20SDK%20(see%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)).%0A%0A%23%23%20The%20two%20build%20environments%0A%0A%7C%20Environment%20%7C%20Target%20%7C%20Purpose%20%7C%0A%7C%20---%20%7C%20---%20%7C%20---%20%7C%0A%7C%20%60PM_PRODUCTION%60%20%7C%20Production%20hardware%20(N16R2%2C%20Quad%20PSRAM%20enabled)%20%7C%20The%20stable%20OS%20image%20flashed%20to%20production%20devices%20%7C%0A%7C%20%60PM_BETA%60%20%7C%20Beta%20hardware%20(N16R8%2C%20PSRAM%20forced%20disabled)%20%7C%20A%20test%20build%20with%20the%20latest%20changes%20%7C%0A%0AThe%20two%20environments%20share%20a%20common%20%60%5Bcommon%5D%60%20section%20and%20differ%20in%20hardware%20target%20and%20version%20string.%0A%0ARunning%20%60pio%20run%60%20with%20no%20arguments%20builds%20both%20defaults%20(%60PM_PRODUCTION%60%20and%20%60PM_BETA%60).%20Build%20one%20explicitly%20with%20%60pio%20run%20-e%20%3Cname%3E%60.%0A%0A%23%23%20Prerequisites%0A%0A-%20%5BVS%20Code%5D(https%3A%2F%2Fcode.visualstudio.com%2F)%20installed%0A-%20Python%203%20installed%0A-%20PlatformIO%20Core%20(installed%20automatically%20by%20the%20VS%20Code%20extension%2C%20or%20via%20%60pip%20install%20platformio%60)%0A-%20The%20PocketMage%20source%20code%2C%20cloned%20from%20%5BGitHub%5D(https%3A%2F%2Fgithub.com%2FTalismanDesign%2FPocketMage_PDA)%0A%0AThe%20ESP32%20platform%20support%20downloads%20automatically%20on%20the%20first%20build%2C%20so%20the%20first%20build%20is%20noticeably%20slower.%0A%0A%23%23%20Setup%0A%0A%23%23%23%20Linux%0A%0A1.%20Install%20%60python3-venv%60%20if%20it%20is%20missing%3A%0A%0A%20%20%20%60%60%60bash%0A%20%20%20sudo%20apt%20install%20python3-venv%0A%20%20%20%60%60%60%0A%0A2.%20Install%20the%20%5BPlatformIO%20IDE%5D(https%3A%2F%2Fdocs.platformio.org%2Fen%2Flatest%2Fintegration%2Fide%2Fvscode.html%23ide-vscode)%20extension%20in%20VS%20Code.%0A3.%20Open%20the%20PocketMage%20source%20folder%20in%20VS%20Code.%0A4.%20When%20PlatformIO%20asks%20for%20a%20project%20folder%2C%20choose%20%60Code%2FPocketMageOS%2F%60.%0A5.%20Build%20from%20the%20PlatformIO%20toolbar%20or%20the%20command%20palette.%0A%0A%23%23%23%20macOS%0A%0AUse%20the%20same%20steps%20as%20Linux.%20No%20extra%20setup%20is%20required.%0A%0A%23%23%23%20Windows%0A%0A1.%20Install%20%5BGit%5D(https%3A%2F%2Fgit-scm.com%2F)%20to%20clone%20the%20repository.%0A2.%20Follow%20the%20same%20PlatformIO%20IDE%20steps%20as%20Linux.%0A3.%20Build%20from%20the%20PlatformIO%20toolbar%20in%20VS%20Code.%0A%0A%23%23%20Command%20line%0A%0AFrom%20%60Code%2FPocketMageOS%2F%60%3A%0A%0A%60%60%60bash%0Apio%20run%20-e%20PM_PRODUCTION%20%20%20%23%20production%20firmware%0Apio%20run%20-e%20PM_BETA%20%20%20%20%20%20%20%20%20%23%20beta%20firmware%0A%60%60%60%0A%0A%23%23%20ELF%20apps%0A%0AThird-party%20apps%20are%20not%20built%20with%20this%20environment%20set.%20They%20are%20compiled%20against%20the%20PocketMage%20SDK%20into%20%60.app.elf%60%20files%2C%20packaged%20with%20an%20icon%20as%20a%20%60.tar%60%2C%20and%20installed%20through%20the%20app%20loader.%20See%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)%20and%20the%20%5Bapp%20loader%20section%5D(..%2Fcommand-manual%2Findex.md)%20of%20the%20command%20manual.%0A%0A%23%23%20Testing%0A%0AThere%20is%20no%20automated%20test%20suite%20for%20the%20firmware.%20Verify%20changes%20against%20real%20hardware%2C%20or%20review%20the%20build%20log%20for%20changes%20with%20no%20runtime%20effect.%20CI%20builds%20%60PM_PRODUCTION%60%20and%20%60PM_BETA%60%20on%20every%20push%2C%20so%20a%20clean%20build%20locally%20is%20the%20minimum%20bar%20before%20opening%20a%20pull%20request.%0A%0A%23%23%20Next%20steps%0A%0A%3A%3A%3A%20grids%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22PocketMageOS%20overview%22%20.%2Findex.md%20icon%3Acpu%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22Making%20Apps%22%20..%2Fguides%2Fmaking-apps.md%20icon%3Acode%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22ELF%20Apps%22%20..%2Fguides%2Felf-apps.md%20icon%3Apackage%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22Firmware%20FAQ%22%20..%2Ffaq%2Findex.md%20icon%3Ahelp-circle%0A%3A%3A%3A%0A%3A%3A%3A%0A" style="display: none;"></div>
+                  <div id="docmd-raw-markdown" data-content="---%0Atitle%3A%20%22Build%20Environments%20%26%20PlatformIO%20Setup%22%0Adescription%3A%20%22How%20to%20set%20up%20PlatformIO%20and%20build%20PocketMage%20firmware%20on%20Linux%2C%20macOS%2C%20and%20Windows.%22%0A---%0A%0A%23%20Build%20Environments%20%26%20PlatformIO%20Setup%0A%0APocketMage%20firmware%20is%20built%20with%20%5BPlatformIO%5D(https%3A%2F%2Fplatformio.org%2F).%20The%20build%20configuration%20lives%20in%20%60Code%2FPocketMageOS%2Fplatformio.ini%60%20and%20defines%20two%20environments%20that%20produce%20the%20firmware%20variants.%20Third-party%20apps%20are%20not%20built%20in%20this%20tree%3B%20they%20are%20compiled%20against%20the%20PocketMage%20SDK%20(see%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)).%0A%0A%23%23%20The%20two%20build%20environments%0A%0A%7C%20Environment%20%7C%20Target%20%7C%20Purpose%20%7C%0A%7C%20---%20%7C%20---%20%7C%20---%20%7C%0A%7C%20%60PM_PRODUCTION%60%20%7C%20Production%20hardware%20(N16R2%2C%20Quad%20PSRAM%20enabled)%20%7C%20The%20stable%20OS%20image%20flashed%20to%20production%20devices%20%7C%0A%7C%20%60PM_BETA%60%20%7C%20Beta%20hardware%20(N16R8%2C%20PSRAM%20forced%20disabled)%20%7C%20A%20test%20build%20with%20the%20latest%20changes%20%7C%0A%0AThe%20two%20environments%20share%20a%20common%20%60%5Bcommon%5D%60%20section%20and%20differ%20in%20hardware%20target%20and%20version%20string.%0A%0ARunning%20%60pio%20run%60%20with%20no%20arguments%20builds%20both%20defaults%20(%60PM_PRODUCTION%60%20and%20%60PM_BETA%60).%20Build%20one%20explicitly%20with%20%60pio%20run%20-e%20%3Cname%3E%60.%0A%0A%23%23%20Prerequisites%0A%0A-%20%5BVS%20Code%5D(https%3A%2F%2Fcode.visualstudio.com%2F)%20installed%0A-%20Python%203%20installed%0A-%20PlatformIO%20Core%20(installed%20automatically%20by%20the%20VS%20Code%20extension%2C%20or%20via%20%60pip%20install%20platformio%60)%0A-%20The%20PocketMage%20source%20code%2C%20cloned%20from%20%5BGitHub%5D(https%3A%2F%2Fgithub.com%2FTalismanDesign%2FPocketMage_PDA)%0A%0AThe%20ESP32%20platform%20support%20downloads%20automatically%20on%20the%20first%20build%2C%20so%20the%20first%20build%20is%20noticeably%20slower.%0A%0A%23%23%20Setup%0A%0A%23%23%23%20Linux%0A%0A1.%20Install%20%60python3-venv%60%20if%20it%20is%20missing%3A%0A%0A%20%20%20%60%60%60bash%0A%20%20%20sudo%20apt%20install%20python3-venv%0A%20%20%20%60%60%60%0A%0A2.%20Install%20the%20%5BPlatformIO%20IDE%5D(https%3A%2F%2Fdocs.platformio.org%2Fen%2Flatest%2Fintegration%2Fide%2Fvscode.html%23ide-vscode)%20extension%20in%20VS%20Code.%0A3.%20Open%20the%20PocketMage%20source%20folder%20in%20VS%20Code.%0A4.%20When%20PlatformIO%20asks%20for%20a%20project%20folder%2C%20choose%20%60Code%2FPocketMageOS%2F%60.%0A5.%20Build%20from%20the%20PlatformIO%20toolbar%20or%20the%20command%20palette.%0A%0A%23%23%23%20macOS%0A%0AUse%20the%20same%20steps%20as%20Linux.%20No%20extra%20setup%20is%20required.%0A%0A%23%23%23%20Windows%0A%0A1.%20Install%20%5BGit%5D(https%3A%2F%2Fgit-scm.com%2F)%20to%20clone%20the%20repository.%0A2.%20Follow%20the%20same%20PlatformIO%20IDE%20steps%20as%20Linux.%0A3.%20Build%20from%20the%20PlatformIO%20toolbar%20in%20VS%20Code.%0A%0A%23%23%20Command%20line%0A%0AFrom%20%60Code%2FPocketMageOS%2F%60%3A%0A%0A%60%60%60bash%0Apio%20run%20-e%20PM_PRODUCTION%20%20%20%23%20production%20firmware%0Apio%20run%20-e%20PM_BETA%20%20%20%20%20%20%20%20%20%23%20beta%20firmware%0A%60%60%60%0A%0A%23%23%20ELF%20apps%0A%0AThird-party%20apps%20are%20not%20built%20with%20this%20environment%20set.%20They%20are%20compiled%20against%20the%20PocketMage%20SDK%20into%20%60.app.elf%60%20files%2C%20packaged%20with%20an%20icon%20as%20a%20%60.tar%60%2C%20and%20installed%20through%20the%20app%20loader.%20See%20%5BELF%20Apps%5D(..%2Fguides%2Felf-apps.md)%20and%20the%20%5Bapp%20loader%20section%5D(..%2Fcommand-manual%2Findex.md)%20of%20the%20command%20manual.%0A%0A%23%23%20Testing%0A%0ARun%20the%20hardware-independent%20firmware%20tests%20from%20%60Code%2FPocketMageOS%60%20with%20Python%203%0Aand%20a%20C%2B%2B%20compiler%20supporting%20AddressSanitizer%20and%20UndefinedBehaviorSanitizer%3A%0A%0A%60%60%60sh%0Apython3%20-m%20unittest%20discover%20-s%20tests%2Fhost%20-p%20&#039;test_*.py&#039;%0A%60%60%60%0A%0ACI%20builds%20%60PM_PRODUCTION%60%20and%20%60PM_BETA%60%20on%20every%20push.%20Verify%20hardware%20behavior%20on%0Athe%20device%3B%20see%20%5BCrash%20logs%5D(.%2Fcrash-logs.md)%20for%20reading%20crash%20reports%20after%20a%20reboot.%0A%0A%23%23%20Next%20steps%0A%0A%3A%3A%3A%20grids%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22PocketMageOS%20overview%22%20.%2Findex.md%20icon%3Acpu%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22Making%20Apps%22%20..%2Fguides%2Fmaking-apps.md%20icon%3Acode%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22ELF%20Apps%22%20..%2Fguides%2Felf-apps.md%20icon%3Apackage%0A%3A%3A%3A%0A%3A%3A%3A%20grid%0A%3A%3A%3A%20button%20%22Firmware%20FAQ%22%20..%2Ffaq%2Findex.md%20icon%3Ahelp-circle%0A%3A%3A%3A%0A%3A%3A%3A%0A" style="display: none;"></div>
                   
                     <nav aria-label="breadcrumb" class="docmd-breadcrumbs">
                       <ol>
@@ -1608,7 +1644,12 @@ pio run <span class="hljs-operator">-</span>e PM_BETA         <span class="hljs-
 <h2 id="build-environments-platformio-setup-elf-apps" class="docmd-heading"><a href="#build-environments-platformio-setup-elf-apps" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>ELF apps</h2>
 <p>Third-party apps are not built with this environment set. They are compiled against the PocketMage SDK into <code>.app.elf</code> files, packaged with an icon as a <code>.tar</code>, and installed through the app loader. See <a href="../../guides/elf-apps/">ELF Apps</a> and the <a href="../../command-manual/">app loader section</a> of the command manual.</p>
 <h2 id="build-environments-platformio-setup-testing" class="docmd-heading"><a href="#build-environments-platformio-setup-testing" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Testing</h2>
-<p>There is no automated test suite for the firmware. Verify changes against real hardware, or review the build log for changes with no runtime effect. CI builds <code>PM_PRODUCTION</code> and <code>PM_BETA</code> on every push, so a clean build locally is the minimum bar before opening a pull request.</p>
+<p>Run the hardware-independent firmware tests from <code>Code/PocketMageOS</code> with Python 3<br>
+and a C++ compiler supporting AddressSanitizer and UndefinedBehaviorSanitizer:</p>
+<pre class="hljs"><code class="language-sh">python3 <span class="hljs-operator">-</span>m unittest discover <span class="hljs-operator">-</span>s tests<span class="hljs-operator">/</span>host <span class="hljs-operator">-</span>p <span class="hljs-string">&#039;test_*.py&#039;</span>
+</code></pre>
+<p>CI builds <code>PM_PRODUCTION</code> and <code>PM_BETA</code> on every push. Verify hardware behavior on<br>
+the device; see <a href="../crash-logs/">Crash logs</a> for reading crash reports after a reboot.</p>
 <h2 id="build-environments-platformio-setup-next-steps" class="docmd-heading"><a href="#build-environments-platformio-setup-next-steps" class="heading-anchor" aria-label="Permalink to this section"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2-icon lucide-link-2"><path d="M9 17H7A5 5 0 0 1 7 7h2m6 0h2a5 5 0 1 1 0 10h-2m-7-5h8"/></svg></a>Next steps</h2>
 <div class="docmd-container grids">
 <div class="docmd-container grid-item">
@@ -1836,13 +1877,13 @@ Firmware FAQ</a></div>
             <div class="page-footer-actions">
               
               
-                <span class="git-last-updated" data-timestamp="1793506341000">
+                <span class="git-last-updated" data-timestamp="1795660008000">
                   <svg class="git-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                   </svg>
                   <span class="git-label">Last updated:</span>
-                  <span class="git-time" data-timestamp="1793506341000"></span>
+                  <span class="git-time" data-timestamp="1795660008000"></span>
                   
                   <div class="git-commit-tooltip" role="tooltip">
                     <div class="git-tooltip-title">Recent commits</div>
@@ -1855,10 +1896,10 @@ Firmware FAQ</a></div>
                             
                           </div>
                           <div class="git-commit-details">
-                            <div class="git-commit-message" title="Merge pull request #335 from TalismanDesign/dependabot/npm_and_yarn/Docs/multi-966316473a">Merge pull request #335 from Talisman...</div>
+                            <div class="git-commit-message" title="Merge pull request #336 from TalismanDesign/develop">Merge pull request #336 from Talisman...</div>
                             <div class="git-commit-meta">
                               <span class="git-commit-author">NellowTCS</span>
-                              <span class="git-commit-date" data-timestamp="1793506341000"></span>
+                              <span class="git-commit-date" data-timestamp="1795660008000"></span>
                             </div>
                           </div>
                         </li>
@@ -1966,14 +2007,14 @@ Firmware FAQ</a></div>
         </div>
       </div>
       
-      <script src="../../assets/js/docmd-main.js?v=mvxbe4hx"></script>
+      <script src="../../assets/js/docmd-main.js?v=mwwxmrbb"></script>
       
-      <script src="../../assets/js/docmd-git.js?v=mvxbe4hx"></script>
-      <script src="../../assets/js/docmd-image-lightbox.js?v=mvxbe4hx" ></script>
-<script src="../../assets/js/vendor/minisearch.js?v=mvxbe4hx" ></script>
-<script src="../../assets/js/docmd-search.js?v=mvxbe4hx" ></script>
-<script src="../../assets/js/docmd-git.js?v=mvxbe4hx" ></script>
-<script src="../../assets/js/docmd-ai.js?v=mvxbe4hx" ></script>
+      <script src="../../assets/js/docmd-git.js?v=mwwxmrbb"></script>
+      <script src="../../assets/js/docmd-image-lightbox.js?v=mwwxmrbb" ></script>
+<script src="../../assets/js/vendor/minisearch.js?v=mwwxmrbb" ></script>
+<script src="../../assets/js/docmd-search.js?v=mwwxmrbb" ></script>
+<script src="../../assets/js/docmd-git.js?v=mwwxmrbb" ></script>
+<script src="../../assets/js/docmd-ai.js?v=mwwxmrbb" ></script>
 
   <!-- Search Modal (Injected by @docmd/plugin-search) -->
   <div id="docmd-search-modal" class="docmd-search-modal" style="display: none;" data-semantic="true" data-show-confidence="true" data-show-filters="true"
@@ -2049,7 +2090,7 @@ Firmware FAQ</a></div>
     </script>
 
 <script>window.__git_config={"repo":"https://github.com/TalismanDesign/PocketMage_PDA/edit/main/Docs/docs","branch":"main","editLink":true,"lastUpdated":true,"commitHistory":true,"maxCommits":5,"dateFormat":"relative"};window.__git_i18n={"lastUpdated":"Last updated","recentCommits":"Recent commits","viewCommitHistory":"View commit history","editOnGitHub":"Edit on GitHub","editOnGitLab":"Edit on GitLab","editOnBitbucket":"Edit on Bitbucket","editThisPage":"Edit this page","justNow":"just now","minutesAgo":"{n}m ago","hoursAgo":"{n}h ago","daysAgo":"{n}d ago"}</script>
-<div id="docmd-ai-root"></div><script>window.__docmd_ai_config={"endpoint":"","cloud":{},"captcha":true,"position":"bottom-center","siteTitle":"PocketMage","siteBase":"/PocketMage_PDA/docs/","siteUrl":"https://talismandesign.github.io/PocketMage_PDA/docs","versions":null,"i18n":null,"navigation":[{"title":"Home","path":"/","icon":"home"},{"title":"Get Started","icon":"rocket","collapsible":true,"path":"/getting-started/","children":[{"title":"What is PocketMage","path":"/getting-started/what-is-pocketmage/","icon":"info"},{"title":"Features","path":"/features/","icon":"star"},{"title":"Format a MicroSD Card","path":"/tutorials/format-micro-sd/","icon":"card-sd"}]},{"title":"Using the Device","icon":"keyboard","collapsible":true,"path":"/command-manual/","children":[{"title":"Command Manual","path":"/command-manual/","icon":"keyboard"},{"title":"FAQ","path":"/faq/","icon":"help-circle"}]},{"title":"Architecture","icon":"cpu","collapsible":true,"path":"/development/","children":[{"title":"PocketMageOS overview","path":"/development/","icon":"cpu"},{"title":"System architecture","path":"/development/architecture/","icon":"layers"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"Building & Flashing","icon":"settings","collapsible":true,"path":"/development/build-environments/","children":[{"title":"Build Environments","path":"/development/build-environments/","icon":"settings"}]},{"title":"Apps & Scripting","icon":"package","collapsible":true,"path":"/guides/","children":[{"title":"Making Apps","path":"/guides/making-apps/","icon":"code"},{"title":"Native Apps","path":"/guides/native-apps/","icon":"terminal"},{"title":"ELF Apps","path":"/guides/elf-apps/","icon":"package"},{"title":"Scripting overview","path":"/scripting/","icon":"terminal"},{"title":"Basic Input/Output","path":"/scripting/example-c/","icon":"terminal"},{"title":"E-Ink Drawing","path":"/scripting/ink-c/","icon":"image"},{"title":"OLED Drawing","path":"/scripting/oled-c/","icon":"monitor"},{"title":"Full Command Reference","path":"/scripting/fullPotionCommandList/","icon":"book"}]},{"title":"Reference","icon":"book","collapsible":true,"path":"/reference/","children":[{"title":"App API","path":"/reference/app-api/","icon":"code"},{"title":"PocketMage Library","path":"/reference/pocketmage-library/","icon":"box"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"SDK docs","path":"https://talismandesign.github.io/PocketMage_SDK/docs","icon":"boxes","external":true},{"title":"GitHub","path":"https://github.com/TalismanDesign/PocketMage_PDA","icon":"github","external":true}],"searchCapabilities":{"keyword":true,"semantic":true},"isWorkspace":false,"workspaceProjects":[],"messageActions":false,"contextLimit":5};</script>
+<div id="docmd-ai-root"></div><script>window.__docmd_ai_config={"endpoint":"","cloud":{},"captcha":true,"position":"bottom-center","siteTitle":"PocketMage","siteBase":"/PocketMage_PDA/docs/","siteUrl":"https://talismandesign.github.io/PocketMage_PDA/docs","versions":null,"i18n":null,"navigation":[{"title":"Home","path":"/","icon":"home"},{"title":"Get Started","icon":"rocket","collapsible":true,"path":"/getting-started/","children":[{"title":"What is PocketMage","path":"/getting-started/what-is-pocketmage/","icon":"info"},{"title":"Features","path":"/features/","icon":"star"},{"title":"Format a MicroSD Card","path":"/tutorials/format-micro-sd/","icon":"card-sd"}]},{"title":"Using the Device","icon":"keyboard","collapsible":true,"path":"/command-manual/","children":[{"title":"Command Manual","path":"/command-manual/","icon":"keyboard"},{"title":"FAQ","path":"/faq/","icon":"help-circle"}]},{"title":"Architecture","icon":"cpu","collapsible":true,"path":"/development/","children":[{"title":"PocketMageOS overview","path":"/development/","icon":"cpu"},{"title":"System architecture","path":"/development/architecture/","icon":"layers"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"Building & Flashing","icon":"settings","collapsible":true,"path":"/development/build-environments/","children":[{"title":"Build Environments","path":"/development/build-environments/","icon":"settings"},{"title":"Crash logs","path":"/development/crash-logs/","icon":"file-text"}]},{"title":"Apps & Scripting","icon":"package","collapsible":true,"path":"/guides/","children":[{"title":"Making Apps","path":"/guides/making-apps/","icon":"code"},{"title":"Native Apps","path":"/guides/native-apps/","icon":"terminal"},{"title":"ELF Apps","path":"/guides/elf-apps/","icon":"package"},{"title":"Scripting overview","path":"/scripting/","icon":"terminal"},{"title":"Basic Input/Output","path":"/scripting/example-c/","icon":"terminal"},{"title":"E-Ink Drawing","path":"/scripting/ink-c/","icon":"image"},{"title":"OLED Drawing","path":"/scripting/oled-c/","icon":"monitor"},{"title":"Full Command Reference","path":"/scripting/fullPotionCommandList/","icon":"book"}]},{"title":"Reference","icon":"book","collapsible":true,"path":"/reference/","children":[{"title":"App API","path":"/reference/app-api/","icon":"code"},{"title":"PocketMage Library","path":"/reference/pocketmage-library/","icon":"box"},{"title":"System State","path":"/reference/system-state/","icon":"settings"}]},{"title":"SDK docs","path":"https://talismandesign.github.io/PocketMage_SDK/docs","icon":"boxes","external":true},{"title":"GitHub","path":"https://github.com/TalismanDesign/PocketMage_PDA","icon":"github","external":true}],"searchCapabilities":{"keyword":true,"semantic":true},"isWorkspace":false,"workspaceProjects":[],"messageActions":false,"contextLimit":5};</script>
       
       
       

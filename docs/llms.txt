@@ -18,6 +18,8 @@
   How PocketMageOS is put together: the boot path, the dispatch state machine, the two-display model, storage, and the two ways apps run.
 - [Build Environments & PlatformIO Setup](https://talismandesign.github.io/PocketMage_PDA/docs/development/build-environments/)
   How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows.
+- [Crash logs](https://talismandesign.github.io/PocketMage_PDA/docs/development/crash-logs/)
+  Capture a panic across reboot, retrieve its SD report, and decode firmware addresses.
 - [PocketMageOS](https://talismandesign.github.io/PocketMage_PDA/docs/development/)
   The PocketMage operating system and app runtime.
 

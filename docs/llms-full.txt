@@ -400,6 +400,31 @@ The OS keeps shared runtime state in `globals.h`: the active app, the home sub-s
 
 Files live on a microSD card, reached through the library's SD module (`PM_SD()`). The OS tracks a working file and an editing file for save/load flows, and installed ELF apps live in four slots under `/apps/slot1` through `/apps/slot4`, tracked in NVS as `ELFINFO1` through `ELFINFO4`.
 
+The SD gateway owns file I/O. Streams, directory cursors, and the snapshot are scoped to
+their calling task; app exit closes that task's resources after callbacks finish.
+The base ELF stream closes after relocation, and overlays use logical handles
+with short-lived reads. USB transfer claims exclusive card access only after
+audio and HID shutdown and a successful FAT unmount. The card is not unmounted
+or put to sleep while a directory is still open.
+
+Wi-Fi setup at boot does not create the Wi-Fi worker task or its 10,240-byte
+stack. The first `enable()` creates them, and `stop()` frees them again.
+
+## Shared audio and USB
+
+Native and ELF apps share the SDK's audio, media, drawing, and idle services.
+Generated C wrappers preserve the ABI 2 boundary; compatibility adapters retain
+legacy signatures. Metadata parsing, PCM gain/timing, and NVS audio preferences
+live in the SDK rather than in PocketMuse. USB and piezo audio each use an 8 KiB
+buffer, which holds a full 4,608-byte decoded MP3 frame.
+
+The connector has one owner: debug serial, audio host, keyboard host, or storage
+device. Serial is the default, including Piezo and unattached Auto audio use.
+Unsupported audio probes are bounded and suppressed until reattachment or an
+output-selection change. HID teardown joins workers and drains devices before
+releasing the PHY. Failed teardown retains ownership for retry. Transfer mode
+and deep sleep both require checked audio/HID shutdown.
+
 ## How apps run
 
 Native and ELF apps share the three-function shape; they differ only in where the code ships and how it is loaded.
@@ -420,6 +445,7 @@ sequenceDiagram
     RN->>APP: start 16 KB task, run entry
     Note over OS,APP: OS loop and E-Ink task stand down
     APP-->>RN: entry returns
+    RN->>APP: stop audio, run finalizers and exit hooks, close task SD resources
     RN->>OV: unload overlay
     RN->>OS: reopen HOME
 ```
@@ -519,7 +545,15 @@ Third-party apps are not built with this environment set. They are compiled agai
 
 ## Testing
 
-There is no automated test suite for the firmware. Verify changes against real hardware, or review the build log for changes with no runtime effect. CI builds `PM_PRODUCTION` and `PM_BETA` on every push, so a clean build locally is the minimum bar before opening a pull request.
+Run the hardware-independent firmware tests from `Code/PocketMageOS` with Python 3
+and a C++ compiler supporting AddressSanitizer and UndefinedBehaviorSanitizer:
+
+```sh
+python3 -m unittest discover -s tests/host -p 'test_*.py'
+```
+
+CI builds `PM_PRODUCTION` and `PM_BETA` on every push. Verify hardware behavior on
+the device; see [Crash logs](./crash-logs.md) for reading crash reports after a reboot.
 
 ## Next steps
 
@@ -537,6 +571,116 @@ There is no automated test suite for the firmware. Verify changes against real h
 ::: button "Firmware FAQ" ../faq/index.md icon:help-circle
 :::
 :::
+
+
+---
+
+## [Crash logs](https://talismandesign.github.io/PocketMage_PDA/docs/development/crash-logs/) (Development)
+
+---
+title: "Crash logs"
+description: "Capture a panic across reboot, retrieve its SD report, and decode firmware addresses."
+---
+
+# Crash logs
+
+When PocketMageOS crashes, it keeps a short record of the crash in memory that
+survives a reboot. After the device starts again, it saves that record to the SD
+card as a text report. Both firmware environments have this turned on.
+
+## Retrieve a report
+
+1. Flash the firmware and keep its exact `firmware.elf` and `firmware.bin`
+   together. Rebuilding can change code addresses.
+2. Reproduce the failure with a writable SD card installed.
+3. Let the device reboot and finish starting up without removing power.
+4. Copy `/logs/crash/crash-*.txt` from the card, either through USB file transfer or
+   by reading the card on a computer.
+
+The filename is `crash-<boot nonce>-<record CRC>.txt`. The serial log's `CRASH` tag
+prints `Saved /logs/crash/...` when the report is written. If saving fails, the report
+stays pending and the OS tries again every five seconds. If no card was mounted at
+boot, insert one and restart without removing power; inserting a card alone does
+not mount it.
+
+You can also read the report over serial. Unplug any USB accessory, connect a
+computer and open the serial monitor at 115200 baud. The report is sent each time
+a USB serial connection is detected, so reconnect the cable if you opened the
+monitor after the device was already connected.
+
+## What is captured
+
+- The panic reason, and the message from `abort()` or a failed assertion.
+- The core, the current task name, the fault PC and up to 60 backtrace PCs.
+- The Xtensa registers (A0-A15, PS, SAR, EXCCAUSE, EXCVADDR, LBEG, LEND, LCOUNT)
+  when an exception frame is available.
+- The firmware's ELF SHA256 and the uptime in milliseconds.
+- A snapshot of the OS taken by the main loop shortly before the crash: the
+  active app, whether an ELF app was running, which feature owned the USB port,
+  the free, largest and lowest-ever internal heap, and the number of tasks. The
+  report shows how old the snapshot is.
+- The last 1 KB of SDK log lines, under `Recent log:`. These come from the
+  logger's memory, so they are there even when logging to a file is off. See
+  [Logging](https://talismandesign.github.io/PocketMage_SDK/docs/api/log/)
+  for the line format.
+
+## Decode firmware addresses
+
+Use the **exact ELF from the flashed build**. Check that its SHA256 matches the
+report's `Firmware ELF SHA256` line:
+
+```sh
+shasum -a 256 firmware.elf
+```
+
+From the directory containing that ELF, run:
+
+```sh
+"$HOME/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32s3-elf-addr2line" \
+  -aipfC -e firmware.elf
+```
+
+Paste the addresses from the report's `Backtrace PCs:` line, then press `Ctrl-D`.
+The tool prints the function and source line for each address. If the backtrace is
+corrupt, the report's `PC` line is still useful. `EXCVADDR` is the address that was
+accessed, not a code address.
+
+The firmware ELF only covers the OS, the SDK and the USB driver. Addresses inside
+an ELF app need that app's own build files, so keep them with the report.
+
+## How it works
+
+`src/diagnostics/crash_log.cpp` hooks Arduino's panic handler before
+`PocketMage_INIT()` runs, using the `-Wl,--wrap=esp_panic_handler` linker flag. At
+crash time it only copies data into RTC memory that survives a reboot. It does not
+touch the SD card, serial or the heap.
+
+After the next boot, `pm_crash::poll()` writes the report to a temporary file,
+reads it back to check it, and renames it to `.txt`. A report is never written
+over an existing file. Saving waits while the card is in USB file transfer mode.
+
+Only the latest crash is kept in memory; saved reports pile up on the card. A
+power loss, a brownout or a device that hangs without crashing leaves no report.
+This is a crash summary, not a full core dump.
+
+## Build and test
+
+From `Code/PocketMageOS`:
+
+```sh
+pio run -e PM_BETA -j 2
+python3 -m unittest discover -s tests/host -p test_crash_log.py
+```
+
+Use `PM_PRODUCTION` for production hardware. The tests need a C++17 compiler with
+AddressSanitizer and UndefinedBehaviorSanitizer. They run the real capture and
+report code against simulated hardware, so check a real crash report to confirm
+behavior on the device.
+
+Upstream references:
+[fatal errors](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/fatal-errors.html),
+[RTC memory](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/memory-types.html),
+[FatFs rename](https://elm-chan.org/fsw/ff/doc/rename.html).
 
 
 ---
@@ -629,6 +773,7 @@ Both follow the same three-function shape. The difference is where the code ship
 - `Code/PocketMageOS/lib/PocketMage_SDK/` - the reusable hardware layer (the PocketMage SDK, vendored as a submodule)
 - `Code/PocketMageOS/lib/elf_overlay/` - the overlay runtime that pages ELF-app code into executable RAM
 - `Code/PocketMageOS/src/elf_runner.cpp` - loads and runs installed ELF apps
+- `Code/PocketMageOS/src/diagnostics/` - retained panic capture and post-reboot [crash reports](./crash-logs.md)
 
 ## Next steps
 

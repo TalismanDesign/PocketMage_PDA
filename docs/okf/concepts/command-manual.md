@@ -4,10 +4,10 @@ title: "PocketMage Command Manual"
 description: "Keystrokes and command reference for the PocketMage PDA."
 source: "https://talismandesign.github.io/PocketMage_PDA/docs/command-manual/"
 path: /command-manual/
-updated: 2026-11-01
+updated: 2026-11-26
 okf:
   generated_by: "@docmd/plugin-okf"
-  generated_at: "2026-11-01T04:13:17.668Z"
+  generated_at: "2026-11-26T02:27:40.172Z"
 ---
 ---
 title: "PocketMage Command Manual"

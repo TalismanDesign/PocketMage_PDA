@@ -23,6 +23,10 @@
           "path": "development/build-environments.md"
         },
         {
+          "title": "Crash Logs",
+          "path": "development/crash-logs.md"
+        },
+        {
           "title": "Index",
           "path": "development/index.md"
         }

@@ -6,13 +6,13 @@
     "description": "",
     "url": "https://talismandesign.github.io/PocketMage_PDA/docs",
     "generated_by": "@docmd/plugin-okf",
-    "generated_at": "2026-11-01T04:13:17.679Z",
+    "generated_at": "2026-11-26T02:27:40.180Z",
     "default_type": "concept"
   },
   "stats": {
-    "concepts": 24,
+    "concepts": 25,
     "by_type": {
-      "concept": 16,
+      "concept": 17,
       "guide": 4,
       "reference": 4
     },
@@ -49,6 +49,17 @@
       "description": "How to set up PlatformIO and build PocketMage firmware on Linux, macOS, and Windows.",
       "path": "/development/build-environments/",
       "file": "concepts/development-build-environments.md",
+      "locale": "",
+      "version": "",
+      "tags": []
+    },
+    {
+      "id": "development-crash-logs",
+      "type": "concept",
+      "title": "Crash logs",
+      "description": "Capture a panic across reboot, retrieve its SD report, and decode firmware addresses.",
+      "path": "/development/crash-logs/",
+      "file": "concepts/development-crash-logs.md",
       "locale": "",
       "version": "",
       "tags": []

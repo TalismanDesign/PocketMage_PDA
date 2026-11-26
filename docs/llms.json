@@ -24,6 +24,13 @@
       "priority": "medium"
     },
     {
+      "title": "Crash logs",
+      "url": "https://talismandesign.github.io/PocketMage_PDA/docs/development/crash-logs/",
+      "description": "Capture a panic across reboot, retrieve its SD report, and decode firmware addresses.",
+      "section": "Development",
+      "priority": "medium"
+    },
+    {
       "title": "PocketMageOS",
       "url": "https://talismandesign.github.io/PocketMage_PDA/docs/development/",
       "description": "The PocketMage operating system and app runtime.",
